@@ -103,13 +103,19 @@ def main():
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    # 参議院議員をキャッシュ（スペース除去で正規化）
+    # 参議院議員をキャッシュ（スペース除去・[正字]対応で正規化）
     logger.info("参議院議員を取得中...")
     members = client.table("members").select("id, name").eq("house", "参議院").execute()
     member_map = {}
     for m in members.data:
-        key = m["name"].replace(" ", "").replace("　", "").strip()
-        member_map[key] = m["id"]
+        full = m["name"]
+        member_id = m["id"]
+        key1 = full.replace(" ", "").replace("　", "").strip()
+        member_map[key1] = member_id
+        if "[" in full:
+            short = full.split("[")[0]
+            key2 = short.replace(" ", "").replace("　", "").strip()
+            member_map[key2] = member_id
     logger.info(f"参議院議員: {len(member_map)}名")
 
     # 委員会URL一覧を取得
@@ -121,6 +127,8 @@ def main():
 
     for url in urls:
         committee_name, members_list = scrape_committee(url)
+        if committee_name:
+            committee_name = committee_name.replace("委員名簿：", "").replace("委員名簿", "").strip()
         if not committee_name or not members_list:
             logger.warning(f"スキップ: {url}")
             time.sleep(0.5)
