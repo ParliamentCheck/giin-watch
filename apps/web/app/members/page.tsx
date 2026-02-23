@@ -7,6 +7,7 @@ interface Member {
   id: string;
   name: string;
   party: string;
+  faction: string | null;
   house: string;
   district: string;
   prefecture: string;
@@ -17,6 +18,7 @@ interface Member {
 const PARTY_COLORS: Record<string, string> = {
   "自民党":         "#c0392b",
   "立憲民主党":     "#2980b9",
+  "中道改革連合":   "#3498db",
   "公明党":         "#8e44ad",
   "日本維新の会":   "#e67e22",
   "国民民主党":     "#27ae60",
@@ -24,6 +26,10 @@ const PARTY_COLORS: Record<string, string> = {
   "れいわ新選組":   "#e91e63",
   "社民党":         "#795548",
   "参政党":         "#ff6d00",
+  "チームみらい":   "#00bcd4",
+  "日本保守党":     "#607d8b",
+  "沖縄の風":       "#009688",
+  "有志の会":       "#9c27b0",
   "無所属":         "#7f8c8d",
 };
 
@@ -53,7 +59,6 @@ export default function MembersPage() {
   }, []);
 
   const parties = Array.from(new Set(members.map((m) => m.party))).sort();
-  console.log("政党一覧:", parties);
 
   const filtered = members.filter((m) => {
     if (search && !m.name.includes(search) && !m.district.includes(search)) return false;
@@ -61,6 +66,14 @@ export default function MembersPage() {
     if (selectedParty && m.party !== selectedParty) return false;
     return true;
   });
+
+  // 会派が政党と異なる場合のみ表示する
+  const showFaction = (m: Member) => {
+    if (!m.faction) return false;
+    if (m.faction === m.party) return false;
+    if (m.faction === "無所属" && m.party === "無所属") return false;
+    return true;
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
@@ -116,7 +129,7 @@ export default function MembersPage() {
         </div>
       ) : (
         <div style={{ display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
           {filtered.map((m) => {
             const color = PARTY_COLORS[m.party] || "#7f8c8d";
             return (
@@ -125,25 +138,25 @@ export default function MembersPage() {
                   borderRadius: 12, padding: 18, transition: "all 0.2s", cursor: "pointer" }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%",
+
+                {/* 議員名・選挙区 */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
                     background: "#1e293b", border: `2px solid ${color}`,
                     display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
                     👤
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9" }}>{m.name}</div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{m.district}</div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>{m.district} · {m.house}</div>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+
+                {/* 政党バッジ */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
                   <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
                     padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
-                    {m.party}
-                  </span>
-                  <span style={{ background: "#1e293b", color: "#64748b",
-                    padding: "2px 8px", borderRadius: 4, fontSize: 11 }}>
-                    {m.house}
+                    🗳 {m.party}
                   </span>
                   {m.terms && (
                     <span style={{ background: "#1e293b", color: "#64748b",
@@ -152,6 +165,17 @@ export default function MembersPage() {
                     </span>
                   )}
                 </div>
+
+                {/* 会派（政党と異なる場合のみ表示） */}
+                {showFaction(m) && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <span style={{ background: "#1e293b", color: "#94a3b8",
+                      border: "1px solid #334155", padding: "2px 8px",
+                      borderRadius: 4, fontSize: 11 }}>
+                      🏛 会派: {m.faction}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}
