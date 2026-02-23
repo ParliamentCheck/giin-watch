@@ -9,6 +9,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
 SANGIIN_BASE = "https://www.sangiin.go.jp/japanese/joho1/kousei/giin"
+SHUGIIN_BASE = "https://www.shugiin.go.jp/internet/itdb_annai.nsf/html/statics/syu/"
 
 PARTY_MAP = {
     '自由民主': '自民党', '自民': '自民党',
@@ -23,8 +24,7 @@ PARTY_MAP = {
     'チームみらい': 'チームみらい',
     '日本保守': '日本保守党',
     '沖縄の風': '沖縄の風',
-    '中道改革連合': '中道改革連合',
-    '中道': '中道改革連合',
+    '中道改革連合': '中道改革連合', '中道': '中道改革連合',
     '有志': '有志の会',
     '各派に属しない': '無所属',
     '無所属': '無所属',
@@ -34,10 +34,12 @@ def normalize_party(raw: str) -> str:
     raw = raw.strip()
     if not raw or len(raw) <= 1:
         return '無所属'
-    for key, full in PARTY_MAP.items():
+    # 長いキーから先にマッチさせる（短いキーの誤マッチを防ぐ）
+    for key, full in sorted(PARTY_MAP.items(), key=lambda x: len(x[0]), reverse=True):
         if key in raw:
             return full
     return raw
+
 
 def scrape_profile(profile_url: str) -> dict:
     try:
@@ -46,22 +48,26 @@ def scrape_profile(profile_url: str) -> dict:
         soup = BeautifulSoup(resp.text, 'html.parser')
         text = soup.get_text(separator=' | ', strip=True)
 
-        party = '無所属'
+        # 会派（生データをそのまま保存）
+        faction = '無所属'
         if '所属会派 |' in text:
-            raw = text.split('所属会派 |')[1].split('|')[0].strip()
-            party = normalize_party(raw)
+            faction = text.split('所属会派 |')[1].split('|')[0].strip()
 
+        # 政党（会派から変換）
+        party = normalize_party(faction)
+
+        # 選挙区
         district = '不明'
         if '選挙区・比例区' in text:
             raw = text.split('選挙区・比例区')[1]
-            raw = raw.split('|')[1].strip() if '|' in raw else '不明'
-            district = raw.split('／')[0].strip()
+            district = raw.split('|')[1].strip().split('／')[0].strip() if '|' in raw else '不明'
 
-        return {"party": party, "district": district}
+        return {"party": party, "faction": faction, "district": district}
 
     except Exception as e:
         logger.warning(f"プロフィール取得エラー {profile_url}: {e}")
-        return {"party": "無所属", "district": "不明"}
+        return {"party": "無所属", "faction": "無所属", "district": "不明"}
+
 
 def scrape_sangiin() -> list[dict]:
     logger.info("参議院議員一覧を取得中...")
@@ -86,16 +92,61 @@ def scrape_sangiin() -> list[dict]:
         members.append({
             "name":       name,
             "party":      detail["party"],
+            "faction":    detail["faction"],
             "district":   detail["district"],
             "prefecture": detail["district"],
             "house":      "参議院",
             "source_url": profile_url,
         })
 
-        logger.info(f"[{i+1}/{len(links)}] {name} / {detail['party']} / {detail['district']}")
+        logger.info(f"[{i+1}/{len(links)}] {name} / {detail['faction']} / {detail['party']} / {detail['district']}")
         time.sleep(1.0)
 
     return members
+
+
+def scrape_shugiin() -> list[dict]:
+    logger.info("衆議院議員一覧を取得中...")
+    members = []
+
+    for i in range(1, 11):
+        url = SHUGIIN_BASE + f'{i}giin.htm'
+        resp = httpx.get(url, headers=HEADERS, timeout=30)
+        resp.encoding = 'shift_jis'
+        soup = BeautifulSoup(resp.text, 'html.parser')
+
+        for row in soup.select('table tr'):
+            cells = row.select('td')
+            if len(cells) < 4:
+                continue
+            name = cells[0].get_text(strip=True).replace('君', '').replace('\u3000', ' ').strip()
+            if not name or len(name) < 2 or '氏名' in name or '行' in name:
+                continue
+            faction = cells[2].get_text(strip=True)
+            party   = normalize_party(faction)
+            district = cells[3].get_text(strip=True)
+            terms_raw = cells[4].get_text(strip=True) if len(cells) > 4 else '0'
+            try:
+                terms = int(''.join(filter(str.isdigit, terms_raw.split('(')[0])) or '0')
+            except:
+                terms = None
+
+            members.append({
+                "name":       name,
+                "party":      party,
+                "faction":    faction,
+                "district":   district,
+                "prefecture": district.replace('(比)', '').replace('（比）', '').rstrip('0123456789').strip(),
+                "house":      "衆議院",
+                "terms":      terms,
+            })
+
+        logger.info(f"ページ{i}完了")
+        time.sleep(1.0)
+
+    logger.info(f"衆議院 合計: {len(members)}名取得")
+    return members
+
 
 def register_members(members: list[dict], client):
     success = 0
@@ -108,9 +159,11 @@ def register_members(members: list[dict], client):
                 "id":         f"{m['house']}-{name}",
                 "name":       name,
                 "party":      m.get("party", "無所属"),
+                "faction":    m.get("faction"),
                 "house":      m["house"],
                 "district":   m.get("district", "不明"),
                 "prefecture": m.get("prefecture", "不明"),
+                "terms":      m.get("terms"),
                 "source_url": m.get("source_url"),
                 "is_active":  True,
             }).execute()
@@ -120,6 +173,7 @@ def register_members(members: list[dict], client):
 
     logger.info(f"登録完了: {success}名")
 
+
 def main():
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("環境変数が設定されていません")
@@ -127,16 +181,28 @@ def main():
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    # 参議院を全削除して入れ直し
+    # 全削除して入れ直し
     client.table('members').delete().eq('house', '参議院').execute()
-    logger.info("参議院データを削除しました")
+    client.table('members').delete().eq('house', '衆議院').execute()
+    logger.info("既存データを削除しました")
+
+    shugiin = scrape_shugiin()
+    if shugiin:
+        register_members(shugiin, client)
+
+    time.sleep(2)
 
     sangiin = scrape_sangiin()
     if sangiin:
         register_members(sangiin, client)
 
-    result = client.table('members').select('id', count='exact').execute()
-    logger.info(f"DB合計: {result.count}名")
+    shugiin_count = client.table('members').select('id', count='exact').eq('house', '衆議院').execute()
+    sangiin_count = client.table('members').select('id', count='exact').eq('house', '参議院').execute()
+    total = client.table('members').select('id', count='exact').execute()
+    logger.info(f"衆議院: {shugiin_count.count}名")
+    logger.info(f"参議院: {sangiin_count.count}名")
+    logger.info(f"DB合計: {total.count}名")
+
 
 if __name__ == "__main__":
     main()
