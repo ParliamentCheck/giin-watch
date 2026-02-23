@@ -34,6 +34,12 @@ interface Question {
   number: number;
 }
 
+interface CommitteeMember {
+  id: string;
+  committee: string;
+  role: string;
+}
+
 const PARTY_COLORS: Record<string, string> = {
   "自民党":         "#c0392b",
   "立憲民主党":     "#2980b9",
@@ -52,30 +58,41 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
+const ROLE_COLORS: Record<string, string> = {
+  "委員長": "#f59e0b",
+  "理事":   "#3b82f6",
+  "委員":   "#64748b",
+  "会長":   "#f59e0b",
+  "副会長": "#3b82f6",
+};
+
 export default function MemberDetailPage() {
   const params   = useParams();
   const router   = useRouter();
   const memberId = decodeURIComponent(params.id as string);
 
-  const [member,    setMember]    = useState<Member | null>(null);
-  const [speeches,  setSpeeches]  = useState<Speech[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [tab,       setTab]       = useState("overview");
+  const [member,     setMember]     = useState<Member | null>(null);
+  const [speeches,   setSpeeches]   = useState<Speech[]>([]);
+  const [questions,  setQuestions]  = useState<Question[]>([]);
+  const [committees, setCommittees] = useState<CommitteeMember[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [tab,        setTab]        = useState("committees");
 
   useEffect(() => {
     async function fetchAll() {
-      const [memberRes, speechRes, questionRes] = await Promise.all([
+      const [memberRes, speechRes, questionRes, committeeRes] = await Promise.all([
         supabase.from("members").select("*").eq("id", memberId).single(),
         supabase.from("speeches").select("*").eq("member_id", memberId)
           .order("spoken_at", { ascending: false }).limit(20),
         supabase.from("questions").select("*").eq("member_id", memberId)
           .order("submitted_at", { ascending: false }).limit(20),
+        supabase.from("committee_members").select("*").eq("member_id", memberId),
       ]);
 
-      if (memberRes.data)   setMember(memberRes.data);
-      if (speechRes.data)   setSpeeches(speechRes.data);
-      if (questionRes.data) setQuestions(questionRes.data);
+      if (memberRes.data)    setMember(memberRes.data);
+      if (speechRes.data)    setSpeeches(speechRes.data);
+      if (questionRes.data)  setQuestions(questionRes.data);
+      if (committeeRes.data) setCommittees(committeeRes.data);
       setLoading(false);
     }
     fetchAll();
@@ -95,7 +112,7 @@ export default function MemberDetailPage() {
     </div>
   );
 
-  const color      = PARTY_COLORS[member.party] || "#7f8c8d";
+  const color       = PARTY_COLORS[member.party] || "#7f8c8d";
   const showFaction = member.faction && member.faction !== member.party;
 
   return (
@@ -152,19 +169,20 @@ export default function MemberDetailPage() {
       </div>
 
       {/* 活動サマリーカード */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
         {[
-          { label: "発言回数",      value: member.speech_count,   unit: "件" },
-          { label: "質問主意書",    value: member.question_count, unit: "件" },
-          { label: "当選回数",      value: member.terms,          unit: "期" },
+          { label: "委員会所属", value: committees.length,       unit: "件" },
+          { label: "発言回数",   value: member.speech_count,     unit: "件" },
+          { label: "質問主意書", value: member.question_count,   unit: "件" },
+          { label: "当選回数",   value: member.terms,            unit: "期" },
         ].map((item) => (
           <div key={item.label} style={{ background: "#0f172a", border: "1px solid #1e293b",
             borderRadius: 12, padding: "16px", textAlign: "center" }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: "#3b82f6", marginBottom: 4 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#3b82f6", marginBottom: 4 }}>
               {item.value ?? "—"}
-              <span style={{ fontSize: 13, color: "#64748b", marginLeft: 4 }}>{item.unit}</span>
+              <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>{item.unit}</span>
             </div>
-            <div style={{ fontSize: 12, color: "#64748b" }}>{item.label}</div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>{item.label}</div>
           </div>
         ))}
       </div>
@@ -173,8 +191,9 @@ export default function MemberDetailPage() {
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
         border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
         {[
-          { id: "speeches",  label: "💬 発言履歴" },
-          { id: "questions", label: "📝 質問主意書" },
+          { id: "committees", label: "🏛 委員会所属" },
+          { id: "speeches",   label: "💬 発言履歴" },
+          { id: "questions",  label: "📝 質問主意書" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
@@ -185,6 +204,37 @@ export default function MemberDetailPage() {
           </button>
         ))}
       </div>
+
+      {/* 委員会所属タブ */}
+      {tab === "committees" && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
+            textTransform: "uppercase", letterSpacing: 1 }}>
+            委員会所属（現在）
+          </h3>
+          {committees.length === 0 ? (
+            <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>
+              委員会所属データがありません。（参議院議員は現在収集中です）
+            </div>
+          ) : (
+            committees.map((c, i) => {
+              const roleColor = ROLE_COLORS[c.role] || "#64748b";
+              return (
+                <div key={c.id} style={{ padding: "14px 0",
+                  borderBottom: i < committees.length - 1 ? "1px solid #1e293b" : "none",
+                  display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ background: roleColor + "22", color: roleColor,
+                    border: `1px solid ${roleColor}44`, padding: "2px 8px",
+                    borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                    {c.role}
+                  </span>
+                  <span style={{ fontSize: 14, color: "#e2e8f0" }}>{c.committee}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* 発言履歴タブ */}
       {tab === "speeches" && (
