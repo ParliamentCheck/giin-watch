@@ -53,6 +53,7 @@ export default function MembersPage() {
   }, []);
 
   const parties = Array.from(new Set(members.map((m) => m.party))).sort();
+  console.log("政党一覧:", parties);
 
   const filtered = members.filter((m) => {
     if (search && !m.name.includes(search) && !m.district.includes(search)) return false;

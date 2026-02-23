@@ -43,9 +43,15 @@ PARTY_MAP = {
 
 
 def normalize_party(raw: str) -> str:
+    raw = raw.strip()
+    if not raw:
+        return '無所属'
     for key, full in PARTY_MAP.items():
         if key in raw:
             return full
+    # 1文字や明らかにおかしい値は無所属に
+    if len(raw) <= 1:
+        return '無所属'
     return raw
 
 
