@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 interface Member {
@@ -34,6 +35,7 @@ const PARTY_COLORS: Record<string, string> = {
 };
 
 export default function MembersPage() {
+  const router = useRouter();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -67,7 +69,6 @@ export default function MembersPage() {
     return true;
   });
 
-  // 会派が政党と異なる場合のみ表示する
   const showFaction = (m: Member) => {
     if (!m.faction) return false;
     if (m.faction === m.party) return false;
@@ -134,12 +135,12 @@ export default function MembersPage() {
             const color = PARTY_COLORS[m.party] || "#7f8c8d";
             return (
               <div key={m.id}
+                onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
                 style={{ background: "#0f172a", border: "1px solid #1e293b",
                   borderRadius: 12, padding: 18, transition: "all 0.2s", cursor: "pointer" }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; }}>
 
-                {/* 議員名・選挙区 */}
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
                     background: "#1e293b", border: `2px solid ${color}`,
@@ -152,7 +153,6 @@ export default function MembersPage() {
                   </div>
                 </div>
 
-                {/* 政党バッジ */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
                   <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
                     padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
@@ -166,9 +166,8 @@ export default function MembersPage() {
                   )}
                 </div>
 
-                {/* 会派（政党と異なる場合のみ表示） */}
                 {showFaction(m) && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                  <div style={{ marginTop: 6 }}>
                     <span style={{ background: "#1e293b", color: "#94a3b8",
                       border: "1px solid #334155", padding: "2px 8px",
                       borderRadius: 4, fontSize: 11 }}>
