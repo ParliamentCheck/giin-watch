@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
+import WordCloud from "../../components/WordCloud";
 
 interface Member {
   id: string;
@@ -16,6 +17,7 @@ interface Member {
   session_count: number | null;
   question_count: number | null;
   source_url: string | null;
+  keywords: { word: string; count: number }[] | null;
 }
 
 interface Speech {
@@ -223,6 +225,7 @@ export default function MemberDetailPage() {
           { id: "committees", label: "🏛 委員会所属" },
           { id: "speeches",   label: `💬 発言履歴 (${sessionGroups.length}セッション)` },
           { id: "questions",  label: "📝 質問主意書" },
+          { id: "keywords",   label: "☁️ キーワード" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
@@ -320,6 +323,13 @@ export default function MemberDetailPage() {
               );
             })
           )}
+        </div>
+      )}
+
+      {/* キーワードタブ */}
+      {tab === "keywords" && (
+        <div style={{ padding: "16px 0" }}>
+          <WordCloud keywords={member.keywords || []} width={600} height={320} />
         </div>
       )}
 
