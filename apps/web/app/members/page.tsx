@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 interface Member {
@@ -38,9 +38,19 @@ export default function MembersPage() {
   const router = useRouter();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [selectedHouse, setSelectedHouse] = useState("");
-  const [selectedParty, setSelectedParty] = useState("");
+  const searchParams = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [selectedHouse, setSelectedHouse] = useState(searchParams.get("house") || "");
+  const [selectedParty, setSelectedParty] = useState(searchParams.get("party") || "");
+  const updateUrl = (q: string, house: string, party: string) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (house) params.set("house", house);
+    if (party) params.set("party", party);
+    const qs = params.toString();
+    router.replace(qs ? `/members?${qs}` : "/members", { scroll: false });
+  };
+
   useEffect(() => {
     async function fetchMembers() {
       const { data, error } = await supabase
@@ -92,25 +102,27 @@ export default function MembersPage() {
           type="text"
           placeholder="議員名・選挙区で検索"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); updateUrl(e.target.value, selectedHouse, selectedParty); }}
           style={{ flex: 1, minWidth: 200, background: "#1e293b", border: "1px solid #334155",
             color: "#e2e8f0", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
         />
-        <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
+        <select value={selectedHouse}
           style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
-            padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
+            padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
+          onChange={(e) => { setSelectedHouse(e.target.value); updateUrl(search, e.target.value, selectedParty); }}>
           <option value="">🏛 衆院・参院</option>
           <option value="衆議院">衆議院</option>
           <option value="参議院">参議院</option>
         </select>
-        <select value={selectedParty} onChange={(e) => setSelectedParty(e.target.value)}
+        <select value={selectedParty}
           style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
-            padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
+            padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
+          onChange={(e) => { setSelectedParty(e.target.value); updateUrl(search, selectedHouse, e.target.value); }}>
           <option value="">🗳 政党を選択</option>
           {parties.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         {(search || selectedHouse || selectedParty) && (
-          <button onClick={() => { setSearch(""); setSelectedHouse(""); setSelectedParty(""); }}
+          <button onClick={() => { setSearch(""); setSelectedHouse(""); setSelectedParty(""); updateUrl("", "", ""); }}
             style={{ background: "#334155", border: "none", color: "#94a3b8",
               padding: "10px 16px", borderRadius: 10, cursor: "pointer" }}>
             クリア
