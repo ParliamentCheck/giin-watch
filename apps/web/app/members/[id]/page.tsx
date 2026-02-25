@@ -13,6 +13,7 @@ interface Member {
   district: string;
   terms: number | null;
   speech_count: number | null;
+  session_count: number | null;
   question_count: number | null;
   source_url: string | null;
 }
@@ -38,6 +39,12 @@ interface CommitteeMember {
   id: string;
   committee: string;
   role: string;
+}
+
+interface SessionGroup {
+  committee: string;
+  spoken_at: string;
+  speeches: Speech[];
 }
 
 const PARTY_COLORS: Record<string, string> = {
@@ -77,13 +84,14 @@ export default function MemberDetailPage() {
   const [committees, setCommittees] = useState<CommitteeMember[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState("committees");
+  const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchAll() {
       const [memberRes, speechRes, questionRes, committeeRes] = await Promise.all([
         supabase.from("members").select("*").eq("id", memberId).single(),
         supabase.from("speeches").select("*").eq("member_id", memberId)
-          .order("spoken_at", { ascending: false }).limit(20),
+          .order("spoken_at", { ascending: false }).limit(200),
         supabase.from("questions").select("*").eq("member_id", memberId)
           .order("submitted_at", { ascending: false }).limit(20),
         supabase.from("committee_members").select("*").eq("member_id", memberId),
@@ -97,6 +105,27 @@ export default function MemberDetailPage() {
     }
     fetchAll();
   }, [memberId]);
+
+  // 発言をセッション単位でグルーピング
+  const sessionGroups: SessionGroup[] = [];
+  const sessionMap: Record<string, SessionGroup> = {};
+  for (const s of speeches) {
+    const key = `${s.spoken_at}_${s.committee}`;
+    if (!sessionMap[key]) {
+      sessionMap[key] = { committee: s.committee, spoken_at: s.spoken_at, speeches: [] };
+      sessionGroups.push(sessionMap[key]);
+    }
+    sessionMap[key].speeches.push(s);
+  }
+
+  const toggleExpand = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#020817", display: "flex",
@@ -171,10 +200,10 @@ export default function MemberDetailPage() {
       {/* 活動サマリーカード */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
         {[
-          { label: "委員会所属", value: committees.length,       unit: "件" },
-          { label: "発言回数",   value: member.speech_count,     unit: "件" },
-          { label: "質問主意書", value: member.question_count,   unit: "件" },
-          { label: "当選回数",   value: member.terms,            unit: "期" },
+          { label: "委員会所属",     value: committees.length,        unit: "件" },
+          { label: "発言セッション", value: member.session_count,     unit: "回" },
+          { label: "質問主意書",     value: member.question_count,    unit: "件" },
+          { label: "当選回数",       value: member.terms,             unit: "期" },
         ].map((item) => (
           <div key={item.label} style={{ background: "#0f172a", border: "1px solid #1e293b",
             borderRadius: 12, padding: "16px", textAlign: "center" }}>
@@ -192,7 +221,7 @@ export default function MemberDetailPage() {
         border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
         {[
           { id: "committees", label: "🏛 委員会所属" },
-          { id: "speeches",   label: "💬 発言履歴" },
+          { id: "speeches",   label: `💬 発言履歴 (${sessionGroups.length}セッション)` },
           { id: "questions",  label: "📝 質問主意書" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -214,7 +243,7 @@ export default function MemberDetailPage() {
           </h3>
           {committees.length === 0 ? (
             <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>
-              委員会所属データがありません。（参議院議員は現在収集中です）
+              委員会所属データがありません。
             </div>
           ) : (
             committees.map((c, i) => {
@@ -241,26 +270,55 @@ export default function MemberDetailPage() {
         <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
             textTransform: "uppercase", letterSpacing: 1 }}>
-            発言履歴（最新20件）
+            発言履歴（セッション単位・最新順）
           </h3>
-          {speeches.length === 0 ? (
+          {sessionGroups.length === 0 ? (
             <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>
-              発言データがまだありません。毎日自動収集中です。
+              発言データがまだありません。
             </div>
           ) : (
-            speeches.map((s, i) => (
-              <div key={s.id} style={{ padding: "14px 0",
-                borderBottom: i < speeches.length - 1 ? "1px solid #1e293b" : "none" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>{s.committee}</span>
-                  <span style={{ fontSize: 12, color: "#475569" }}>{s.spoken_at}</span>
+            sessionGroups.map((sg) => {
+              const key      = `${sg.spoken_at}_${sg.committee}`;
+              const isOpen   = expanded.has(key);
+              return (
+                <div key={key} style={{ borderBottom: "1px solid #1e293b", paddingBottom: 12, marginBottom: 12 }}>
+                  <div
+                    onClick={() => toggleExpand(key)}
+                    style={{ display: "flex", justifyContent: "space-between",
+                      alignItems: "center", cursor: "pointer", padding: "6px 0" }}>
+                    <div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>
+                        {sg.committee}
+                      </span>
+                      <span style={{ fontSize: 12, color: "#475569", marginLeft: 12 }}>
+                        {sg.spoken_at}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 11, color: "#64748b",
+                        background: "#1e293b", padding: "2px 8px", borderRadius: 4 }}>
+                        {sg.speeches.length}件の発言
+                      </span>
+                      <span style={{ color: "#64748b", fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
+                    </div>
+                  </div>
+                  {isOpen && (
+                    <div style={{ marginTop: 8, paddingLeft: 12,
+                      borderLeft: "2px solid #1e293b" }}>
+                      {sg.speeches.map((s, i) => (
+                        <div key={s.id} style={{ padding: "8px 0",
+                          borderBottom: i < sg.speeches.length - 1 ? "1px solid #1e293b" : "none" }}>
+                          <a href={s.source_url} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
+                            📄 発言 #{i + 1} を見る →
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <a href={s.source_url} target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
-                  📄 会議録を見る →
-                </a>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
