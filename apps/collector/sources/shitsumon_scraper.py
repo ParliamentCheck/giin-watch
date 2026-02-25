@@ -35,7 +35,9 @@ SESSION_MAX = {
 
 
 def normalize_name(name: str) -> str:
-    return name.replace("　", " ").replace("君", "").strip()
+    import re
+    name = name.replace("　", " ").replace("君", "").strip()
+    return re.sub(r" +", " ", name)
 
 
 def scrape_shitsumon(session: int, number: int) -> Optional[dict]:
