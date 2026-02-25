@@ -22,6 +22,12 @@ jobs:
       - name: 依存パッケージインストール
         run: pip install -r apps/collector/requirements.txt
 
+      - name: 議員データ登録（衆参）
+        run: python apps/collector/sources/register_members.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
       - name: 発言・委員会データ収集
         run: python apps/collector/sources/ndl_api.py
         env:
