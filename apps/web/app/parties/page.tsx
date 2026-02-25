@@ -37,7 +37,7 @@ function calcScore(speeches: number, questions: number, chairs: number, execs: n
   return speeches * 1 + questions * 3 + chairs * 10 + execs * 5;
 }
 
-type SortKey = "score" | "score_per_member" | "total" | "speeches" | "questions";
+
 
 export default function PartiesPage() {
   const router = useRouter();
@@ -91,8 +91,8 @@ export default function PartiesPage() {
     fetchStats();
   }, []);
 
-  const sorted = [...parties].sort((a, b) => b[sortBy] - a[sortBy]);
-  const maxVal  = Math.max(...sorted.map((p) => p[sortBy]), 1);
+  const sorted = [...parties].sort((a: any, b: any) => b[sortBy] - a[sortBy]);
+  const maxVal  = Math.max(...sorted.map((p: any) => p[sortBy]), 1);
 
   return (
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
@@ -130,7 +130,7 @@ export default function PartiesPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {sorted.map((p, rank) => {
               const color      = PARTY_COLORS[p.party] || "#7f8c8d";
-              const barRatio   = Math.round((p[sortBy] / maxVal) * 100);
+              const barRatio   = Math.round(((p as any)[sortBy] / maxVal) * 100);
               const avgSpeeches = p.total > 0 ? Math.round(p.speeches / p.total) : 0;
 
               return (
