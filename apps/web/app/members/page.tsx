@@ -162,7 +162,7 @@ export default function MembersPage() {
                   </div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9" }}>{m.name}</div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{m.district} · {m.house}</div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>{m.district} · {m.is_active ? m.house : `元${m.house}議員`}</div>
                   </div>
                 </div>
 
