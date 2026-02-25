@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "./globals.css";
 import GlobalNav from "./components/GlobalNav";
 import GlobalFooter from "./components/GlobalFooter";
 
