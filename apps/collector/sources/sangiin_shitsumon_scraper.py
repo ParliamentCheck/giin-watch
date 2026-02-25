@@ -13,7 +13,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 HEADERS  = {"User-Agent": "GiinWatch/1.0"}
 BASE_URL = "https://www.sangiin.go.jp/japanese/joho1/kousei/syuisyo"
-SESSIONS = [219, 220]
+SESSIONS = list(range(208, 221))
 
 
 def normalize_name(name: str) -> str:

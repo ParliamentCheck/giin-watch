@@ -6,10 +6,11 @@ export default function GlobalFooter() {
   const router = useRouter();
 
   const pages = [
-    { label: "トップ",         path: "/" },
-    { label: "議員一覧",       path: "/members" },
-    { label: "発言ランキング", path: "/ranking" },
-    { label: "委員会別",       path: "/committees" },
+    { label: "トップ",       path: "/" },
+    { label: "議員一覧",     path: "/members" },
+    { label: "ランキング",   path: "/ranking" },
+    { label: "政党・会派",   path: "/parties" },
+    { label: "委員会別",     path: "/committees" },
   ];
 
   const sources = [
@@ -50,7 +51,7 @@ export default function GlobalFooter() {
             <div style={{ color: "#94a3b8", fontWeight: 700, marginBottom: 10, fontSize: 12 }}>データソース</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {sources.map((item) => (
-                <a
+                
                   key={item.url}
                   href={item.url}
                   target="_blank"
@@ -65,14 +66,21 @@ export default function GlobalFooter() {
             </div>
           </div>
 
-          <div>
-            <div style={{ color: "#94a3b8", fontWeight: 700, marginBottom: 10, fontSize: 12 }}>注意事項</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 300, lineHeight: 1.7 }}>
-              <span>本サイトのデータは公的機関の公開情報を自動収集したものです。</span>
-              <span>会議録登録には1〜2週間のタイムラグがあります。</span>
-              <span>最新・正確な情報は各公式サイトをご確認ください。</span>
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <div style={{ color: "#94a3b8", fontWeight: 700, marginBottom: 10, fontSize: 12 }}>データについて</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, lineHeight: 1.8 }}>
+              <span>
+                本サイトのデータは衆議院・参議院・国立国会図書館の公開情報を自動収集したものです。運営者による手動での追加・修正・削除は一切行っていません。
+              </span>
+              <span>
+                「政党・会派」は国会での所属会派を表示しています。選挙時の届出政党と異なる場合があります。
+              </span>
+              <span>
+                会議録登録には1〜2週間のタイムラグがあります。最新・正確な情報は各公式サイトをご確認ください。
+              </span>
             </div>
           </div>
+
         </div>
 
         <div style={{ borderTop: "1px solid #1e293b", paddingTop: 16,
