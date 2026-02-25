@@ -64,6 +64,7 @@ export default function WordCloud({ keywords, width = 500, height = 300 }: Props
           .style("cursor", "default")
           .attr("text-anchor", "middle")
           .attr("transform", (d) => `translate(${[d.x, d.y]})rotate(${d.rotate})`)
+          .text((d: any) => d.text)
           .append("title")
           .text((d: any) => `${d.text}: ${d.count}回`);
       })
