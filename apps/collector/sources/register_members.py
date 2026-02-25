@@ -62,11 +62,19 @@ def scrape_profile(profile_url: str) -> dict:
             raw = text.split('選挙区・比例区')[1]
             district = raw.split('|')[1].strip().split('／')[0].strip() if '|' in raw else '不明'
 
-        return {"party": party, "faction": faction, "district": district}
+        # 当選回数
+        terms = None
+        if "当選回数" in text:
+            terms_str = text.split("当選回数")[1].split("|")[0].strip()
+            digits = "".join(filter(str.isdigit, terms_str))
+            if digits:
+                terms = int(digits)
+
+        return {"party": party, "faction": faction, "district": district, "terms": terms}
 
     except Exception as e:
         logger.warning(f"プロフィール取得エラー {profile_url}: {e}")
-        return {"party": "無所属", "faction": "無所属", "district": "不明"}
+        return {"party": "無所属", "faction": "無所属", "district": "不明", "terms": None}
 
 
 def scrape_sangiin() -> list[dict]:
@@ -96,6 +104,7 @@ def scrape_sangiin() -> list[dict]:
             "district":   detail["district"],
             "prefecture": detail["district"],
             "house":      "参議院",
+            "terms":      detail.get("terms"),
             "source_url": profile_url,
         })
 
