@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
@@ -22,10 +22,10 @@ const PARTY_COLORS: Record<string, string> = {
   "立憲民主党":     "#2980b9",
   "中道改革連合":   "#3498db",
   "公明党":         "#8e44ad",
-  "日本維新の会":   "#e67e22",
-  "国民民主党":     "#27ae60",
+  "日本維新の会":   "#318e2c",
+  "国民民主党":     "#fabe00",
   "共産党":         "#e74c3c",
-  "れいわ新選組":   "#e91e63",
+  "れいわ新選組":   "#e4007f",
   "社民党":         "#795548",
   "参政党":         "#ff6d00",
   "チームみらい":   "#00bcd4",
@@ -35,7 +35,8 @@ const PARTY_COLORS: Record<string, string> = {
   "不明（前議員）": "#475569",
 };
 
-export default function FormerMembersPage() {
+// 1. 元々のページコンポーネントの名前を FormerMembersContent に変更し、export default を外します
+function FormerMembersContent() {
   const router      = useRouter();
   const searchParams = useSearchParams();
   const [members, setMembers] = useState<Member[]>([]);
@@ -166,5 +167,19 @@ export default function FormerMembersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function FormerMembersPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div style={{ minHeight: "100vh", background: "#020817", color: "#64748b", padding: "24px", textAlign: "center" }}>
+          読み込み中...
+        </div>
+      }
+    >
+      <FormerMembersContent />
+    </Suspense>
   );
 }

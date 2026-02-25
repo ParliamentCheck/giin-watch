@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
@@ -34,7 +34,8 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
-export default function MembersPage() {
+// 1. メインのコンポーネント名を MembersContent に変更し、export default を外します
+function MembersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [members, setMembers] = useState<Member[]>([]);
@@ -182,5 +183,19 @@ export default function MembersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MembersPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div style={{ minHeight: "100vh", background: "#020817", color: "#64748b", padding: "24px", textAlign: "center" }}>
+          読み込み中...
+        </div>
+      }
+    >
+      <MembersContent />
+    </Suspense>
   );
 }
