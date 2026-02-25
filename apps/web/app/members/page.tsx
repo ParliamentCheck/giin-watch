@@ -45,6 +45,11 @@ export default function MembersPage() {
   const [showInactive, setShowInactive] = useState(searchParams.get("inactive") === "true");
 
   useEffect(() => {
+    setShowInactive(searchParams.get("inactive") === "true");
+    setSelectedParty("");
+  }, [searchParams]);
+
+  useEffect(() => {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
