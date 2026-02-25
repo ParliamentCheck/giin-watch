@@ -42,7 +42,7 @@ function calcScore(speeches: number, questions: number, chairs: number, execs: n
 export default function PartiesPage() {
   const router = useRouter();
   const [parties, setParties] = useState<PartyStats[]>([]);
-  const [sortBy,  setSortBy]  = useState<SortKey>("score");
+  const [sortBy,  setSortBy]  = useState("score");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -113,7 +113,7 @@ export default function PartiesPage() {
             { value: "speeches",         label: "💬 発言数" },
             { value: "questions",        label: "📝 質問主意書" },
           ].map((s) => (
-            <button key={s.value} onClick={() => setSortBy(s.value as SortKey)}
+            <button key={s.value} onClick={() => setSortBy(s.value)}
               style={{ background: sortBy === s.value ? "#3b82f6" : "#0f172a",
                 border: `1px solid ${sortBy === s.value ? "#3b82f6" : "#1e293b"}`,
                 color: sortBy === s.value ? "white" : "#64748b",
