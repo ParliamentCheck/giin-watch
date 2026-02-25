@@ -1,7 +1,8 @@
 import os
-import json
+import re
 import logging
 from collections import Counter
+from datetime import datetime, timezone
 from supabase import create_client
 
 logging.basicConfig(level=logging.INFO)
@@ -18,41 +19,34 @@ STOP_WORDS = {
     "実施", "状況", "内容", "問題", "措置", "制度", "方針", "推進",
     "取組", "観点", "意味", "場合", "部分", "形", "方", "点", "等",
     "議員", "国会", "衆議院", "参議院", "委員会", "理事", "会長",
-    "大臣", "総理", "内閣", "省", "庁", "局", "課", "室",
     "資料", "報告", "説明", "発言", "趣旨", "御", "各", "当該",
     "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
     "今", "今日", "昨日", "来年", "今年", "先ほど", "ただいま",
 }
 
 
-def extract_keywords(texts: list[str]) -> list[dict]:
+def extract_keywords(texts: list) -> list:
     try:
         from janome.tokenizer import Tokenizer
         t = Tokenizer()
     except ImportError:
-        logger.error("janomeがインストールされていません: pip3 install janome")
+        logger.error("janomeがインストールされていません")
         return []
 
     counter = Counter()
     combined = " ".join(texts)
-
     for token in t.tokenize(combined):
         pos = token.part_of_speech.split(",")
-        # 名詞（一般）または名詞（固有名詞）のみ
         if pos[0] != "名詞":
             continue
         if pos[1] not in ("一般", "固有名詞"):
             continue
         word = token.surface.strip()
-        if len(word) < 2:
-            continue
-        if word in STOP_WORDS:
-            continue
-        if word.isdigit():
+        if len(word) < 2 or word in STOP_WORDS or word.isdigit():
             continue
         counter[word] += 1
 
-    return [{"word": word, "count": count} for word, count in counter.most_common(50)]
+    return [{"word": w, "count": c} for w, c in counter.most_common(50)]
 
 
 def main():
@@ -62,13 +56,31 @@ def main():
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    # 発言テキストがある議員を取得
-    members = client.table("members").select("id, name").execute()
+    # 全議員を取得
+    members = client.table("members").select("id, name, keywords_updated_at").execute()
     logger.info(f"対象議員: {len(members.data)}名")
 
     updated = 0
+    skipped = 0
+
     for m in members.data:
-        # ページネーションで全発言テキストを取得
+        keywords_updated_at = m.get("keywords_updated_at")
+
+        # 最後のキーワード更新以降に新しい発言があるか確認
+        query = client.table("speeches").select("id", count="exact") \
+            .eq("member_id", m["id"]) \
+            .not_.is_("speech_text", "null")
+
+        if keywords_updated_at:
+            query = query.gt("spoken_at", keywords_updated_at)
+
+        new_speeches = query.execute()
+
+        if keywords_updated_at and new_speeches.count == 0:
+            skipped += 1
+            continue
+
+        # 全発言テキストを取得
         texts = []
         start = 0
         while True:
@@ -84,17 +96,23 @@ def main():
             start += 1000
 
         if not texts:
+            client.table("members").update({
+                "keywords": [],
+                "keywords_updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", m["id"]).execute()
             continue
 
         keywords = extract_keywords(texts)
-        if not keywords:
-            continue
-
-        client.table("members").update({"keywords": keywords}).eq("id", m["id"]).execute()
+        client.table("members").update({
+            "keywords": keywords,
+            "keywords_updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", m["id"]).execute()
         updated += 1
-        logger.info(f"  ✓ {m['name']}: {len(keywords)}件のキーワード")
 
-    logger.info(f"完了: {updated}名を更新")
+        if updated % 10 == 0:
+            logger.info(f"  {updated}名完了...")
+
+    logger.info(f"完了: 更新{updated}名 / スキップ{skipped}名")
 
 
 if __name__ == "__main__":
