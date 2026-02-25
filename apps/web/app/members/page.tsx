@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 interface Member {
@@ -41,7 +41,8 @@ export default function MembersPage() {
   const [search, setSearch] = useState("");
   const [selectedHouse, setSelectedHouse] = useState("");
   const [selectedParty, setSelectedParty] = useState("");
-  const [showInactive, setShowInactive] = useState(false);
+  const searchParams = useSearchParams();
+  const [showInactive, setShowInactive] = useState(searchParams.get("inactive") === "true");
 
   useEffect(() => {
     async function fetchMembers() {
@@ -112,7 +113,7 @@ export default function MembersPage() {
           {parties.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <button
-          onClick={() => { setShowInactive(!showInactive); setSelectedParty(""); }}
+          onClick={() => { const next = !showInactive; setShowInactive(next); setSelectedParty(""); router.push(next ? "/members?inactive=true" : "/members"); }}
           style={{
             background: showInactive ? "#f59e0b" : "transparent",
             border: "1px solid",

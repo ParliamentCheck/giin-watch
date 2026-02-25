@@ -17,6 +17,7 @@ interface Member {
   session_count: number | null;
   question_count: number | null;
   source_url: string | null;
+  is_active: boolean;
   keywords: { word: string; count: number }[] | null;
 }
 
@@ -172,6 +173,16 @@ export default function MemberDetailPage() {
               {member.name}
             </h1>
             <div style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>
+{!member.is_active && (
+                <span style={{
+                  display: "inline-block", background: "#f59e0b22",
+                  color: "#f59e0b", border: "1px solid #f59e0b",
+                  borderRadius: 6, fontSize: 11, fontWeight: 700,
+                  padding: "2px 8px", marginBottom: 6,
+                }}>
+                  ⚠️ 前議員（現在は議員ではありません）
+                </span>
+              )}
               {member.house} · {member.district}
               {member.terms && ` · ${member.terms}期`}
             </div>
