@@ -37,7 +37,7 @@ export default function GlobalNav() {
       <div style={{ display: "flex", gap: 4, flex: 1 }}>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.path ||
-            (item.path !== "/" && pathname.startsWith(item.path));
+            (item.path !== "/" && item.path !== "/members" && pathname.startsWith(item.path));
           return (
             <button
               key={item.path}

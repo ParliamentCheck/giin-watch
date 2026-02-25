@@ -36,12 +36,23 @@ const PARTY_COLORS: Record<string, string> = {
 };
 
 export default function FormerMembersPage() {
-  const router = useRouter();
+  const router      = useRouter();
+  const searchParams = useSearchParams();
   const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [selectedHouse, setSelectedHouse] = useState("");
-  const [selectedParty, setSelectedParty] = useState("");
+  const [loading, setLoading]  = useState(true);
+
+  const search        = searchParams.get("q")     || "";
+  const selectedHouse = searchParams.get("house") || "";
+  const selectedParty = searchParams.get("party") || "";
+
+  const updateUrl = (q: string, house: string, party: string) => {
+    const params = new URLSearchParams();
+    if (q)     params.set("q",     q);
+    if (house) params.set("house", house);
+    if (party) params.set("party", party);
+    const qs = params.toString();
+    router.replace(qs ? `/members/former?${qs}` : "/members/former", { scroll: false });
+  };
 
   useEffect(() => {
     async function fetchMembers() {
@@ -60,9 +71,9 @@ export default function FormerMembersPage() {
   const parties = Array.from(new Set(members.map((m) => m.party))).sort();
 
   const filtered = members.filter((m) => {
-    if (search && !m.name.includes(search) && !m.district.includes(search)) return false;
-    if (selectedHouse && m.house !== selectedHouse) return false;
-    if (selectedParty && m.party !== selectedParty) return false;
+    if (search        && !m.name.includes(search))        return false;
+    if (selectedHouse && m.house  !== selectedHouse)      return false;
+    if (selectedParty && m.party  !== selectedParty)      return false;
     return true;
   });
 
@@ -70,38 +81,37 @@ export default function FormerMembersPage() {
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 8 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>⚠️ 前議員一覧</h1>
-      </div>
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>⚠️ 前議員一覧</h1>
       <p style={{ color: "#64748b", marginBottom: 24 }}>
         落選・辞職した元議員のデータです。在職中の質問主意書・発言履歴を確認できます。
       </p>
 
-      {/* 検索・フィルター */}
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         <input
           type="text"
           placeholder="議員名で検索"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => updateUrl(e.target.value, selectedHouse, selectedParty)}
           style={{ flex: 1, minWidth: 200, background: "#1e293b", border: "1px solid #334155",
             color: "#e2e8f0", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
         />
-        <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
+        <select value={selectedHouse}
+          onChange={(e) => updateUrl(search, e.target.value, selectedParty)}
           style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
             padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
           <option value="">🏛 衆院・参院</option>
           <option value="衆議院">衆議院</option>
           <option value="参議院">参議院</option>
         </select>
-        <select value={selectedParty} onChange={(e) => setSelectedParty(e.target.value)}
+        <select value={selectedParty}
+          onChange={(e) => updateUrl(search, selectedHouse, e.target.value)}
           style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
             padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
           <option value="">🗳 政党を選択</option>
           {parties.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         {(search || selectedHouse || selectedParty) && (
-          <button onClick={() => { setSearch(""); setSelectedHouse(""); setSelectedParty(""); }}
+          <button onClick={() => updateUrl("", "", "")}
             style={{ background: "#334155", border: "none", color: "#94a3b8",
               padding: "10px 16px", borderRadius: 10, cursor: "pointer" }}>
             クリア
@@ -124,11 +134,9 @@ export default function FormerMembersPage() {
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
                 style={{ background: "#0f172a", border: "1px solid #1e293b",
-                  borderRadius: 12, padding: 18, cursor: "pointer", transition: "all 0.2s",
-                  opacity: 0.85 }}
+                  borderRadius: 12, padding: 18, cursor: "pointer", transition: "all 0.2s", opacity: 0.85 }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#f59e0b"; e.currentTarget.style.opacity = "1"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; e.currentTarget.style.opacity = "0.85"; }}>
-
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
                     background: "#1e293b", border: "2px solid #f59e0b",
@@ -140,7 +148,6 @@ export default function FormerMembersPage() {
                     <div style={{ fontSize: 12, color: "#64748b" }}>元{m.house}議員</div>
                   </div>
                 </div>
-
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
                     padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
