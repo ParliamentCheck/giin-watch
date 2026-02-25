@@ -4,7 +4,7 @@ import GlobalNav from "./components/GlobalNav";
 import GlobalFooter from "./components/GlobalFooter";
 
 export const metadata: Metadata = {
-  title: "議員ウォッチ",
+  title: "はたらく議員",
   description: "国会議員の活動を、データで見える化する",
 };
 

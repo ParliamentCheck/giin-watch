@@ -96,7 +96,7 @@ export default async function TopPage() {
 
           <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-4">
             <span className="bg-gradient-to-r from-blue-400 via-blue-300 to-violet-400 bg-clip-text text-transparent">
-              議員ウォッチ
+              はたらく議員
             </span>
           </h1>
 

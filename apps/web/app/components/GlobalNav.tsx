@@ -30,7 +30,7 @@ export default function GlobalNav() {
         onClick={() => router.push("/")}
         style={{ fontWeight: 900, fontSize: 16, color: "#3b82f6",
           cursor: "pointer", marginRight: 24, letterSpacing: 1, flexShrink: 0 }}>
-        🔍 議員ウォッチ
+        🔍 はたらく議員
       </div>
 
       {/* ナビリンク */}
