@@ -41,13 +41,13 @@ export default function MembersPage() {
   const [search, setSearch] = useState("");
   const [selectedHouse, setSelectedHouse] = useState("");
   const [selectedParty, setSelectedParty] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
 
   useEffect(() => {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
         .select("*")
-        .eq("is_active", true)
         .order("name");
 
       if (error) {
@@ -63,6 +63,7 @@ export default function MembersPage() {
   const parties = Array.from(new Set(members.map((m) => m.party))).sort();
 
   const filtered = members.filter((m) => {
+    if (m.is_active === showInactive) return false;
     if (search && !m.name.includes(search) && !m.district.includes(search)) return false;
     if (selectedHouse && m.house !== selectedHouse) return false;
     if (selectedParty && m.party !== selectedParty) return false;
@@ -110,6 +111,18 @@ export default function MembersPage() {
           <option value="">🗳 政党を選択</option>
           {parties.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
+        <button
+          onClick={() => { setShowInactive(!showInactive); setSelectedParty(""); }}
+          style={{
+            background: showInactive ? "#f59e0b" : "transparent",
+            border: "1px solid",
+            borderColor: showInactive ? "#f59e0b" : "#334155",
+            color: showInactive ? "#000" : "#64748b",
+            padding: "8px 14px", borderRadius: 8,
+            cursor: "pointer", fontSize: 13, fontWeight: showInactive ? 700 : 400,
+          }}>
+          {showInactive ? "⚠️ 前議員を表示中" : "前議員を表示"}
+        </button>
         {(search || selectedHouse || selectedParty) && (
           <button onClick={() => { setSearch(""); setSelectedHouse(""); setSelectedParty(""); }}
             style={{ background: "#334155", border: "none", color: "#94a3b8",
