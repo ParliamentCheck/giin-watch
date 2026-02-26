@@ -42,7 +42,7 @@ def extract_keywords(texts: list, exclude_names: list = None) -> list:
         if pos[1] not in ("一般", "固有名詞"):
             continue
         word = token.surface.strip()
-        if len(word) < 2 or word in STOP_WORDS or word.isdigit():
+        if len(word) < 2 or word in STOP_WORDS or word.isdigit() or word.endswith("大臣") or word.endswith("副大臣") or word.endswith("政務官") or word.endswith("長官"):
             continue
         if exclude_names and any(n in word or word in n for n in exclude_names):
             continue
