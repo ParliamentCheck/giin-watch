@@ -1,3 +1,4 @@
+import re
 import os, time, logging, httpx
 from bs4 import BeautifulSoup
 from supabase import create_client
@@ -64,11 +65,9 @@ def scrape_profile(profile_url: str) -> dict:
 
         # 当選回数
         terms = None
-        if "当選回数" in text:
-            terms_str = text.split("当選回数")[1].split("|")[0].strip()
-            digits = "".join(filter(str.isdigit, terms_str))
-            if digits:
-                terms = int(digits)
+        m = re.search(r"当選\s*(\d+)\s*回", text)
+        if m:
+            terms = int(m.group(1))
 
         return {"party": party, "faction": faction, "district": district, "terms": terms}
 
