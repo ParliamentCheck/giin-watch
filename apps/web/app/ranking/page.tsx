@@ -10,6 +10,8 @@ interface Member {
   party: string;
   house: string;
   district: string;
+  terms: number | null;
+  is_active: boolean;
   speech_count: number | null;
   session_count: number | null;
   question_count: number | null;
@@ -33,6 +35,12 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
+const RULING_PARTIES = ["自民党", "公明党"];
+
+type CareerFilter = "" | "1" | "2-3" | "4-5" | "6+";
+type StatusFilter = "active" | "former" | "all";
+type SideFilter = "" | "ruling" | "opposition";
+
 export default function RankingPage() {
   const router = useRouter();
   const [members,       setMembers]       = useState<Member[]>([]);
@@ -41,13 +49,15 @@ export default function RankingPage() {
   const [rankType,      setRankType]      = useState("session");
   const [selectedHouse, setSelectedHouse] = useState("");
   const [selectedParty, setSelectedParty] = useState("");
+  const [selectedSide,  setSelectedSide]  = useState<SideFilter>("");
+  const [selectedCareer, setSelectedCareer] = useState<CareerFilter>("");
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("active");
 
   useEffect(() => {
     async function fetchAll() {
       const [membersRes, committeeRes] = await Promise.all([
         supabase.from("members")
-          .select("id, name, party, house, district, speech_count, session_count, question_count")
-          .eq("is_active", true),
+          .select("id, name, party, house, district, terms, is_active, speech_count, session_count, question_count"),
         supabase.from("committee_members")
           .select("member_id, role")
           .in("role", ["委員長", "理事", "会長", "副会長"]),
@@ -72,6 +82,17 @@ export default function RankingPage() {
   const filtered = members.filter((m) => {
     if (selectedHouse && m.house !== selectedHouse) return false;
     if (selectedParty && m.party !== selectedParty) return false;
+    if (selectedSide === "ruling" && !RULING_PARTIES.includes(m.party)) return false;
+    if (selectedSide === "opposition" && RULING_PARTIES.includes(m.party)) return false;
+    if (selectedStatus === "active" && !m.is_active) return false;
+    if (selectedStatus === "former" && m.is_active) return false;
+    if (selectedCareer) {
+      const t = m.terms ?? 0;
+      if (selectedCareer === "1" && t !== 1) return false;
+      if (selectedCareer === "2-3" && (t < 2 || t > 3)) return false;
+      if (selectedCareer === "4-5" && (t < 4 || t > 5)) return false;
+      if (selectedCareer === "6+" && t < 6) return false;
+    }
     return true;
   });
 
@@ -91,6 +112,22 @@ export default function RankingPage() {
     question:       { label: "📝 質問主意書提出数",   unit: "件",     desc: "内閣への質問主意書提出件数（衆議院のみ）" },
     committee_role: { label: "🏛 委員長・理事ポスト", unit: "ポスト", desc: "現在保有している委員長・理事・会長・副会長の数" },
   };
+
+  const hasFilter = selectedHouse || selectedParty || selectedSide || selectedCareer || selectedStatus !== "active";
+
+  const selectStyle = {
+    background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
+    padding: "10px 14px", borderRadius: 10, fontSize: 13, outline: "none",
+  };
+
+  const toggleStyle = (active: boolean) => ({
+    background: active ? "#1e293b" : "transparent",
+    border: "1px solid " + (active ? "#3b82f6" : "#334155"),
+    color: active ? "#e2e8f0" : "#64748b",
+    padding: "8px 14px", borderRadius: 8, cursor: "pointer" as const,
+    fontSize: 13, fontWeight: active ? 700 : 400,
+    transition: "all 0.15s",
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
@@ -122,31 +159,74 @@ export default function RankingPage() {
           ))}
         </div>
 
-        <p style={{ color: "#475569", marginBottom: 20, fontSize: 12 }}>
+        <p style={{ color: "#475569", marginBottom: 16, fontSize: 12 }}>
           {RANK_CONFIGS[rankType].desc}
         </p>
 
-        {/* フィルター */}
-        <div className="resp-stack" style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-          <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
-            style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
-              padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
-            <option value="">🏛 衆院・参院</option>
-            <option value="衆議院">衆議院</option>
-            <option value="参議院">参議院</option>
-          </select>
-          <select value={selectedParty} onChange={(e) => setSelectedParty(e.target.value)}
-            style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
-              padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
-            <option value="">🗳 政党を選択</option>
-            {parties.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-          {(selectedHouse || selectedParty) && (
-            <button onClick={() => { setSelectedHouse(""); setSelectedParty(""); }}
-              style={{ background: "#334155", border: "none", color: "#94a3b8",
-                padding: "10px 16px", borderRadius: 10, cursor: "pointer" }}>
-              クリア
-            </button>
+        {/* フィルターエリア */}
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12,
+          padding: 16, marginBottom: 20 }}>
+          <div style={{ fontSize: 12, color: "#475569", marginBottom: 12, fontWeight: 700 }}>🔍 フィルター</div>
+
+          <div className="resp-stack" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)} style={selectStyle}>
+              <option value="">🏛 衆院・参院</option>
+              <option value="衆議院">衆議院</option>
+              <option value="参議院">参議院</option>
+            </select>
+            <select value={selectedParty} onChange={(e) => setSelectedParty(e.target.value)} style={selectStyle}>
+              <option value="">🗳 政党を選択</option>
+              {parties.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+
+          {/* 与野党 */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "#475569", marginBottom: 6 }}>与野党</div>
+            <div className="resp-scroll" style={{ display: "flex", gap: 4 }}>
+              {([["", "すべて"], ["ruling", "与党"], ["opposition", "野党"]] as [SideFilter, string][]).map(([val, label]) => (
+                <button key={val} onClick={() => setSelectedSide(val)} style={toggleStyle(selectedSide === val)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 当選回数 */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "#475569", marginBottom: 6 }}>当選回数（キャリア）</div>
+            <div className="resp-scroll" style={{ display: "flex", gap: 4 }}>
+              {([["", "すべて"], ["1", "1回（新人）"], ["2-3", "2〜3回（若手）"], ["4-5", "4〜5回（中堅）"], ["6+", "6回以上（ベテラン）"]] as [CareerFilter, string][]).map(([val, label]) => (
+                <button key={val} onClick={() => setSelectedCareer(val)} style={toggleStyle(selectedCareer === val)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 議員ステータス */}
+          <div style={{ marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: "#475569", marginBottom: 6 }}>議員ステータス</div>
+            <div className="resp-scroll" style={{ display: "flex", gap: 4 }}>
+              {([["active", "現職のみ"], ["former", "落選・引退のみ"], ["all", "すべて"]] as [StatusFilter, string][]).map(([val, label]) => (
+                <button key={val} onClick={() => setSelectedStatus(val)} style={toggleStyle(selectedStatus === val)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {hasFilter && (
+            <div style={{ marginTop: 12, borderTop: "1px solid #1e293b", paddingTop: 12 }}>
+              <button onClick={() => {
+                setSelectedHouse(""); setSelectedParty(""); setSelectedSide("");
+                setSelectedCareer(""); setSelectedStatus("active");
+              }}
+                style={{ background: "#334155", border: "none", color: "#94a3b8",
+                  padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
+                🔄 フィルターをリセット
+              </button>
+            </div>
           )}
         </div>
 
@@ -166,12 +246,14 @@ export default function RankingPage() {
               const roles      = committeeMap[m.id] || [];
               const chairCount = roles.filter((r) => r === "委員長" || r === "会長").length;
               const execCount  = roles.filter((r) => r === "理事"   || r === "副会長").length;
+              const isRuling   = RULING_PARTIES.includes(m.party);
 
               return (
                 <div key={m.id}
                   onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
                   style={{ background: "#0f172a", border: "1px solid #1e293b",
-                    borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "all 0.2s" }}
+                    borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "all 0.2s",
+                    opacity: m.is_active ? 1 : 0.7 }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; }}>
 
@@ -185,9 +267,22 @@ export default function RankingPage() {
                       {rank <= 3 ? ["🥇", "🥈", "🥉"][rank - 1] : rank}
                     </div>
 
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9", marginBottom: 2 }}>
-                        {m.name}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9" }}>
+                          {m.name}
+                        </span>
+                        {!m.is_active && (
+                          <span style={{ background: "#475569", color: "#94a3b8",
+                            padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                            前職
+                          </span>
+                        )}
+                        {m.terms && (
+                          <span style={{ color: "#475569", fontSize: 11 }}>
+                            {m.terms}期
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: 12, color: "#64748b" }}>
                         {m.house} · {m.district}
