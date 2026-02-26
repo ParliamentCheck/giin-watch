@@ -105,7 +105,7 @@ export default function PartiesPage() {
         </p>
 
         {/* ソートボタン */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        <div className="resp-stack" style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {[
             { value: "score",            label: "🏆 合計スコア" },
             { value: "score_per_member", label: "👤 1人あたりスコア" },

@@ -162,7 +162,7 @@ export default function MemberDetailPage() {
       {/* ヘッダー */}
       <div style={{ background: "#0f172a", border: "1px solid #1e293b",
         borderRadius: 16, padding: 28, marginBottom: 20 }}>
-        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+        <div className="resp-stack" style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", flexShrink: 0,
             background: "#1e293b", border: `3px solid ${color}`,
             display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>
@@ -230,7 +230,7 @@ export default function MemberDetailPage() {
       </div>
 
       {/* タブ */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
+      <div className="resp-scroll" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
         border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
         {[
           { id: "committees", label: "🏛 委員会所属" },

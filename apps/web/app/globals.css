@@ -24,3 +24,23 @@ body {
   .hidden-mobile { display: none !important; }
   .show-mobile { display: block !important; }
 }
+
+/* レスポンシブ: 汎用 */
+@media (max-width: 768px) {
+  .resp-stack { flex-direction: column !important; }
+  .resp-full { width: 100% !important; min-width: 0 !important; }
+  .resp-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .resp-text-sm { font-size: 12px !important; }
+  .resp-pad { padding: 16px !important; }
+  .resp-gap-sm { gap: 8px !important; }
+  .resp-hide { display: none !important; }
+}
+
+@media (max-width: 768px) {
+  .resp-stack { flex-direction: column !important; }
+  .resp-full { width: 100% !important; min-width: 0 !important; }
+  .resp-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .resp-text-sm { font-size: 12px !important; }
+  .resp-pad { padding: 16px !important; }
+  .resp-gap-sm { gap: 8px !important; }
+}

@@ -109,7 +109,7 @@ export default function RankingPage() {
         </p>
 
         {/* ランク種別タブ */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
+        <div className="resp-scroll" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
           border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
           {Object.entries(RANK_CONFIGS).map(([key, cfg]) => (
             <button key={key} onClick={() => setRankType(key)}
@@ -127,7 +127,7 @@ export default function RankingPage() {
         </p>
 
         {/* フィルター */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <div className="resp-stack" style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
           <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
             style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
               padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
