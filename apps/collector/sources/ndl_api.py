@@ -33,16 +33,19 @@ COMMITTEES = [
 
 
 def build_member_map(client) -> dict:
-    result = client.table("members").select("id, name").eq("is_active", True).execute()
+    result = client.table("members").select("id, name").execute()
     member_map = {}
     for m in result.data:
-        key = m["name"].replace(" ", "").replace("\u3000", "").strip()
+        key = m["name"].replace(" ", "").replace("　", "").strip()
         member_map[key] = m["id"]
         if "[" in m["name"]:
             short = m["name"].split("[")[0]
-            key2 = short.replace(" ", "").replace("\u3000", "").strip()
+            key2 = short.replace(" ", "").replace("　", "").strip()
             member_map[key2] = m["id"]
-    logger.info(f"\u8b70\u54e1\u30de\u30c3\u30d7: {len(member_map)}\u540d")
+            real = m["name"].split("[")[1].rstrip("]")
+            key3 = real.replace(" ", "").replace("　", "").strip()
+            member_map[key3] = m["id"]
+    logger.info(f"議員マップ: {len(member_map)}名")
     return member_map
 
 
