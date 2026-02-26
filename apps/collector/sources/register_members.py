@@ -190,10 +190,10 @@ def main():
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    # 全削除して入れ直し
-    client.table('members').delete().eq('house', '参議院').execute()
-    client.table('members').delete().eq('house', '衆議院').execute()
-    logger.info("既存データを削除しました")
+    # 全員を一旦 is_active=false にして、スクレイプで見つかった議員だけ true に戻す
+    client.table("members").update({"is_active": False}).eq("house", "衆議院").execute()
+    client.table("members").update({"is_active": False}).eq("house", "参議院").execute()
+    logger.info("全議員の is_active を false にリセットしました")
 
     shugiin = scrape_shugiin()
     if shugiin:
