@@ -172,7 +172,6 @@ export default function RankingPage() {
               <option value="shu">衆議院</option>
               <option value="san">参議院</option>
               <option value="former">前議員</option>
-              <option value="former">前議員</option>
             </select>
             <select value={selectedCareer} onChange={(e) => setSelectedCareer(e.target.value as CareerFilter)} style={selectStyle}>
               <option value="">👤 当選回数</option>
