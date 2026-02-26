@@ -2,6 +2,13 @@
 
 import { useRouter } from "next/navigation";
 
+const FOOTER_LINKS = [
+  { label: "サイトについて", path: "/about" },
+  { label: "免責事項", path: "/disclaimer" },
+  { label: "プライバシーポリシー", path: "/privacy" },
+  { label: "お問い合わせ", path: "/contact" },
+];
+
 export default function GlobalFooter() {
   const router = useRouter();
 
@@ -13,17 +20,33 @@ export default function GlobalFooter() {
       color: "#475569",
       fontSize: 13,
     }}>
-      <div style={{ maxWidth: 900, margin: "0 auto",
-        display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <span>データソース: 国立国会図書館 / 衆議院 / 参議院 ｜ 毎日午前3時に自動更新</span>
-        <span
-          onClick={() => router.push("/disclaimer")}
-          style={{ color: "#64748b", cursor: "pointer", textDecoration: "underline" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; }}
-        >
-          免責事項・データについて
-        </span>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        <div style={{
+          display: "flex", justifyContent: "center",
+          flexWrap: "wrap", gap: 8, marginBottom: 16,
+        }}>
+          {FOOTER_LINKS.map((link, i) => (
+            <span key={link.path} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                onClick={() => router.push(link.path)}
+                style={{ color: "#64748b", cursor: "pointer" }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; }}
+              >
+                {link.label}
+              </span>
+              {i < FOOTER_LINKS.length - 1 && (
+                <span style={{ color: "#334155" }}>|</span>
+              )}
+            </span>
+          ))}
+        </div>
+        <div style={{ textAlign: "center", color: "#475569", fontSize: 12 }}>
+          データソース: 国立国会図書館 / 衆議院 / 参議院 ｜ 毎日午前3時に自動更新
+        </div>
+        <div style={{ textAlign: "center", color: "#334155", fontSize: 11, marginTop: 8 }}>
+          © 2025 はたらく議員
+        </div>
       </div>
     </footer>
   );
