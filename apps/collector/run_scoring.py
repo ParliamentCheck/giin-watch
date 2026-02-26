@@ -17,14 +17,24 @@ def main():
 
     # --- session_count / speech_count 再計算 ---
     logger.info('session_count / speech_count を再計算中...')
-    all_members = client.table('members').select('id').execute()
+    all_members = client.table('members').select('id, name').execute()
     for mem in (all_members.data or []):
         mid = mem['id']
-        speeches = client.table('speeches').select('spoken_at, committee').eq('member_id', mid).execute()
+        name = mem['name']
+        speeches = client.table('speeches').select('spoken_at, committee, speech_text').eq('member_id', mid).execute()
         rows = speeches.data or []
-        speech_count = len(rows)
-        sessions = set()
+        # 委員長・会長としての議事進行発言を除外（○○○委員長 / ○○○会長 パターン）
+        filtered = []
         for r in rows:
+            txt = (r.get('speech_text') or '')[:50]
+            if '委員長' in txt.split('　')[0] if '　' in txt else False:
+                continue
+            if '会長' in txt.split('　')[0] if '　' in txt else False:
+                continue
+            filtered.append(r)
+        speech_count = len(filtered)
+        sessions = set()
+        for r in filtered:
             sessions.add(f"{r['spoken_at']}___{r['committee']}")
         session_count = len(sessions)
         client.table('members').update({
