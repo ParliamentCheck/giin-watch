@@ -148,7 +148,7 @@ export default function PartiesPage() {
                   }}>
 
                   {/* ヘッダー */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <div className="resp-stack resp-gap-sm" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                     <span style={{ fontSize: 13, color: "#475569", fontWeight: 700, width: 20 }}>
                       {rank + 1}
                     </span>

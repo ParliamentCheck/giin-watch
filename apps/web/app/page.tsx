@@ -202,7 +202,7 @@ export default async function TopPage() {
                   <Link
                     key={speech.id}
                     href={`/members/${speech.member_id}`}
-                    className="flex items-center gap-4 bg-slate-900/40 border border-slate-800/60
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 bg-slate-900/40 border border-slate-800/60
                                rounded-xl px-5 py-3.5 hover:border-slate-700 hover:bg-slate-900/70
                                transition-all group"
                   >

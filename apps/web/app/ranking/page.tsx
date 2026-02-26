@@ -175,7 +175,7 @@ export default function RankingPage() {
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; }}>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
+                  <div className="resp-stack resp-gap-sm" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 10 }}>
                     <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
                       background: rank <= 3 ? color + "33" : "#1e293b",
                       border: `2px solid ${rank <= 3 ? color : "#334155"}`,
