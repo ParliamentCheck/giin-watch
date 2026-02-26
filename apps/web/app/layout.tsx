@@ -25,15 +25,24 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <head>
+      <body style={{ margin: 0, padding: 0, background: "#020817" }}>
         <Script
-          async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1728847761086799"
+          strategy="beforeInteractive"
           crossOrigin="anonymous"
+        />
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-1QJP14PKPF"
           strategy="afterInteractive"
         />
-      </head>
-      <body style={{ margin: 0, padding: 0, background: "#020817" }}>
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-1QJP14PKPF');
+          `}
+        </Script>
         <GlobalNav />
         <main style={{ minHeight: "calc(100vh - 60px - 120px)" }}>
           {children}
