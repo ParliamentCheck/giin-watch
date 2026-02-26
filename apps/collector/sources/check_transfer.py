@@ -1,6 +1,7 @@
 """
 鞍替え議員判定スクリプト
-NDL APIで「現在と異なる院での発言歴」を確認し、prev_terms を更新する
+NDL APIで「現在と異なる院で"議員として"発言した記録」を確認し、prev_terms を更新する
+大臣・副大臣等の答弁（speakerPosition有り）は除外する
 """
 import os
 import time
@@ -16,19 +17,23 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 NDL_SPEECH_API = "https://kokkai.ndl.go.jp/api/speech"
 
 def check_other_house(name: str, current_house: str) -> bool:
-    """NDL APIで現在と異なる院での発言歴があるか確認"""
+    """NDL APIで現在と異なる院で議員として発言した記録があるか確認"""
     other_house = "衆議院" if current_house == "参議院" else "参議院"
     clean_name = name.replace(" ", "").replace("\u3000", "").strip()
     try:
         r = httpx.get(NDL_SPEECH_API, params={
             "speaker": clean_name,
             "nameOfHouse": other_house,
-            "maximumRecords": 1,
+            "maximumRecords": 10,
             "recordPacking": "json",
         }, timeout=30)
         data = r.json()
-        count = data.get("numberOfRecords", 0)
-        return int(count) > 0
+        records = data.get("speechRecord", [])
+        for rec in records:
+            pos = rec.get("speakerPosition") or ""
+            if not pos:
+                return True
+        return False
     except Exception as e:
         logger.warning(f"NDL API error for {name}: {e}")
         return False
@@ -52,7 +57,7 @@ def main():
 
         if has_other and current_prev == 0:
             client.table("members").update({"prev_terms": 1}).eq("id", m["id"]).execute()
-            logger.info(f"[{i+1}/{len(members)}] ★ 鞍替え検出: {m['name']} ({m['house']}) -> prev_terms=1")
+            logger.info(f"[{i+1}/{len(members)}] ★ 鞍替え検出: {m['name']} ({m['house']})")
             updated += 1
         elif not has_other and current_prev > 0:
             client.table("members").update({"prev_terms": 0}).eq("id", m["id"]).execute()
