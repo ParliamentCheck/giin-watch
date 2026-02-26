@@ -164,7 +164,7 @@ def register_members(members: list[dict], client):
             continue
         try:
             client.table("members").upsert({
-                "id":         f"{m['house']}-{name}",
+                "id":         f"{m['house']}-{re.sub(r'\s+', '  ', name)}",
                 "name":       name,
                 "party":      m.get("party", "無所属"),
                 "faction":    m.get("faction"),
