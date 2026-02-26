@@ -4,8 +4,24 @@ import GlobalNav from "./components/GlobalNav";
 import GlobalFooter from "./components/GlobalFooter";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.hataraku-giin.com"),
   title: "はたらく議員",
   description: "国会議員の活動を、データで見える化",
+  icons: {
+    icon: "/favicon.ico",
+  },
+  openGraph: {
+    title: "はたらく議員",
+    description: "国会議員の活動を、データで見える化",
+    url: "https://www.hataraku-giin.com",
+    siteName: "はたらく議員",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "はたらく議員",
+    description: "国会議員の活動を、データで見える化",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
