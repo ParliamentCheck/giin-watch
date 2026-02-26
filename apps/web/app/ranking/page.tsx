@@ -11,6 +11,7 @@ interface Member {
   house: string;
   district: string;
   terms: number | null;
+  prev_terms: number | null;
   is_active: boolean;
   speech_count: number | null;
   session_count: number | null;
@@ -56,7 +57,7 @@ export default function RankingPage() {
     async function fetchAll() {
       const [membersRes, committeeRes] = await Promise.all([
         supabase.from("members")
-          .select("id, name, party, house, district, terms, is_active, speech_count, session_count, question_count"),
+          .select("id, name, party, house, district, terms, prev_terms, is_active, speech_count, session_count, question_count"),
         supabase.from("committee_members")
           .select("member_id, role")
           .in("role", ["委員長", "理事", "会長", "副会長"]),
@@ -87,7 +88,7 @@ export default function RankingPage() {
     if (selectedSide === "ruling" && !RULING_PARTIES.includes(m.party)) return false;
     if (selectedSide === "opposition" && RULING_PARTIES.includes(m.party)) return false;
     if (selectedCareer) {
-      const t = m.terms ?? 0;
+      const t = (m.terms ?? 0) + (m.prev_terms ?? 0);
       if (selectedCareer === "1" && t !== 1) return false;
       if (selectedCareer === "2-3" && (t < 2 || t > 3)) return false;
       if (selectedCareer === "4-5" && (t < 4 || t > 5)) return false;
@@ -251,8 +252,14 @@ export default function RankingPage() {
                             前職
                           </span>
                         )}
-                        {m.terms && (
-                          <span style={{ color: "#475569", fontSize: 11 }}>{m.terms}期</span>
+                        {(m.prev_terms ?? 0) > 0 && (
+                          <span style={{ background: "#3b82f622", color: "#3b82f6",
+                            padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>
+                            鞍替え
+                          </span>
+                        )}
+                        {((m.terms ?? 0) + (m.prev_terms ?? 0)) > 0 && (
+                          <span style={{ color: "#475569", fontSize: 11 }}>{(m.terms ?? 0) + (m.prev_terms ?? 0)}期</span>
                         )}
                       </div>
                       <div style={{ fontSize: 12, color: "#64748b" }}>

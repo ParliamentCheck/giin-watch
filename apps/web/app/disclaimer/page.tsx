@@ -8,7 +8,19 @@ export default function DisclaimerPage() {
           免責事項・データについて
         </h1>
 
+        
         <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>当選回数と鞍替え議員について</h2>
+          <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
+            当選回数は、衆議院・参議院それぞれの公式サイトに掲載されている回数を表示しています。
+            衆議院から参議院（またはその逆）へ鞍替えした議員については、国立国会図書館の国会会議録APIを用いて
+            他院での発言歴を自動判定し、「鞍替え」バッジを表示しています。
+            通算の当選回数は、現在の院での当選回数に鞍替え補正を加えた数値です。
+            正確な通算当選回数は各公式サイトをご確認ください。
+          </p>
+        </section>
+<section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>データの収集方法</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
@@ -18,7 +30,19 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
+        
         <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>当選回数と鞍替え議員について</h2>
+          <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
+            当選回数は、衆議院・参議院それぞれの公式サイトに掲載されている回数を表示しています。
+            衆議院から参議院（またはその逆）へ鞍替えした議員については、国立国会図書館の国会会議録APIを用いて
+            他院での発言歴を自動判定し、「鞍替え」バッジを表示しています。
+            通算の当選回数は、現在の院での当選回数に鞍替え補正を加えた数値です。
+            正確な通算当選回数は各公式サイトをご確認ください。
+          </p>
+        </section>
+<section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>政党・会派の表記について</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
@@ -28,7 +52,19 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
+        
         <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>当選回数と鞍替え議員について</h2>
+          <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
+            当選回数は、衆議院・参議院それぞれの公式サイトに掲載されている回数を表示しています。
+            衆議院から参議院（またはその逆）へ鞍替えした議員については、国立国会図書館の国会会議録APIを用いて
+            他院での発言歴を自動判定し、「鞍替え」バッジを表示しています。
+            通算の当選回数は、現在の院での当選回数に鞍替え補正を加えた数値です。
+            正確な通算当選回数は各公式サイトをご確認ください。
+          </p>
+        </section>
+<section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>データの更新について</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
@@ -38,7 +74,19 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
+        
         <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>当選回数と鞍替え議員について</h2>
+          <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
+            当選回数は、衆議院・参議院それぞれの公式サイトに掲載されている回数を表示しています。
+            衆議院から参議院（またはその逆）へ鞍替えした議員については、国立国会図書館の国会会議録APIを用いて
+            他院での発言歴を自動判定し、「鞍替え」バッジを表示しています。
+            通算の当選回数は、現在の院での当選回数に鞍替え補正を加えた数値です。
+            正確な通算当選回数は各公式サイトをご確認ください。
+          </p>
+        </section>
+<section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>発言セッション数について</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
@@ -47,7 +95,19 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
+        
         <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>当選回数と鞍替え議員について</h2>
+          <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
+            当選回数は、衆議院・参議院それぞれの公式サイトに掲載されている回数を表示しています。
+            衆議院から参議院（またはその逆）へ鞍替えした議員については、国立国会図書館の国会会議録APIを用いて
+            他院での発言歴を自動判定し、「鞍替え」バッジを表示しています。
+            通算の当選回数は、現在の院での当選回数に鞍替え補正を加えた数値です。
+            正確な通算当選回数は各公式サイトをご確認ください。
+          </p>
+        </section>
+<section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>前議員・辞職議員について</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
@@ -56,7 +116,19 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
+        
         <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>当選回数と鞍替え議員について</h2>
+          <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
+            当選回数は、衆議院・参議院それぞれの公式サイトに掲載されている回数を表示しています。
+            衆議院から参議院（またはその逆）へ鞍替えした議員については、国立国会図書館の国会会議録APIを用いて
+            他院での発言歴を自動判定し、「鞍替え」バッジを表示しています。
+            通算の当選回数は、現在の院での当選回数に鞍替え補正を加えた数値です。
+            正確な通算当選回数は各公式サイトをご確認ください。
+          </p>
+        </section>
+<section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>免責</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
@@ -66,7 +138,32 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
+        
         <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>当選回数と鞍替え議員について</h2>
+          <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
+            当選回数は、衆議院・参議院それぞれの公式サイトに掲載されている回数を表示しています。
+            衆議院から参議院（またはその逆）へ鞍替えした議員については、国立国会図書館の国会会議録APIを用いて
+            他院での発言歴を自動判定し、「鞍替え」バッジを表示しています。
+            通算の当選回数は、現在の院での当選回数に鞍替え補正を加えた数値です。
+            正確な通算当選回数は各公式サイトをご確認ください。
+          </p>
+        </section>
+
+        <section style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>当選回数と鞍替え議員について</h2>
+          <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
+            当選回数は、衆議院・参議院それぞれの公式サイトに掲載されている回数を表示しています。
+            衆議院から参議院（またはその逆）へ鞍替えした議員については、国立国会図書館の国会会議録APIを用いて
+            他院での発言歴を自動判定し、「鞍替え」バッジを表示しています。
+            通算の当選回数は、現在の院での当選回数に鞍替え補正を加えた数値です。
+            正確な通算当選回数は各公式サイトをご確認ください。
+          </p>
+        </section>
+
+<section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>データソース</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
