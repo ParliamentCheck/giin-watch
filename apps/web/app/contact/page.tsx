@@ -14,7 +14,7 @@ export default function ContactPage() {
             以下のGoogleフォームよりお問い合わせください。
           </p>
           <div style={{ marginTop: 24 }}>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfbk1VxWsO4_LONGCxLku8cxz4OJ1NcvsKXG3XZsflmcmJwMQ/viewform"
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSezkzLqHaSg4nXtKfU2ANb3wUkb9IFcN45Lv3DRoZTReYqafA/viewform"
               target="_blank" rel="noopener noreferrer"
               style={{
                 display: "inline-block", background: "#3b82f6", color: "#ffffff",
