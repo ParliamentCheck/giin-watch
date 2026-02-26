@@ -7,9 +7,6 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.hataraku-giin.com"),
   title: "はたらく議員",
   description: "国会議員の活動を、データで見える化",
-  icons: {
-    icon: "/favicon.ico",
-  },
   openGraph: {
     title: "はたらく議員",
     description: "国会議員の活動を、データで見える化",
