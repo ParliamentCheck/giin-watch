@@ -15,3 +15,12 @@ body {
   color: var(--foreground);
   font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
 }
+
+/* レスポンシブ: ナビゲーション */
+@media (min-width: 769px) {
+  .show-mobile { display: none !important; }
+}
+@media (max-width: 768px) {
+  .hidden-mobile { display: none !important; }
+  .show-mobile { display: block !important; }
+}

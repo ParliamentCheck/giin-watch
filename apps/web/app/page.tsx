@@ -94,14 +94,12 @@ export default async function TopPage() {
             毎日自動更新中
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-4">
-            <span className="bg-gradient-to-r from-blue-400 via-blue-300 to-violet-400 bg-clip-text text-transparent">
-              はたらく議員
-            </span>
+          <h1 className="mb-4">
+            <img src="/logo-main.svg" alt="はたらく議員" className="h-32 sm:h-40 mx-auto" />
           </h1>
 
           <p className="text-lg text-slate-400 mb-2">
-            国会議員の活動を、データで見える化する
+            国会議員の活動を、データで見える化
           </p>
           <p className="text-sm text-slate-500">
             衆議院・参議院の全議員の発言・質問主意書・委員会活動を収集・公開

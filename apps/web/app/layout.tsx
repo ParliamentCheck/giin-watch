@@ -5,7 +5,7 @@ import GlobalFooter from "./components/GlobalFooter";
 
 export const metadata: Metadata = {
   title: "はたらく議員",
-  description: "国会議員の活動を、データで見える化する",
+  description: "国会議員の活動を、データで見える化",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
