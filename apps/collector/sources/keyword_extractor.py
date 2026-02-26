@@ -95,6 +95,14 @@ def main():
                 break
             start += 1000
 
+        # 質問主意書のタイトルも含める
+        q_result = client.table('questions').select('title') \
+            .eq('member_id', m['id']) \
+            .not_.is_('title', 'null').execute()
+        for q in (q_result.data or []):
+            if q['title']:
+                texts.append(q['title'])
+
         if not texts:
             client.table("members").update({
                 "keywords": [],
