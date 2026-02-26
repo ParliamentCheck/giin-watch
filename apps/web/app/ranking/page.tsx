@@ -35,7 +35,7 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
-const RULING_PARTIES = ["自民党", "公明党"];
+const RULING_PARTIES = ["自民党", "日本維新の会"];
 
 type CareerFilter = "" | "1" | "2-3" | "4-5" | "6+";
 type StatusFilter = "active" | "shu" | "san" | "former";
