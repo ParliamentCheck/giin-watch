@@ -14,6 +14,25 @@ def main():
         return
 
     client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+    # --- session_count / speech_count 再計算 ---
+    logger.info('session_count / speech_count を再計算中...')
+    all_members = client.table('members').select('id').execute()
+    for mem in (all_members.data or []):
+        mid = mem['id']
+        speeches = client.table('speeches').select('spoken_at, committee').eq('member_id', mid).execute()
+        rows = speeches.data or []
+        speech_count = len(rows)
+        sessions = set()
+        for r in rows:
+            sessions.add(f"{r['spoken_at']}___{r['committee']}")
+        session_count = len(sessions)
+        client.table('members').update({
+            'speech_count': speech_count,
+            'session_count': session_count,
+        }).eq('id', mid).execute()
+    logger.info(f'再計算完了: {len(all_members.data or [])}名')
+
     members = client.table("members").select("id").eq("is_active", True).execute()
 
     if not members.data:
