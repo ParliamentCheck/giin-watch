@@ -21,11 +21,11 @@ STOP_WORDS = {
     "議員", "国会", "衆議院", "参議院", "委員会", "理事", "会長",
     "資料", "報告", "説明", "発言", "趣旨", "御", "各", "当該",
     "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
-    "今", "今日", "昨日", "来年", "今年", "先ほど", "ただいま",
+    "今", "今日", "昨日", "来年", "今年", "先ほど", "ただいま", "総理", "総理大臣", "内閣総理大臣",
 }
 
 
-def extract_keywords(texts: list) -> list:
+def extract_keywords(texts: list, exclude_names: list = None) -> list:
     try:
         from janome.tokenizer import Tokenizer
         t = Tokenizer()
@@ -43,6 +43,8 @@ def extract_keywords(texts: list) -> list:
             continue
         word = token.surface.strip()
         if len(word) < 2 or word in STOP_WORDS or word.isdigit():
+            continue
+        if exclude_names and any(n in word or word in n for n in exclude_names):
             continue
         counter[word] += 1
 
@@ -110,7 +112,8 @@ def main():
             }).eq("id", m["id"]).execute()
             continue
 
-        keywords = extract_keywords(texts)
+        name_parts = [p for p in m["name"].replace("　", " ").split() if len(p) >= 2]
+        keywords = extract_keywords(texts, exclude_names=name_parts)
         client.table("members").update({
             "keywords": keywords,
             "keywords_updated_at": datetime.now(timezone.utc).isoformat(),
