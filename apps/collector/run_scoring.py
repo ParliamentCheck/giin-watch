@@ -23,13 +23,21 @@ def main():
         name = mem['name']
         speeches = client.table('speeches').select('spoken_at, committee, speech_text').eq('member_id', mid).execute()
         rows = speeches.data or []
-        # 委員長・会長としての議事進行発言を除外（○○○委員長 / ○○○会長 パターン）
+        # ゴミ発言を除外
         filtered = []
         for r in rows:
-            txt = (r.get('speech_text') or '')[:50]
-            if '委員長' in txt.split('　')[0] if '　' in txt else False:
+            txt = r.get('speech_text') or ''
+            head = txt[:50].split('　')[0] if '　' in txt[:50] else ''
+            # 委員長・会長の議事進行発言
+            if '委員長' in head:
                 continue
-            if '会長' in txt.split('　')[0] if '　' in txt else False:
+            if '会長' in head:
+                continue
+            # 議長・副議長の議事進行発言
+            if '議長' in head:
+                continue
+            # 一言だけの発言（30文字以下）
+            if len(txt) < 30:
                 continue
             filtered.append(r)
         speech_count = len(filtered)
