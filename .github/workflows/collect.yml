@@ -40,6 +40,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
+      - name: 内閣役職データ取得
+        run: python apps/collector/sources/cabinet_scraper.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
       - name: キーワード抽出
         run: python apps/collector/sources/keyword_extractor.py
         env:
