@@ -51,6 +51,7 @@ export default function RankingPage() {
   const [selectedSide,   setSelectedSide]   = useState<SideFilter>("");
   const [selectedCareer, setSelectedCareer] = useState<CareerFilter>("");
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("active");
+  const [sessionRange, setSessionRange] = useState("");
 
   useEffect(() => {
     async function fetchAll() {
@@ -67,6 +68,19 @@ export default function RankingPage() {
         if (!c.member_id) continue;
         if (!cMap[c.member_id]) cMap[c.member_id] = [];
         cMap[c.member_id].push(c.role);
+      }
+
+      // 国会回次の範囲を取得
+      const sessionRes = await supabase
+        .from("speeches")
+        .select("session_number")
+        .not("session_number", "is", null);
+      const sessions = (sessionRes.data || []).map((s: any) => s.session_number).filter(Boolean);
+      const uniqueSessions = [...new Set(sessions)] as number[];
+      if (uniqueSessions.length > 0) {
+        const min = Math.min(...uniqueSessions);
+        const max = Math.max(...uniqueSessions);
+        setSessionRange(min === max ? `第${min}回国会` : `第${min}〜${max}回国会`);
       }
 
       setMembers(membersRes.data || []);
@@ -142,7 +156,7 @@ export default function RankingPage() {
 
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>📊 議員ランキング</h1>
         <p style={{ color: "#64748b", marginBottom: 24, fontSize: 14 }}>
-          第219〜220回国会のデータに基づく
+          {sessionRange || "国会"}のデータに基づく
         </p>
 
         {/* ランク種別タブ */}

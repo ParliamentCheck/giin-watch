@@ -89,7 +89,7 @@ function MembersContent() {
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
 
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>🔍 はたらく議員</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>🔍 現職議員一覧</h1>
       <p style={{ color: "#64748b", marginBottom: 24 }}>
         現在 {members.length}名の議員データを収録
       </p>
