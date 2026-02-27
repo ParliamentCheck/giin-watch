@@ -140,7 +140,9 @@ def scrape_shugiin() -> list[dict]:
             district = cells[3].get_text(strip=True)
             terms_raw = cells[4].get_text(strip=True) if len(cells) > 4 else '0'
             try:
-                terms = int(''.join(filter(str.isdigit, terms_raw.split('(')[0])) or '0')
+                # 全角・半角カッコの前だけ取得（例: '6（参1）' → '6'）
+                terms_main = re.split(r'[（(]', terms_raw)[0]
+                terms = int(''.join(filter(str.isdigit, terms_main)) or '0')
             except:
                 terms = None
 
