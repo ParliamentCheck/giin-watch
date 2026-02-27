@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import GlobalNav from "./components/GlobalNav";
 import MaintenanceBanner from "./components/MaintenanceBanner";
+import { ElectionSafeBanner } from "./components/ElectionSafeMode";
 import GlobalFooter from "./components/GlobalFooter";
 
 export const metadata: Metadata = {
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
         <MaintenanceBanner />
+        <ElectionSafeBanner />
         <div style={{
           background: "#0f172a",
           borderBottom: "1px solid #1e293b",
