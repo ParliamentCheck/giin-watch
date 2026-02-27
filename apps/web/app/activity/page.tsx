@@ -51,6 +51,7 @@ export default function RankingPage() {
   const [selectedSide,   setSelectedSide]   = useState<SideFilter>("");
   const [selectedCareer, setSelectedCareer] = useState<CareerFilter>("");
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("active");
+  const [sortOrder, setSortOrder] = useState<"name"|"desc"|"asc">("name");
   const [sessionRange, setSessionRange] = useState("");
 
   useEffect(() => {
@@ -118,7 +119,13 @@ export default function RankingPage() {
     return 0;
   }
 
-  const sorted   = [...filtered].sort((a, b) => getValue(b) - getValue(a)).filter((m) => getValue(m) > 0);
+  const sorted = [...filtered]
+    .filter((m) => sortOrder === "name" ? true : getValue(m) > 0)
+    .sort((a, b) => {
+      if (sortOrder === "name") return (a.name || "").localeCompare(b.name || "", "ja");
+      if (sortOrder === "asc") return getValue(a) - getValue(b);
+      return getValue(b) - getValue(a);
+    });
   const maxValue = sorted.length > 0 ? getValue(sorted[0]) : 1;
 
   const RANK_CONFIGS: Record<string, { label: string; unit: string; desc: string }> = {
