@@ -58,7 +58,7 @@ export default function RankingPage() {
     async function fetchAll() {
       const [membersRes, committeeRes] = await Promise.all([
         supabase.from("members")
-          .select("id, name, party, house, district, terms, is_active, speech_count, session_count, question_count"),
+          .select("id, name, party, house, district, terms, is_active, speech_count, session_count, question_count, cabinet_post").limit(2000),
         supabase.from("committee_members")
           .select("member_id, role")
           .in("role", ["委員長", "理事", "会長", "副会長"]),
