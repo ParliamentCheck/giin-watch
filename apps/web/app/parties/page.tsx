@@ -11,8 +11,6 @@ interface PartyStats {
   questions: number;
   committee_chairs: number;
   committee_execs: number;
-  activity_score: number;
-  score_per_member: number;
 }
 
 const PARTY_COLORS: Record<string, string> = {
@@ -33,16 +31,14 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
-function calcScore(speeches: number, questions: number, chairs: number, execs: number): number {
-  return speeches * 1 + questions * 3 + chairs * 10 + execs * 5;
-}
+
 
 
 
 export default function PartiesPage() {
   const router = useRouter();
   const [parties, setParties] = useState<PartyStats[]>([]);
-  const [sortBy,  setSortBy]  = useState("score");
+  const [sortBy,  setSortBy]  = useState("total");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,7 +67,7 @@ export default function PartiesPage() {
         const p = m.party || "無所属";
         if (!partyMap[p]) {
           partyMap[p] = { party: p, total: 0, speeches: 0, questions: 0,
-            committee_chairs: 0, committee_execs: 0, activity_score: 0, score_per_member: 0 };
+            committee_chairs: 0, committee_execs: 0 };
         }
         partyMap[p].total++;
         partyMap[p].speeches  += m.speech_count   || 0;
@@ -80,10 +76,7 @@ export default function PartiesPage() {
         partyMap[p].committee_execs  += execCount[m.id]  || 0;
       }
 
-      for (const p of Object.values(partyMap)) {
-        p.activity_score    = calcScore(p.speeches, p.questions, p.committee_chairs, p.committee_execs);
-        p.score_per_member  = p.total > 0 ? Math.round(p.activity_score / p.total) : 0;
-      }
+
 
       setParties(Object.values(partyMap));
       setLoading(false);
@@ -100,15 +93,11 @@ export default function PartiesPage() {
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🗳 政党・会派別データ</h1>
-        <p style={{ color: "#475569", marginBottom: 24, fontSize: 11, lineHeight: 1.6 }}>
-          活動スコア = 発言数×1 + 質問主意書×3 + 委員長×10 + 理事×5
-        </p>
+
 
         {/* ソートボタン */}
         <div className="resp-stack" style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {[
-            { value: "score",            label: "🏆 合計スコア" },
-            { value: "score_per_member", label: "👤 1人あたりスコア" },
             { value: "total",            label: "人数" },
             { value: "speeches",         label: "💬 発言数" },
             { value: "questions",        label: "📝 質問主意書" },
@@ -157,15 +146,7 @@ export default function PartiesPage() {
                       {p.party}
                     </h2>
                     <span style={{ fontSize: 12, color: "#64748b" }}>{p.total}名</span>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 20, fontWeight: 800, color }}>
-                        {p.activity_score.toLocaleString()}
-                        <span style={{ fontSize: 10, color: "#64748b", marginLeft: 3 }}>pt</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: "#64748b" }}>
-                        1人あたり {p.score_per_member}pt
-                      </div>
-                    </div>
+
                   </div>
 
                   {/* バー */}
