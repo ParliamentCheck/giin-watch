@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import GlobalNav from "./components/GlobalNav";
+import MaintenanceBanner from "./components/MaintenanceBanner";
 import GlobalFooter from "./components/GlobalFooter";
 
 export const metadata: Metadata = {
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             gtag('config', 'G-1QJP14PKPF');
           `}
         </Script>
+        <MaintenanceBanner />
         <GlobalNav />
         <main style={{ minHeight: "calc(100vh - 60px - 120px)" }}>
           {children}

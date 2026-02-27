@@ -265,72 +265,11 @@ export default async function TopPage() {
           </section>
         )}
 
-        {/* ── データの正確性について ──────────────────────────── */}
-        <section className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-7 mb-8">
-          <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-4">
-            ⚠️ データの正確性について
-          </h3>
-          <div className="text-[13px] text-slate-500 leading-7 space-y-3">
-            <p>
-              本サイトのデータは公的機関の公開情報を自動収集・整理したものです。
-              情報の正確性には最大限配慮していますが、以下の点にご注意ください。
-            </p>
-            <dl className="space-y-2">
-              <div>
-                <dt className="text-slate-400 font-semibold inline">会派と政党の違い：</dt>
-                <dd className="inline">
-                  議員の所属表記は国会内の「会派」を元にしており、実際の政党と異なる場合があります。
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-400 font-semibold inline">発言データのタイムラグ：</dt>
-                <dd className="inline">
-                  国会図書館の会議録データは審議から登録まで1〜2週間程度のタイムラグがあります。
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-400 font-semibold inline">議員情報の更新：</dt>
-                <dd className="inline">
-                  離党・入党・議員辞職等の変更は毎日自動更新していますが、即時反映されない場合があります。
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-400 font-semibold inline">データの欠損：</dt>
-                <dd className="inline">
-                  発言記録がない議員は、実際に発言していない場合とデータ未取得の両方があり得ます。
-                </dd>
-              </div>
-            </dl>
-            <div className="pt-2 border-t border-slate-800/60">
-              <p className="text-slate-400 font-semibold mb-1">データソース</p>
-              <p>
-                <a href="https://kokkai.ndl.go.jp/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                  国立国会図書館 会議録検索システムAPI
-                </a>
-                {" / "}
-                <a href="https://www.shugiin.go.jp/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                  衆議院
-                </a>
-                {" / "}
-                <a href="https://www.sangiin.go.jp/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                  参議院
-                </a>
-              </p>
-            </div>
-            <p className="text-slate-600">
-              誤りや改善点を発見された場合は、
-              <a
-                href="https://github.com/ParliamentCheck/giin-watch/issues"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:underline"
-              >
-                GitHub Issue
-              </a>
-              でご報告いただけると幸いです。
-            </p>
-          </div>
-        </section>
+        {/* ── 注記 ── */}
+        <p style={{ textAlign: "center", fontSize: 12, color: "#475569", marginBottom: 8 }}>
+          データは公的機関の公開情報を自動収集しています。
+          詳しくは<a href="/disclaimer" style={{ color: "#3b82f6" }}>免責事項</a>をご確認ください。
+        </p>
       </div>
     </div>
   );
