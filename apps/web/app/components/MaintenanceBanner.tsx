@@ -1,10 +1,23 @@
 "use client";
 
-const SHOW_BANNER = false; // ← ここを true にすると表示される
-const BANNER_TEXT = "現在データ更新中です。一部のデータが正しく表示されない場合があります。";
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase";
 
 export default function MaintenanceBanner() {
-  if (!SHOW_BANNER) return null;
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "maintenance_banner")
+      .single()
+      .then(({ data }) => {
+        if (data?.value) setText(data.value);
+      });
+  }, []);
+
+  if (!text) return null;
   return (
     <div style={{
       background: "#f59e0b",
@@ -17,7 +30,7 @@ export default function MaintenanceBanner() {
       top: 0,
       zIndex: 1000,
     }}>
-      ⚠️ {BANNER_TEXT}
+      ⚠️ {text}
     </div>
   );
 }
