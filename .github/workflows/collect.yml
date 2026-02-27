@@ -4,190 +4,42 @@ on:
   schedule:
     - cron: "0 18 * * *"
   workflow_dispatch:
-    inputs:
-      backfill:
-        description: '過去データ一括取得（初回のみ）'
-        required: false
-        type: boolean
-        default: false
 
 jobs:
-  register:
+  collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Python セットアップ
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 議員データ登録
+
+      - name: 依存パッケージインストール
+        run: pip install -r apps/collector/requirements.txt
+
+      - name: 議員データ登録（衆参）
         run: python apps/collector/sources/register_members.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-  collect-recent:
-    needs: register
-    if: ${{ !inputs.backfill }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 発言データ収集（直近）
+      - name: 発言・委員会データ収集
         run: python apps/collector/sources/ndl_api.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          NDL_DATE_FROM: "2025-01-01"
-          NDL_DATE_UNTIL: "2026-02-28"
 
-  backfill-2024:
-    needs: register
-    if: ${{ inputs.backfill }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 発言データ収集（2024年）
-        run: python apps/collector/sources/ndl_api.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          NDL_DATE_FROM: "2024-01-01"
-          NDL_DATE_UNTIL: "2024-12-31"
-
-  backfill-2023:
-    needs: register
-    if: ${{ inputs.backfill }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 発言データ収集（2023年）
-        run: python apps/collector/sources/ndl_api.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          NDL_DATE_FROM: "2023-01-01"
-          NDL_DATE_UNTIL: "2023-12-31"
-
-  backfill-2022:
-    needs: register
-    if: ${{ inputs.backfill }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 発言データ収集（2022年）
-        run: python apps/collector/sources/ndl_api.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          NDL_DATE_FROM: "2022-01-01"
-          NDL_DATE_UNTIL: "2022-12-31"
-
-  backfill-2021:
-    needs: register
-    if: ${{ inputs.backfill }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 発言データ収集（2021年）
-        run: python apps/collector/sources/ndl_api.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          NDL_DATE_FROM: "2021-01-01"
-          NDL_DATE_UNTIL: "2021-12-31"
-
-  backfill-2018-2020:
-    needs: register
-    if: ${{ inputs.backfill }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 発言データ収集（2018-2020年）
-        run: python apps/collector/sources/ndl_api.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          NDL_DATE_FROM: "2017-10-22"
-          NDL_DATE_UNTIL: "2020-12-31"
-
-  scoring:
-    needs: [collect-recent]
-    if: ${{ !inputs.backfill }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
       - name: 活動スコア再計算
         run: python apps/collector/run_scoring.py
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-      - name: キーワード抽出
-        run: python apps/collector/sources/keyword_extractor.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-  scoring-backfill:
-    needs: [backfill-2024, backfill-2023, backfill-2022, backfill-2021, backfill-2018-2020]
-    if: ${{ inputs.backfill }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 活動スコア再計算
-        run: python apps/collector/run_scoring.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       - name: キーワード抽出
         run: python apps/collector/sources/keyword_extractor.py
         env:

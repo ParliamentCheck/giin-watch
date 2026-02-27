@@ -1,0 +1,39 @@
+name: 過去データ一括取得
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: '取得する年'
+        required: true
+        type: choice
+        options:
+          - "2024"
+          - "2023"
+          - "2022"
+          - "2021"
+          - "2018-2020"
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install -r apps/collector/requirements.txt
+      - name: 発言データ収集
+        run: python apps/collector/sources/ndl_api.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          NDL_DATE_FROM: ${{ inputs.year == '2018-2020' && '2017-10-22' || format('{0}-01-01', inputs.year) }}
+          NDL_DATE_UNTIL: ${{ inputs.year == '2018-2020' && '2020-12-31' || format('{0}-12-31', inputs.year) }}
+      - name: 質問主意書収集
+        run: python apps/collector/sources/shitsumon_scraper.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
