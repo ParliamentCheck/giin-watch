@@ -82,7 +82,6 @@ export default function PartyDetailPage() {
 
   const totalSpeeches  = members.reduce((s, m) => s + (m.speech_count   || 0), 0);
   const totalQuestions = members.reduce((s, m) => s + (m.question_count || 0), 0);
-  const femaleCount    = members.filter((m) => m.gender === "女").length;
   const avgSpeeches    = members.length > 0 ? Math.round(totalSpeeches / members.length) : 0;
 
   const sorted = [...members].sort((a, b) => {
@@ -124,7 +123,6 @@ export default function PartyDetailPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {[
             { label: "議員数",          value: members.length,  unit: "名" },
-            { label: "女性議員",        value: femaleCount,      unit: `名 (${members.length > 0 ? Math.round(femaleCount / members.length * 100) : 0}%)` },
             { label: "発言数合計",      value: totalSpeeches.toLocaleString(),  unit: "件" },
             { label: "質問主意書合計",  value: totalQuestions,  unit: "件" },
           ].map((item) => (
