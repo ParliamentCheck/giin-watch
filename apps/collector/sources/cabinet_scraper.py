@@ -35,17 +35,22 @@ def normalize_name(name: str) -> str:
 
 
 def find_cabinet_url():
-    """官邸トップから現在の内閣番号を動的に取得"""
+    """官邸トップから現在の内閣ディレクトリ名を動的に取得
+    例: '105', '103', '100_kishida' など番号+テキストのパターンに対応"""
     r = httpx.get(KANTEI_BASE + "/", headers=HEADERS, timeout=30, follow_redirects=True)
     soup = BeautifulSoup(r.text, "html.parser")
-    # /jp/XXX/ パターンから内閣番号を取得
+    # /jp/XXX/ パターン（XXXは数字で始まるディレクトリ名）を収集
+    candidates = set()
     for a in soup.select("a[href]"):
         href = a.get("href", "")
-        m = re.search(r"/jp/(\d+)/", href)
+        m = re.search(r"/jp/(\d+[^/]*)/", href)
         if m:
-            num = m.group(1)
-            return num
-    return None
+            candidates.add(m.group(1))
+    if not candidates:
+        return None
+    # 数字部分が最大のものが最新内閣
+    best = max(candidates, key=lambda x: int(re.match(r"(\d+)", x).group(1)))
+    return best
 
 
 def scrape_meibo(cabinet_num: str) -> list[dict]:
