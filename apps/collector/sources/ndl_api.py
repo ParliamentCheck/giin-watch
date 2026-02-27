@@ -13,8 +13,8 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 NDL_MEETING_API = "https://kokkai.ndl.go.jp/api/meeting"
 NDL_SPEECH_API  = "https://kokkai.ndl.go.jp/api/speech"
 
-DATE_FROM = "2017-10-22"
-DATE_UNTIL = "2026-02-28"
+DATE_FROM = os.environ.get("NDL_DATE_FROM", "2025-01-01")
+DATE_UNTIL = os.environ.get("NDL_DATE_UNTIL", "2026-02-28")
 
 COMMITTEES = [
     "本会議",
