@@ -118,11 +118,8 @@ export default function RankingPage() {
     return 0;
   }
 
-  // 役職者（大臣・副大臣・政務官・議長・副議長）の判定
-  const isOfficial = (m: any) => {
-    const post = m.cabinet_post || "";
-    return post.includes("大臣") || post.includes("総理") || post.includes("長官") || post.includes("政務官");
-  };
+  // 役職者の判定（cabinet_postが設定されている議員）
+  const isOfficial = (m: any) => !!m.cabinet_post;
   const officials = filtered.filter(isOfficial);
   const nonOfficials = filtered.filter((m: any) => !isOfficial(m));
   const displayMembers = showOfficials ? filtered : nonOfficials;
