@@ -145,9 +145,9 @@ export default async function TopPage() {
             },
             {
               icon: "📊",
-              title: "発言ランキング",
+              title: "発言活動データ",
               desc: "発言セッション数・質問主意書数で見る、国会で活発な議員",
-              path: "/ranking",
+              path: "/activity",
               border: "hover:border-violet-500/50",
             },
             {
@@ -188,10 +188,10 @@ export default async function TopPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-slate-100">最近の発言記録</h2>
               <Link
-                href="/ranking"
+                href="/activity"
                 className="text-xs text-slate-500 hover:text-blue-400 transition-colors"
               >
-                ランキングを見る →
+                活動データを見る →
               </Link>
             </div>
 

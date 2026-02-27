@@ -154,7 +154,7 @@ export default function RankingPage() {
           ← トップに戻る
         </button>
 
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>📊 議員ランキング</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>📊 議員活動データ</h1>
         <p style={{ color: "#64748b", marginBottom: 24, fontSize: 14 }}>
           {sessionRange || "国会"}のデータに基づく
         </p>

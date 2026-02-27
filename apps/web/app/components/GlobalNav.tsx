@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 const NAV_ITEMS = [
   { label: "トップ",       path: "/" },
   { label: "議員一覧",     path: "/members" },
-  { label: "ランキング",   path: "/ranking" },
+  { label: "活動データ",   path: "/activity" },
   { label: "政党・会派",   path: "/parties" },
   { label: "委員会別",     path: "/committees" },
   { label: "前議員",       path: "/members/former" },

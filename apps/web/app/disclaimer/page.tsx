@@ -81,7 +81,7 @@ export default function DisclaimerPage() {
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>無断転載の禁止</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
-            当サイトで独自に集計・可視化したグラフやランキング等のコンテンツについて、
+            当サイトで独自に集計・可視化したグラフや活動データ等のコンテンツについて、
             許可なく無断で転載することを禁じます。
             引用の際は、当サイトへのリンクを掲載するとともに、引用元であることを明記してください。
           </p>
