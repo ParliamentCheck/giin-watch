@@ -7,6 +7,7 @@ const FOOTER_LINKS = [
   { label: "免責事項", path: "/disclaimer" },
   { label: "利用規約", path: "/terms" },
   { label: "変更履歴", path: "/changelog" },
+  { label: "データ訂正申し立て", path: "https://docs.google.com/forms/d/e/1FAIpQLSfs3iOuviV2CV5BddBbG2rmPYQ4QVnRvEn8pm3j3rNpdPBlpg/viewform" },
   { label: "プライバシーポリシー", path: "/privacy" },
   { label: "お問い合わせ", path: "/contact" },
 ];
@@ -29,14 +30,20 @@ export default function GlobalFooter() {
         }}>
           {FOOTER_LINKS.map((link, i) => (
             <span key={link.path} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span
-                onClick={() => router.push(link.path)}
-                style={{ color: "#64748b", cursor: "pointer" }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; }}
-              >
-                {link.label}
-              </span>
+              {link.path.startsWith("http") ? (
+                <a href={link.path} target="_blank" rel="noopener noreferrer"
+                  style={{ color: "#64748b", textDecoration: "none" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; }}
+                >{link.label}</a>
+              ) : (
+                <span
+                  onClick={() => router.push(link.path)}
+                  style={{ color: "#64748b", cursor: "pointer" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; }}
+                >{link.label}</span>
+              )}
               {i < FOOTER_LINKS.length - 1 && (
                 <span style={{ color: "#334155" }}>|</span>
               )}
