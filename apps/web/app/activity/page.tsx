@@ -72,16 +72,15 @@ export default function RankingPage() {
       }
 
       // 国会回次の範囲を取得
-      const sessionRes = await supabase
-        .from("speeches")
-        .select("session_number")
-        .not("session_number", "is", null);
-      const sessions = (sessionRes.data || []).map((s: any) => s.session_number).filter(Boolean);
-      const uniqueSessions = [...new Set(sessions)] as number[];
-      if (uniqueSessions.length > 0) {
-        const min = Math.min(...uniqueSessions);
-        const max = Math.max(...uniqueSessions);
-        setSessionRange(min === max ? `第${min}回国会` : `第${min}〜${max}回国会`);
+      // 最小・最大のsession_numberを効率的に取得
+      const [minRes, maxRes] = await Promise.all([
+        supabase.from("speeches").select("session_number").not("session_number", "is", null).order("session_number", { ascending: true }).limit(1),
+        supabase.from("speeches").select("session_number").not("session_number", "is", null).order("session_number", { ascending: false }).limit(1),
+      ]);
+      const minSession = minRes.data?.[0]?.session_number;
+      const maxSession = maxRes.data?.[0]?.session_number;
+      if (minSession && maxSession) {
+        setSessionRange(minSession === maxSession ? `第${minSession}回国会` : `第${minSession}〜${maxSession}回国会`);
       }
 
       setMembers(membersRes.data || []);
