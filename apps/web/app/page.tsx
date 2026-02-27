@@ -8,17 +8,17 @@ async function getStats() {
       supabase
         .from("members")
         .select("id", { count: "exact", head: true })
-        .eq("is_active", true),
+        .eq("is_active", true).limit(2000),
       supabase
         .from("members")
         .select("id", { count: "exact", head: true })
         .eq("house", "衆議院")
-        .eq("is_active", true),
+        .eq("is_active", true).limit(2000),
       supabase
         .from("members")
         .select("id", { count: "exact", head: true })
         .eq("house", "参議院")
-        .eq("is_active", true),
+        .eq("is_active", true).limit(2000),
       supabase.from("speeches").select("id", { count: "exact", head: true }),
       supabase.from("questions").select("id", { count: "exact", head: true }),
     ]);
@@ -26,7 +26,7 @@ async function getStats() {
   const partiesRes = await supabase
     .from("members")
     .select("party")
-    .eq("is_active", true);
+    .eq("is_active", true).limit(2000);
   const parties = new Set((partiesRes.data || []).map((m) => m.party)).size;
 
   return {
@@ -52,7 +52,7 @@ async function getPartyBreakdown() {
   const { data } = await supabase
     .from("members")
     .select("party, house")
-    .eq("is_active", true);
+    .eq("is_active", true).limit(2000);
   if (!data) return [];
 
   const map = new Map<string, { total: number; shugiin: number; sangiin: number }>();

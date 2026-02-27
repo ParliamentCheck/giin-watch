@@ -57,7 +57,7 @@ export default function PartyDetailPage() {
         .from("members")
         .select("id, name, house, district, terms, speech_count, question_count, gender")
         .eq("party", party)
-        .eq("is_active", true);
+        .eq("is_active", true).limit(2000);
 
       const memberIds = (membersRes.data || []).map((m) => m.id);
 

@@ -44,7 +44,7 @@ export default function PartiesPage() {
   useEffect(() => {
     async function fetchStats() {
       const [membersRes, committeeRes] = await Promise.all([
-        supabase.from("members").select("id, party, speech_count, question_count").eq("is_active", true),
+        supabase.from("members").select("id, party, speech_count, question_count").eq("is_active", true).limit(2000),
         supabase.from("committee_members").select("member_id, role"),
       ]);
 

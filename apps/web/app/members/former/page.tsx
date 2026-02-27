@@ -61,7 +61,7 @@ function FormerMembersContent() {
         .from("members")
         .select("*")
         .eq("is_active", false)
-        .order("name");
+        .order("name").limit(2000);
       if (error) console.error(error);
       else setMembers(data || []);
       setLoading(false);

@@ -60,7 +60,7 @@ function MembersContent() {
       const { data, error } = await supabase
         .from("members")
         .select("*")
-        .eq("is_active", true)
+        .eq("is_active", true).limit(2000)
         .order("name");
       if (error) console.error(error);
       else setMembers(data || []);
