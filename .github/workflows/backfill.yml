@@ -27,7 +27,7 @@ env:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
 
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
 
       - name: キーワード全件再構築
         if: inputs.task == 'keyword-full-rebuild'
-        timeout-minutes: 90
+        timeout-minutes: 300
         run: python apps/collector/sources/keyword_builder.py --mode full --years 4
 
       - name: is_procedural バックフィル
