@@ -1,182 +1,185 @@
-import os
-import time
+"""
+はたらく議員 — NDL API 発言メタデータ収集
+国会会議録 API から発言データを取得し、メタデータのみを speeches テーブルに保存する。
+speech_text は保存しない（キーワード構築は keyword_builder.py が別途処理）。
+
+APIドキュメント: https://kokkai.ndl.go.jp/api.html
+"""
+
+from __future__ import annotations
+
 import logging
-import httpx
-from supabase import create_client
+import sys
+import time
+from datetime import date
+from typing import Any
+from urllib.parse import urlencode
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import requests
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+from config import (
+    NDL_API_BASE,
+    NDL_DATE_FROM,
+    NDL_DATE_UNTIL,
+    NDL_RATE_LIMIT_SEC,
+)
+from db import get_client, batch_upsert, execute_with_retry
+from utils import make_member_id, is_procedural_speech
 
-NDL_MEETING_API = "https://kokkai.ndl.go.jp/api/meeting"
-NDL_SPEECH_API  = "https://kokkai.ndl.go.jp/api/speech"
+logger = logging.getLogger("ndl_api")
 
-DATE_FROM = os.environ.get("NDL_DATE_FROM", "2025-01-01")
-DATE_UNTIL = os.environ.get("NDL_DATE_UNTIL", "2026-02-28")
-
-COMMITTEES = [
-    "本会議",
-    "予算委員会", "内閣委員会", "総務委員会", "法務委員会",
-    "外務委員会", "財務金融委員会", "文部科学委員会", "厚生労働委員会",
-    "農林水産委員会", "経済産業委員会", "国土交通委員会", "環境委員会",
-    "安全保障委員会", "国家基本政策委員会", "決算行政監視委員会",
-    "議院運営委員会", "懲罰委員会",
-    "災害対策特別委員会", "政治改革に関する特別委員会",
-    "沖縄及び北方問題に関する特別委員会", "北朝鮮による拉致問題等に関する特別委員会",
-    "消費者問題に関する特別委員会", "東日本大震災復興及び原子力問題調査特別委員会",
-    "地域活性化・こども政策・デジタル社会形成に関する特別委員会",
-    "外交防衛委員会", "財政金融委員会", "行政監視委員会",
-    "農林水産・食料問題に関する特別委員会",
-]
-
-
-def build_member_map(client) -> dict:
-    result = client.table("members").select("id, name").execute()
-    member_map = {}
-    for m in result.data:
-        key = m["name"].replace(" ", "").replace("　", "").strip()
-        member_map[key] = m["id"]
-        if "[" in m["name"]:
-            short = m["name"].split("[")[0]
-            key2 = short.replace(" ", "").replace("　", "").strip()
-            member_map[key2] = m["id"]
-            real = m["name"].split("[")[1].rstrip("]")
-            key3 = real.replace(" ", "").replace("　", "").strip()
-            member_map[key3] = m["id"]
-    logger.info(f"議員マップ: {len(member_map)}名")
-    return member_map
+# ============================================================
+# NDL API リクエスト
+# ============================================================
+def fetch_speeches_from_ndl(
+    date_from: str,
+    date_until: str,
+    start_record: int = 1,
+    records_per_page: int = 100,
+) -> dict[str, Any]:
+    """NDL API を呼び出して結果を返す。"""
+    params = {
+        "from": date_from,
+        "until": date_until,
+        "recordPacking": "json",
+        "maximumRecords": records_per_page,
+        "startRecord": start_record,
+    }
+    url = f"{NDL_API_BASE}?{urlencode(params)}"
+    logger.debug("Requesting: %s", url)
+    resp = requests.get(url, timeout=60)
+    resp.raise_for_status()
+    return resp.json()
 
 
-def get_meetings_for_committee(committee: str) -> list:
-    meetings = []
-    start = 1
+# ============================================================
+# メイン収集ロジック
+# ============================================================
+def collect_speeches(date_from: str | None = None, date_until: str | None = None) -> None:
+    date_from = date_from or NDL_DATE_FROM
+    date_until = date_until or NDL_DATE_UNTIL
+    logger.info("Collecting speeches from %s to %s", date_from, date_until)
+
+    # 既存の member_id 一覧を取得して照合用にキャッシュ
+    client = get_client()
+    members_result = execute_with_retry(
+        lambda: client.table("members").select("id, name").limit(2000),
+        label="fetch_members",
+    )
+    member_map: dict[str, str] = {}  # id -> name
+    for m in (members_result.data or []):
+        member_map[m["id"]] = m["name"]
+
+    start_record = 1
+    total_saved = 0
+    total_api_records = None
+
     while True:
-        params = {
-            "nameOfMeeting":  committee,
-            "from":           DATE_FROM,
-            "until":          DATE_UNTIL,
-            "startRecord":    start,
-            "maximumRecords": 10,
-            "recordPacking":  "json",
-        }
         try:
-            resp = httpx.get(NDL_MEETING_API, params=params, timeout=30)
-            if resp.status_code != 200:
-                logger.error(f"API error {resp.status_code}: {committee}")
-                break
-            data = resp.json()
-            records = data.get("meetingRecord", [])
-            total   = int(data.get("numberOfRecords", 0))
-            for r in records:
-                meetings.append({
-                    "id":      r.get("issueID"),
-                    "name":    r.get("nameOfMeeting", ""),
-                    "date":    r.get("date", ""),
-                    "house":   r.get("nameOfHouse", ""),
-                    "session": int(r.get("session", 0)),
-                })
-            if start + len(records) - 1 >= total:
-                break
-            start += 10
-            time.sleep(1.0)
-        except Exception as e:
-            logger.error(f"\u4f1a\u8b70\u53d6\u5f97\u30a8\u30e9\u30fc {committee}: {e}")
+            data = fetch_speeches_from_ndl(date_from, date_until, start_record)
+        except requests.RequestException as exc:
+            logger.error("NDL API request failed at record %d: %s", start_record, exc)
             break
-    return meetings
 
-
-def get_speeches_for_meeting(issue_id: str) -> list:
-    speeches = []
-    start = 1
-    while True:
-        params = {
-            "issueID":        issue_id,
-            "startRecord":    start,
-            "maximumRecords": 100,
-            "recordPacking":  "json",
-        }
-        try:
-            resp = httpx.get(NDL_SPEECH_API, params=params, timeout=30)
-            if resp.status_code != 200:
+        # レスポンス構造の解析
+        speech_records = data.get("speechRecord", [])
+        if not speech_records:
+            # numberOfRecords が 0 の場合
+            num = data.get("numberOfRecords", 0)
+            if isinstance(num, str):
+                num = int(num) if num.isdigit() else 0
+            if num == 0:
+                logger.info("No records found for the specified period.")
                 break
-            data = resp.json()
-            records = data.get("speechRecord", [])
-            total   = int(data.get("numberOfRecords", 0))
-            for r in records:
-                speaker = r.get("speaker", "")
-                if not speaker or speaker == "\u4f1a\u8b70\u9332\u60c5\u5831":
-                    continue
-                speeches.append({
-                    "id":      r.get("speechID"),
-                    "speaker": speaker,
-                    "text":    (r.get("speech", "") or "")[:2000],
-                    "url":     r.get("speechURL", ""),
-                })
-            if start + len(records) - 1 >= total:
-                break
-            start += 100
-            time.sleep(0.8)
-        except Exception as e:
-            logger.error(f"\u767a\u8a00\u53d6\u5f97\u30a8\u30e9\u30fc {issue_id}: {e}")
+            # 空ページ → 終了
             break
-    return speeches
 
+        if total_api_records is None:
+            num = data.get("numberOfRecords", 0)
+            total_api_records = int(num) if isinstance(num, str) else num
+            logger.info("Total records from API: %d", total_api_records)
 
-def main():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        logger.error("\u74b0\u5883\u5909\u6570\u304c\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u305b\u3093")
-        return
-
-    client     = create_client(SUPABASE_URL, SUPABASE_KEY)
-    member_map = build_member_map(client)
-
-    total_speeches = 0
-    total_meetings = 0
-
-    for committee in COMMITTEES:
-        meetings = get_meetings_for_committee(committee)
-        logger.info(f"{committee}: {len(meetings)}\u4ef6\u306e\u4f1a\u8b70")
-
-        for meeting in meetings:
-            issue_id = meeting["id"]
-            if not issue_id:
+        rows = []
+        for rec in speech_records:
+            speech_id = rec.get("speechID", "")
+            if not speech_id:
                 continue
 
-            speeches = get_speeches_for_meeting(issue_id)
-            rows = []
-            for s in speeches:
-                key = s["speaker"].replace(" ", "").replace("\u3000", "").strip()
-                member_id = member_map.get(key)
-                rows.append({
-                    "id":             s["id"],
-                    "member_id":      member_id,
-                    "session_number": meeting["session"],
-                    "committee":      meeting["name"],
-                    "spoken_at":      meeting["date"],
-                    "source_url":     s["url"],
-                    "speech_text":    s["text"],
-                })
+            # 院の判定
+            house = ""
+            name_of_house = rec.get("nameOfHouse", "")
+            if "衆議院" in name_of_house:
+                house = "衆議院"
+            elif "参議院" in name_of_house:
+                house = "参議院"
 
-            if rows:
-                client.table("speeches").upsert(rows).execute()
-                total_speeches += len(rows)
+            # 議員名から member_id を生成
+            speaker = rec.get("speaker", "").strip()
+            if not speaker:
+                continue
 
-            total_meetings += 1
-            logger.info(f"  [{meeting['house']}] {meeting['name']} {meeting['date']}: {len(speeches)}\u4ef6 (\u7d2f\u8a08{total_speeches}\u4ef6)")
-            time.sleep(0.5)
+            member_id = make_member_id(house, speaker) if house else None
 
-    logger.info("speech_count \u3092\u96c6\u8a08\u4e2d...")
-    members = client.table("members").select("id").execute()
-    for m in members.data:
-        result = client.table("speeches").select("id", count="exact").eq("member_id", m["id"]).execute()
-        count = result.count or 0
-        if count > 0:
-            client.table("members").update({"speech_count": count}).eq("id", m["id"]).execute()
+            # 議事進行判定（speech_text をここで一時的に使うが DB には保存しない）
+            speech_text = rec.get("speech", "")
+            procedural = is_procedural_speech(speech_text)
 
-    logger.info(f"\u5b8c\u4e86: \u4f1a\u8b70{total_meetings}\u4ef6 \u767a\u8a00{total_speeches}\u4ef6")
+            # 日付
+            spoken_at = rec.get("date", "")
+
+            # NDL URL
+            speech_url = rec.get("speechURL", "")
+
+            # 委員会名
+            committee = rec.get("nameOfMeeting", "")
+
+            # 国会回次
+            session_str = rec.get("session", "")
+            session_number = None
+            if session_str:
+                try:
+                    session_number = int(session_str)
+                except ValueError:
+                    pass
+
+            row = {
+                "id": speech_id,
+                "member_id": member_id,
+                "spoken_at": spoken_at if spoken_at else None,
+                "committee": committee,
+                "session_number": session_number,
+                "house": house,
+                "url": speech_url,
+                "is_procedural": procedural,
+            }
+            rows.append(row)
+
+        if rows:
+            # member_id が members テーブルに存在しない行は除外
+            valid_rows = [r for r in rows if r["member_id"] in member_map]
+            orphan_count = len(rows) - len(valid_rows)
+            if orphan_count > 0:
+                logger.debug("Skipped %d speeches with unknown member_id", orphan_count)
+
+            if valid_rows:
+                batch_upsert("speeches", valid_rows, on_conflict="id", label="speeches")
+                total_saved += len(valid_rows)
+
+        start_record += len(speech_records)
+        if total_api_records and start_record > total_api_records:
+            break
+
+        time.sleep(NDL_RATE_LIMIT_SEC)
+
+    logger.info("Speech collection complete. Saved %d records.", total_saved)
 
 
+# ============================================================
+# エントリポイント
+# ============================================================
 if __name__ == "__main__":
-    main()
+    try:
+        collect_speeches()
+    except Exception:
+        logger.exception("Speech collection failed")
+        sys.exit(1)

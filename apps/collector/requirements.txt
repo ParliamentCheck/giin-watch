@@ -1,5 +1,7 @@
-httpx
-beautifulsoup4
-supabase
-python-dotenv
-janome
+# はたらく議員 — コレクター依存パッケージ
+supabase>=2.0.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+mecab-python3>=1.0.9
+unidic-lite>=1.0.8
+lxml>=5.0.0

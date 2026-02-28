@@ -3,37 +3,93 @@ name: 過去データ一括取得
 on:
   workflow_dispatch:
     inputs:
-      year:
-        description: '取得する年'
-        required: true
+      task:
+        description: "実行タスク"
         type: choice
+        required: true
         options:
-          - "2024"
-          - "2023"
-          - "2022"
-          - "2021"
-          - "2018-2020"
+          - "speeches-2024"
+          - "speeches-2023"
+          - "speeches-2022"
+          - "speeches-2021"
+          - "speeches-2018-2020"
+          - "keyword-full-rebuild"
+          - "backfill-procedural"
+          - "votes-collect"
+          - "bills-collect"
+          - "sangiin-questions"
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+  PYTHONPATH: apps/collector
 
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
-      - run: pip install -r apps/collector/requirements.txt
-      - name: 発言データ収集
-        run: python apps/collector/sources/ndl_api.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          NDL_DATE_FROM: ${{ inputs.year == '2018-2020' && '2017-10-22' || format('{0}-01-01', inputs.year) }}
-          NDL_DATE_UNTIL: ${{ inputs.year == '2018-2020' && '2020-12-31' || format('{0}-12-31', inputs.year) }}
-      - name: 質問主意書収集
-        run: python apps/collector/sources/shitsumon_scraper.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r apps/collector/requirements.txt
+          sudo apt-get update && sudo apt-get install -y mecab libmecab-dev
+
+      - name: 発言データ過去取得
+        if: startsWith(inputs.task, 'speeches-')
+        run: |
+          case "${{ inputs.task }}" in
+            "speeches-2024")
+              export NDL_DATE_FROM="2024-01-01"
+              export NDL_DATE_UNTIL="2024-12-31"
+              ;;
+            "speeches-2023")
+              export NDL_DATE_FROM="2023-01-01"
+              export NDL_DATE_UNTIL="2023-12-31"
+              ;;
+            "speeches-2022")
+              export NDL_DATE_FROM="2022-01-01"
+              export NDL_DATE_UNTIL="2022-12-31"
+              ;;
+            "speeches-2021")
+              export NDL_DATE_FROM="2021-01-01"
+              export NDL_DATE_UNTIL="2021-12-31"
+              ;;
+            "speeches-2018-2020")
+              export NDL_DATE_FROM="2018-01-01"
+              export NDL_DATE_UNTIL="2020-12-31"
+              ;;
+          esac
+          python apps/collector/sources/ndl_api.py
+
+      - name: キーワード全件再構築
+        if: inputs.task == 'keyword-full-rebuild'
+        timeout-minutes: 90
+        run: python apps/collector/sources/keyword_builder.py --mode full --years 4
+
+      - name: is_procedural バックフィル
+        if: inputs.task == 'backfill-procedural'
+        run: python scripts/backfill_procedural.py
+
+      - name: 採決記録収集
+        if: inputs.task == 'votes-collect'
+        run: python apps/collector/sources/vote_scraper.py
+
+      - name: 議員立法収集
+        if: inputs.task == 'bills-collect'
+        run: python apps/collector/sources/bill_scraper.py
+
+      - name: 参議院質問主意書
+        if: inputs.task == 'sangiin-questions'
+        run: python apps/collector/sources/sangiin_shitsumon.py
+
+      - name: スコア再計算
+        if: always()
+        run: python apps/collector/run_scoring.py

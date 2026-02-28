@@ -2,18 +2,17 @@
 内閣閣僚・副大臣・大臣政務官の役職データ自動取得
 首相官邸サイトから動的にURLを取得し、議員DBに紐付ける
 """
-import os
 import re
 import logging
 import httpx
 from bs4 import BeautifulSoup
-from supabase import create_client
+
+# 共通モジュールからインポート
+from db import get_client, execute_with_retry
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 KANTEI_BASE = "https://www.kantei.go.jp"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
@@ -35,11 +34,9 @@ def normalize_name(name: str) -> str:
 
 
 def find_cabinet_url():
-    """官邸トップから現在の内閣ディレクトリ名を動的に取得
-    例: '105', '103', '100_kishida' など番号+テキストのパターンに対応"""
+    """官邸トップから現在の内閣ディレクトリ名を動的に取得"""
     r = httpx.get(KANTEI_BASE + "/", headers=HEADERS, timeout=30, follow_redirects=True)
     soup = BeautifulSoup(r.text, "html.parser")
-    # /jp/XXX/ パターン（XXXは数字で始まるディレクトリ名）を収集
     candidates = set()
     for a in soup.select("a[href]"):
         href = a.get("href", "")
@@ -48,7 +45,6 @@ def find_cabinet_url():
             candidates.add(m.group(1))
     if not candidates:
         return None
-    # 数字部分が最大のものが最新内閣
     best = max(candidates, key=lambda x: int(re.match(r"(\d+)", x).group(1)))
     return best
 
@@ -78,7 +74,6 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
 
         current_post = ""
         for line in lines:
-            # ふりがな付きの名前パターン：漢字名（ふりがな）
             name_match = re.match(r"^(.+?)（(.+?)）$", line)
             if name_match:
                 name = name_match.group(1).replace("\u3000", " ").strip()
@@ -91,15 +86,13 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
                     logger.info(f"  {current_post}: {name}")
                 current_post = ""
             else:
-                # 役職行の判定
                 if ("大臣" in line or "長官" in line or "担当" in line or
                     "副大臣" in line or "政務官" in line or "補佐官" in line):
-                    # 兼任の場合は最初の役職を使う
                     if not current_post or not line.startswith("兼"):
                         if not current_post:
                             current_post = line
                         elif line.startswith("兼"):
-                            pass  # 兼任はスキップ
+                            pass
                         else:
                             current_post = line
 
@@ -108,13 +101,14 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
 
 def build_member_map(client) -> dict:
     """議員名 → member_id のマッピングを構築"""
-    result = client.table("members").select("id, name").eq("is_active", True).execute()
+    result = execute_with_retry(
+        lambda: client.table("members").select("id, name").eq("is_active", True).limit(2000),
+        label="fetch_members_for_cabinet",
+    )
     member_map = {}
     for m in result.data:
-        # 正規化した名前でマッピング
         norm = normalize_name(m["name"])
         member_map[norm] = m["id"]
-        # ブラケット内の名前でもマッチ
         if "[" in m["name"]:
             real = m["name"].split("[")[1].rstrip("]")
             norm_real = normalize_name(real)
@@ -126,11 +120,7 @@ def build_member_map(client) -> dict:
 
 
 def main():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        logger.error("環境変数が設定されていません")
-        return
-
-    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    client = get_client()
 
     # 内閣番号を動的取得
     cabinet_num = find_cabinet_url()
@@ -148,7 +138,10 @@ def main():
     logger.info(f"議員マップ: {len(member_map)}名")
 
     # まず全議員のcabinet_postをクリア
-    client.table("members").update({"cabinet_post": None}).neq("cabinet_post", "dummy_never_match").execute()
+    execute_with_retry(
+        lambda: client.table("members").update({"cabinet_post": None}).neq("cabinet_post", "dummy_never_match"),
+        label="clear_cabinet_post",
+    )
 
     # マッチングして更新
     matched = 0
@@ -157,7 +150,10 @@ def main():
         norm = normalize_name(p["name"])
         member_id = member_map.get(norm)
         if member_id:
-            client.table("members").update({"cabinet_post": p["post"]}).eq("id", member_id).execute()
+            execute_with_retry(
+                lambda mid=member_id, post=p["post"]: client.table("members").update({"cabinet_post": post}).eq("id", mid),
+                label=f"update_cabinet:{member_id}",
+            )
             matched += 1
         else:
             unmatched.append(f"{p['post']}: {p['name']}")

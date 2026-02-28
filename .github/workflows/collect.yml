@@ -1,54 +1,94 @@
-name: 議員データ自動収集
+name: 日次データ収集
 
 on:
   schedule:
     - cron: "0 18 * * *"
   workflow_dispatch:
+    inputs:
+      skip_keywords:
+        description: "キーワード更新をスキップする"
+        type: boolean
+        default: false
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+  PYTHONPATH: apps/collector
 
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Python セットアップ
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
 
-      - name: 依存パッケージインストール
-        run: pip install -r apps/collector/requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install -r apps/collector/requirements.txt
+          sudo apt-get update && sudo apt-get install -y mecab libmecab-dev
 
-      - name: 議員データ登録（衆参）
+      - name: 議員データ登録
+        id: members
+        continue-on-error: true
         run: python apps/collector/sources/register_members.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-      - name: 発言・委員会データ収集
+      - name: 発言データ収集
+        id: speeches
+        continue-on-error: true
         run: python apps/collector/sources/ndl_api.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
       - name: 活動スコア再計算
+        id: scoring
+        continue-on-error: true
         run: python apps/collector/run_scoring.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
       - name: 内閣役職データ取得
+        id: cabinet
+        continue-on-error: true
         run: python apps/collector/sources/cabinet_scraper.py
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-      # キーワード抽出は別途手動実行（タイムアウト対策）
-      # - name: キーワード抽出
-      #   run: python apps/collector/sources/keyword_extractor.py
-      #   env:
-      #     SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      #     SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      - name: 質問主意書（衆議院）
+        id: shitsumon
+        continue-on-error: true
+        run: python apps/collector/sources/shitsumon_scraper.py
+
+      - name: 質問主意書（参議院）
+        id: sangiin_q
+        continue-on-error: true
+        run: python apps/collector/sources/sangiin_shitsumon.py
+
+      - name: キーワード更新
+        id: keywords
+        if: inputs.skip_keywords != true
+        continue-on-error: true
+        timeout-minutes: 20
+        run: python apps/collector/sources/keyword_builder.py --mode daily
+
+      - name: 実行結果サマリー
+        if: always()
+        run: |
+          echo "## 実行結果"
+          echo "| ステップ | 結果 |"
+          echo "|---------|------|"
+          echo "| 議員データ登録 | ${{ steps.members.outcome }} |"
+          echo "| 発言データ収集 | ${{ steps.speeches.outcome }} |"
+          echo "| スコア再計算 | ${{ steps.scoring.outcome }} |"
+          echo "| 内閣役職 | ${{ steps.cabinet.outcome }} |"
+          echo "| 質問主意書（衆） | ${{ steps.shitsumon.outcome }} |"
+          echo "| 質問主意書（参） | ${{ steps.sangiin_q.outcome }} |"
+          echo "| キーワード更新 | ${{ steps.keywords.outcome }} |"
+
+      - name: 失敗チェック
+        if: always()
+        run: |
+          if [ "${{ steps.members.outcome }}" = "failure" ] || \
+             [ "${{ steps.speeches.outcome }}" = "failure" ] || \
+             [ "${{ steps.scoring.outcome }}" = "failure" ]; then
+            echo "::warning::1つ以上のステップが失敗しました"
+          fi

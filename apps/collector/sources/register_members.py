@@ -1,50 +1,20 @@
 import re
-import os, time, logging, httpx
+import time
+import logging
+import httpx
 from bs4 import BeautifulSoup
-from supabase import create_client
+
+# 共通モジュールからインポート
+from config import PARTY_MAP, PARTY_MAP_KEYS_SORTED
+from db import get_client, execute_with_retry, batch_upsert
+from utils import make_member_id, normalize_party, parse_terms
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
 SANGIIN_BASE = "https://www.sangiin.go.jp/japanese/joho1/kousei/giin"
 SHUGIIN_BASE = "https://www.shugiin.go.jp/internet/itdb_annai.nsf/html/statics/syu/"
-
-PARTY_MAP = {
-    '自由民主': '自民党', '自民': '自民党',
-    '立憲民主': '立憲民主党', '立憲': '立憲民主党',
-    '公明': '公明党',
-    '日本維新': '日本維新の会', '維新': '日本維新の会',
-    '国民民主': '国民民主党', '国民': '国民民主党',
-    '日本共産': '共産党', '共産': '共産党',
-    'れいわ': 'れいわ新選組',
-    '社会民主': '社民党', '社民': '社民党',
-    '参政': '参政党',
-    'チームみらい': 'チームみらい', 'みらい': 'チームみらい',
-    '日本保守': '日本保守党',
-    '沖縄の風': '沖縄の風',
-    '中道改革連合': '中道改革連合', '中道': '中道改革連合',
-    '有志': '有志の会',
-    '各派に属しない': '無所属',
-    '減税保守こども': '無所属',
-    '不明（前議員）': '無所属',
-    'ＮＨＫから国民を守る党': 'NHK党', 'NHK': 'NHK党',
-    '教育無償化を実現する会': '日本維新の会',
-    '新緑風会': '国民民主党',
-    '無所属': '無所属',
-}
-
-def normalize_party(raw: str) -> str:
-    raw = raw.strip()
-    if not raw or len(raw) <= 1:
-        return '無所属'
-    # 長いキーから先にマッチさせる（短いキーの誤マッチを防ぐ）
-    for key, full in sorted(PARTY_MAP.items(), key=lambda x: len(x[0]), reverse=True):
-        if key in raw:
-            return full
-    return raw
 
 
 def scrape_profile(profile_url: str) -> dict:
@@ -59,7 +29,7 @@ def scrape_profile(profile_url: str) -> dict:
         if '所属会派 |' in text:
             faction = text.split('所属会派 |')[1].split('|')[0].strip()
 
-        # 政党（会派から変換）
+        # 政党（共通モジュールで変換）
         party = normalize_party(faction)
 
         # 選挙区
@@ -68,7 +38,7 @@ def scrape_profile(profile_url: str) -> dict:
             raw = text.split('選挙区・比例区')[1]
             district = raw.split('|')[1].strip().split('／')[0].strip() if '|' in raw else '不明'
 
-        # 当選回数
+        # 当選回数（共通モジュールで解析）
         terms = None
         m = re.search(r"当選\s*(\d+)\s*回", text)
         if m:
@@ -139,12 +109,7 @@ def scrape_shugiin() -> list[dict]:
             party   = normalize_party(faction)
             district = cells[3].get_text(strip=True)
             terms_raw = cells[4].get_text(strip=True) if len(cells) > 4 else '0'
-            try:
-                # 全角・半角カッコの前だけ取得（例: '6（参1）' → '6'）
-                terms_main = re.split(r'[（(]', terms_raw)[0]
-                terms = int(''.join(filter(str.isdigit, terms_main)) or '0')
-            except:
-                terms = None
+            terms = parse_terms(terms_raw)
 
             members.append({
                 "name":       name,
@@ -163,57 +128,66 @@ def scrape_shugiin() -> list[dict]:
     return members
 
 
-def register_members(members: list[dict], client):
-    success = 0
+def register_members(members: list[dict]) -> None:
+    rows = []
     for m in members:
         name = m.get("name", "").strip()
         if not name:
             continue
-        try:
-            client.table("members").upsert({
-                "id":         f"{m['house']}-{re.sub(r'\s+', '  ', name)}",
-                "name":       name,
-                "party":      m.get("party", "無所属"),
-                "faction":    m.get("faction"),
-                "house":      m["house"],
-                "district":   m.get("district", "不明"),
-                "prefecture": m.get("prefecture", "不明"),
-                "terms":      m.get("terms"),
-                "source_url": m.get("source_url"),
-                "is_active":  True,
-            }).execute()
-            success += 1
-        except Exception as e:
-            logger.warning(f"登録スキップ {name}: {e}")
+        rows.append({
+            "id":         make_member_id(m["house"], name),
+            "name":       name,
+            "party":      m.get("party", "無所属"),
+            "faction":    m.get("faction"),
+            "house":      m["house"],
+            "district":   m.get("district", "不明"),
+            "prefecture": m.get("prefecture", "不明"),
+            "terms":      m.get("terms"),
+            "source_url": m.get("source_url"),
+            "is_active":  True,
+        })
 
-    logger.info(f"登録完了: {success}名")
+    if rows:
+        batch_upsert("members", rows, on_conflict="id", label="register_members")
+    logger.info(f"登録完了: {len(rows)}名")
 
 
 def main():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        logger.error("環境変数が設定されていません")
-        return
-
-    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    client = get_client()
 
     # 全員を一旦 is_active=false にして、スクレイプで見つかった議員だけ true に戻す
-    client.table("members").update({"is_active": False}).eq("house", "衆議院").execute()
-    client.table("members").update({"is_active": False}).eq("house", "参議院").execute()
+    execute_with_retry(
+        lambda: client.table("members").update({"is_active": False}).eq("house", "衆議院"),
+        label="reset_shugiin",
+    )
+    execute_with_retry(
+        lambda: client.table("members").update({"is_active": False}).eq("house", "参議院"),
+        label="reset_sangiin",
+    )
     logger.info("全議員の is_active を false にリセットしました")
 
     shugiin = scrape_shugiin()
     if shugiin:
-        register_members(shugiin, client)
+        register_members(shugiin)
 
     time.sleep(2)
 
     sangiin = scrape_sangiin()
     if sangiin:
-        register_members(sangiin, client)
+        register_members(sangiin)
 
-    shugiin_count = client.table('members').select('id', count='exact').eq('house', '衆議院').execute()
-    sangiin_count = client.table('members').select('id', count='exact').eq('house', '参議院').execute()
-    total = client.table('members').select('id', count='exact').execute()
+    shugiin_count = execute_with_retry(
+        lambda: client.table('members').select('id', count='exact').eq('house', '衆議院'),
+        label="count_shugiin",
+    )
+    sangiin_count = execute_with_retry(
+        lambda: client.table('members').select('id', count='exact').eq('house', '参議院'),
+        label="count_sangiin",
+    )
+    total = execute_with_retry(
+        lambda: client.table('members').select('id', count='exact'),
+        label="count_total",
+    )
     logger.info(f"衆議院: {shugiin_count.count}名")
     logger.info(f"参議院: {sangiin_count.count}名")
     logger.info(f"DB合計: {total.count}名")

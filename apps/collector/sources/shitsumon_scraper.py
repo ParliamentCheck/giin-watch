@@ -1,54 +1,23 @@
-import os
+import re
 import time
 import logging
 import httpx
 from typing import Optional
 from bs4 import BeautifulSoup
-from supabase import create_client
+
+# 共通モジュールからインポート
+from config import SESSION_MAX
+from db import get_client, execute_with_retry
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-
 HEADERS  = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
 BASE_URL = "https://www.shugiin.go.jp/internet/itdb_shitsumon.nsf/html/shitsumon/"
 
-# セッションごとの最大件数（定期的に更新が必要）
-SESSION_MAX = {
-    196: 487,
-    197: 145,
-    198: 309,
-    199: 20,
-    200: 186,
-    201: 276,
-    202: 31,
-    203: 83,
-    204: 236,
-    205: 22,
-    206: 22,
-    207: 42,
-    208: 156,
-    209: 41,
-    210: 68,
-    211: 156,
-    212: 141,
-    213: 206,
-    214: 56,
-    215: 51,
-    216: 107,
-    217: 352,
-    218: 21,
-    219: 205,
-    220: 8,
-    221: 300,
-}
-
 
 def normalize_name(name: str) -> str:
-    import re
-    name = name.replace("　", " ").replace("君", "").strip()
+    name = name.replace("\u3000", " ").replace("君", "").strip()
     return re.sub(r" +", " ", name)
 
 
@@ -94,22 +63,22 @@ def scrape_shitsumon(session: int, number: int) -> Optional[dict]:
         return None
 
 
-def find_member_id(name: str, house: str, client) -> Optional[str]:
-    result = client.table("members").select("id, name").eq("house", house).execute()
-    for m in result.data:
+def find_member_id(name: str, house: str, members_data: list[dict]) -> Optional[str]:
+    for m in members_data:
         if normalize_name(m["name"]) == name:
             return m["id"]
     return None
 
 
 def main():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        logger.error("環境変数が設定されていません")
-        return
+    client = get_client()
 
-    client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-    # member_idキャッシュ
+    # member_idキャッシュ（一度だけ取得）
+    members_result = execute_with_retry(
+        lambda: client.table("members").select("id, name").eq("house", "衆議院").limit(2000),
+        label="fetch_shugiin_members",
+    )
+    members_data = members_result.data or []
     member_cache = {}
 
     total_saved = 0
@@ -121,7 +90,7 @@ def main():
             data = scrape_shitsumon(session, number)
 
             if data is None:
-                if number > 10:  # 10件以上取得後に404なら終了
+                if number > 10:
                     logger.info(f"第{session}回: {number - 1}件で終了")
                     break
                 continue
@@ -129,37 +98,31 @@ def main():
             # 提出者のmember_idを取得
             submitter = data["submitter"]
             if submitter not in member_cache:
-                member_cache[submitter] = find_member_id(submitter, data["house"], client)
+                member_cache[submitter] = find_member_id(submitter, data["house"], members_data)
             member_id = member_cache[submitter]
 
-            client.table("questions").upsert({
-                "id":           data["id"],
-                "member_id":    member_id,
-                "session":      data["session"],
-                "number":       data["number"],
-                "title":        data["title"],
-                "submitter":    data["submitter"],
-                "faction":      data["faction"],
-                "submitted_at": data["submitted_at"],
-                "answered_at":  data["answered_at"],
-                "source_url":   data["source_url"],
-                "house":        data["house"],
-            }).execute()
+            execute_with_retry(
+                lambda d=data, mid=member_id: client.table("questions").upsert({
+                    "id":           d["id"],
+                    "member_id":    mid,
+                    "session":      d["session"],
+                    "number":       d["number"],
+                    "title":        d["title"],
+                    "submitter":    d["submitter"],
+                    "faction":      d["faction"],
+                    "submitted_at": d["submitted_at"],
+                    "answered_at":  d["answered_at"],
+                    "source_url":   d["source_url"],
+                    "house":        d["house"],
+                }),
+                label=f"upsert_q:{d['id']}",
+            )
 
             total_saved += 1
             logger.info(f"  [{session}-{number:03d}] {data['submitter']} / {data['title'][:30]}")
             time.sleep(0.8)
 
-    # 議員ごとの質問主意書数を集計
-    logger.info("質問主意書数を集計中...")
-    members = client.table("members").select("id").execute()
-    for m in members.data:
-        count = client.table("questions").select("id", count="exact").eq("member_id", m["id"]).execute()
-        if count.count and count.count > 0:
-            client.table("members").update({
-                "question_count": count.count
-            }).eq("id", m["id"]).execute()
-
+    # 質問主意書数の集計は run_scoring.py に任せる
     logger.info(f"収集完了: 合計{total_saved}件")
 
 
