@@ -2,9 +2,6 @@
 はたらく議員 — is_procedural フラグ バックフィル
 既存の speeches テーブルの speech_text を読んで is_procedural を判定・更新する。
 speech_text 削除前に1回だけ実行する。
-
-使い方:
-  python scripts/backfill_procedural.py
 """
 
 from __future__ import annotations
@@ -23,7 +20,6 @@ BATCH_SIZE = 1000
 def backfill() -> None:
     client = get_client()
 
-    # speech_text が存在する行を分割取得して処理
     offset = 0
     total_updated = 0
     total_procedural = 0
@@ -42,30 +38,26 @@ def backfill() -> None:
         if not rows:
             break
 
-        updates = []
         for row in rows:
             speech_text = row.get("speech_text", "")
             procedural = is_procedural_speech(speech_text or "")
-            updates.append({
-                "id": row["id"],
-                "is_procedural": procedural,
-            })
+
+            # upsert ではなく update を使う（他のカラムを壊さない）
+            execute_with_retry(
+                lambda rid=row["id"], val=procedural: (
+                    client.table("speeches")
+                    .update({"is_procedural": val})
+                    .eq("id", rid)
+                ),
+                label=f"update_proc:{row['id']}",
+            )
+
             if procedural:
                 total_procedural += 1
-
-        # バッチ更新
-        if updates:
-            # Supabase upsert で更新
-            for i in range(0, len(updates), 500):
-                chunk = updates[i:i+500]
-                execute_with_retry(
-                    lambda c=chunk: client.table("speeches").upsert(c, on_conflict="id"),
-                    label=f"upsert_procedural_{offset+i}",
-                )
-            total_updated += len(updates)
+            total_updated += 1
 
         logger.info(
-            "Processed %d rows (procedural: %d / total updated: %d)",
+            "Processed %d rows (procedural so far: %d / total: %d)",
             len(rows), total_procedural, total_updated,
         )
 
