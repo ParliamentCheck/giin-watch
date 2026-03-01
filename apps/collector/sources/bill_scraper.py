@@ -190,13 +190,25 @@ def collect_bills(sessions: list[int] | None = None) -> None:
     for session in sessions:
         shu_rows = scrape_shugiin_bills(session)
         if shu_rows:
-            batch_upsert("bills", shu_rows, on_conflict="id", label=f"bills_shu:{session}")
-            total_saved += len(shu_rows)
+            seen = set()
+            deduped = []
+            for r in shu_rows:
+                if r["id"] not in seen:
+                    seen.add(r["id"])
+                    deduped.append(r)
+            batch_upsert("bills", deduped, on_conflict="id", label=f"bills_shu:{session}")
+            total_saved += len(deduped)
 
         san_rows = scrape_sangiin_bills(session)
         if san_rows:
-            batch_upsert("bills", san_rows, on_conflict="id", label=f"bills_san:{session}")
-            total_saved += len(san_rows)
+            seen = set()
+            deduped = []
+            for r in san_rows:
+                if r["id"] not in seen:
+                    seen.add(r["id"])
+                    deduped.append(r)
+            batch_upsert("bills", deduped, on_conflict="id", label=f"bills_san:{session}")
+            total_saved += len(deduped)
 
         time.sleep(2)
 
