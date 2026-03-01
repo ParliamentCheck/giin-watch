@@ -53,6 +53,7 @@ export default function RankingPage() {
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("active");
   const [sortOrder, setSortOrder] = useState<"name"|"desc"|"asc">("name");
   const [sessionRange, setSessionRange] = useState("");
+  const [showOfficials, setShowOfficials] = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
