@@ -1,4 +1,3 @@
-export const revalidate = 3600;
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
