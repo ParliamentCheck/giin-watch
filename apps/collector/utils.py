@@ -25,9 +25,9 @@ from config import (
 def make_member_id(house: str, name: str) -> str:
     """
     議員IDを生成する。
-    スペース（半角・全角混在）を全角スペース2つに統一。
+    スペースを全て除去して正規化する。
     """
-    normalized = re.sub(r"\s+", "\u3000\u3000", name.strip())
+    normalized = re.sub(r"\s+", "", name.strip())
     return f"{house}-{normalized}"
 
 
