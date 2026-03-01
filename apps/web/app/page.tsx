@@ -1,3 +1,4 @@
+export const revalidate = 3600;
 import { supabase } from "../lib/supabase";
 import Link from "next/link";
 
