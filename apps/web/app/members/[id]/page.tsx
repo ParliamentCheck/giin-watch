@@ -38,6 +38,23 @@ interface Question {
   number: number;
 }
 
+interface Vote {
+  id: string;
+  bill_title: string;
+  vote_date: string | null;
+  vote: string;
+  session_number: number;
+}
+
+interface Bill {
+  id: string;
+  title: string;
+  submitted_at: string | null;
+  status: string | null;
+  session_number: number;
+  house: string;
+}
+
 interface CommitteeMember {
   id: string;
   committee: string;
@@ -85,25 +102,33 @@ export default function MemberDetailPage() {
   const [speeches,   setSpeeches]   = useState<Speech[]>([]);
   const [questions,  setQuestions]  = useState<Question[]>([]);
   const [committees, setCommittees] = useState<CommitteeMember[]>([]);
+  const [votes,      setVotes]      = useState<Vote[]>([]);
+  const [bills,      setBills]      = useState<Bill[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState("committees");
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchAll() {
-      const [memberRes, speechRes, questionRes, committeeRes] = await Promise.all([
+      const [memberRes, speechRes, questionRes, committeeRes, voteRes, billRes] = await Promise.all([
         supabase.from("members").select("*").eq("id", memberId).single(),
         supabase.from("speeches").select("*").eq("member_id", memberId)
           .order("spoken_at", { ascending: false }).limit(200),
         supabase.from("questions").select("*").eq("member_id", memberId)
           .order("submitted_at", { ascending: false }).limit(20),
         supabase.from("committee_members").select("*").eq("member_id", memberId),
+        supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
+          .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(100),
+        supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids")
+          .contains("submitter_ids", [memberId]).limit(50),
       ]);
 
       if (memberRes.data)    setMember(memberRes.data);
       if (speechRes.data)    setSpeeches(speechRes.data);
       if (questionRes.data)  setQuestions(questionRes.data);
       if (committeeRes.data) setCommittees(committeeRes.data);
+      if (voteRes.data)      setVotes(voteRes.data);
+      if (billRes.data)      setBills(billRes.data);
       setLoading(false);
     }
     fetchAll();
@@ -233,9 +258,11 @@ export default function MemberDetailPage() {
       <div className="resp-scroll" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
         border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
         {[
-          { id: "committees", label: "🏛 委員会所属" },
-          { id: "speeches",   label: `💬 発言履歴 (${sessionGroups.length}セッション)` },
+          { id: "committees", label: "🏛 委員会" },
+          { id: "speeches",   label: `💬 発言 (${sessionGroups.length})` },
           { id: "questions",  label: "📝 質問主意書" },
+          { id: "votes",      label: `🗳 採決 (${votes.length})` },
+          { id: "bills",      label: `📋 議員立法 (${bills.length})` },
           { id: "keywords",   label: "☁️ キーワード" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -381,6 +408,76 @@ export default function MemberDetailPage() {
                     style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
                     📄 詳細を見る →
                   </a>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 採決記録タブ（参議院のみ） */}
+      {tab === "votes" && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
+            textTransform: "uppercase", letterSpacing: 1 }}>
+            本会議採決記録（参議院・最新100件）
+          </h3>
+          {member.house !== "参議院" ? (
+            <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>
+              衆議院は個人別の投票記録が公開されていないため、採決データは参議院議員のみ表示されます。
+            </div>
+          ) : votes.length === 0 ? (
+            <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>
+              採決記録がありません。
+            </div>
+          ) : (
+            votes.map((v, i) => {
+              const voteColor = v.vote === "賛成" ? "#22c55e" : v.vote === "反対" ? "#ef4444" : "#64748b";
+              return (
+                <div key={v.id} style={{ padding: "12px 0",
+                  borderBottom: i < votes.length - 1 ? "1px solid #1e293b" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <span style={{ fontSize: 13, color: "#e2e8f0", flex: 1 }}>
+                      {v.bill_title}
+                    </span>
+                    <span style={{ fontSize: 11, color: voteColor, fontWeight: 700, flexShrink: 0,
+                      background: voteColor + "22", border: `1px solid ${voteColor}44`,
+                      padding: "2px 8px", borderRadius: 4 }}>
+                      {v.vote}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                    {v.vote_date || "日付不明"} · 第{v.session_number}回国会
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* 議員立法タブ */}
+      {tab === "bills" && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
+            textTransform: "uppercase", letterSpacing: 1 }}>
+            議員提出法案
+          </h3>
+          {bills.length === 0 ? (
+            <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>
+              議員提出法案の記録がありません。
+            </div>
+          ) : (
+            bills.map((b, i) => (
+              <div key={b.id} style={{ padding: "12px 0",
+                borderBottom: i < bills.length - 1 ? "1px solid #1e293b" : "none" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", marginBottom: 4 }}>
+                  {b.title}
+                </div>
+                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#64748b" }}>
+                  <span>{b.submitted_at || "日付不明"}</span>
+                  <span>第{b.session_number}回国会</span>
+                  {b.status && <span style={{ color: "#94a3b8" }}>{b.status}</span>}
                 </div>
               </div>
             ))
