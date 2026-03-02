@@ -262,6 +262,11 @@ export default function MemberDetailPage() {
         ))}
       </div>
 
+      {/* カード注釈 */}
+      <div style={{ fontSize: 11, color: "#475569", marginBottom: 16, padding: "0 4px" }}>
+        ※ 発言セッションは同日・同委員会の発言を1回として集計。当選回数は現在の所属院におけるものです。
+      </div>
+
       {/* タブ */}
       <div className="resp-scroll" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
         border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
