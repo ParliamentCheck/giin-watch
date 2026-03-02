@@ -110,11 +110,13 @@ export default function MemberDetailPage() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [memberRes, speechRes, questionRes, committeeRes, voteRes, billRes] = await Promise.all([
+      const results = await Promise.allSettled([
         supabase.from("members").select("*").eq("id", memberId).single(),
         supabase.from("speeches").select("*").eq("member_id", memberId)
           .order("spoken_at", { ascending: false }).limit(200),
         supabase.from("questions").select("*").eq("member_id", memberId)
+          .order("submitted_at", { ascending: false }).limit(20),
+        supabase.from("sangiin_questions").select("*").eq("member_id", memberId)
           .order("submitted_at", { ascending: false }).limit(20),
         supabase.from("committee_members").select("*").eq("member_id", memberId),
         supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
@@ -123,12 +125,18 @@ export default function MemberDetailPage() {
           .contains("submitter_ids", [memberId]).limit(50),
       ]);
 
-      if (memberRes.data)    setMember(memberRes.data);
-      if (speechRes.data)    setSpeeches(speechRes.data);
-      if (questionRes.data)  setQuestions(questionRes.data);
-      if (committeeRes.data) setCommittees(committeeRes.data);
-      if (voteRes.data)      setVotes(voteRes.data);
-      if (billRes.data)      setBills(billRes.data);
+      const safe = (i: number) => results[i].status === "fulfilled" ? results[i].value.data : null;
+
+      if (safe(0)) setMember(safe(0));
+      if (safe(1)) setSpeeches(safe(1));
+      const shugiinQ = safe(2) || [];
+      const sangiinQ = safe(3) || [];
+      const allQuestions = [...shugiinQ, ...sangiinQ]
+        .sort((a: any, b: any) => (b.submitted_at || "").localeCompare(a.submitted_at || ""));
+      setQuestions(allQuestions);
+      if (safe(4)) setCommittees(safe(4));
+      if (safe(5)) setVotes(safe(5));
+      if (safe(6)) setBills(safe(6));
       setLoading(false);
     }
     fetchAll();
