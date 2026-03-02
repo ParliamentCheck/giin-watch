@@ -110,11 +110,13 @@ export default function MemberDetailPage() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [memberRes, speechRes, questionRes, committeeRes, voteRes, billRes] = await Promise.all([
+      const [memberRes, speechRes, questionRes, sangiinQRes, committeeRes, voteRes, billRes] = await Promise.all([
         supabase.from("members").select("*").eq("id", memberId).single(),
         supabase.from("speeches").select("*").eq("member_id", memberId)
           .order("spoken_at", { ascending: false }).limit(200),
         supabase.from("questions").select("*").eq("member_id", memberId)
+          .order("submitted_at", { ascending: false }).limit(20),
+        supabase.from("sangiin_questions").select("*").eq("member_id", memberId)
           .order("submitted_at", { ascending: false }).limit(20),
         supabase.from("committee_members").select("*").eq("member_id", memberId),
         supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
@@ -125,7 +127,9 @@ export default function MemberDetailPage() {
 
       if (memberRes.data)    setMember(memberRes.data);
       if (speechRes.data)    setSpeeches(speechRes.data);
-      if (questionRes.data)  setQuestions(questionRes.data);
+      const allQuestions = [...(questionRes.data || []), ...(sangiinQRes.data || [])]
+        .sort((a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || ""));
+      setQuestions(allQuestions);
       if (committeeRes.data) setCommittees(committeeRes.data);
       if (voteRes.data)      setVotes(voteRes.data);
       if (billRes.data)      setBills(billRes.data);
