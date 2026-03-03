@@ -9,6 +9,7 @@ APIドキュメント: https://kokkai.ndl.go.jp/api.html
 from __future__ import annotations
 
 import logging
+import re
 import sys
 import time
 from datetime import date
@@ -63,23 +64,34 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
     # 既存の member_id 一覧を取得して照合用にキャッシュ
     client = get_client()
     members_result = execute_with_retry(
-        lambda: client.table("members").select("id, name").limit(2000),
+        lambda: client.table("members").select("id, ndl_names").limit(2000),
         label="fetch_members",
     )
-    member_map: dict[str, str] = {}  # id -> name
+    ndl_name_to_id: dict[str, str] = {}  # ndl_name -> member_id
     for m in (members_result.data or []):
-        member_map[m["id"]] = m["name"]
+        for ndl_name in (m.get("ndl_names") or []):
+            ndl_name_to_id[ndl_name] = m["id"]
 
+    records_per_page = 100
     start_record = 1
     total_saved = 0
     total_api_records = None
 
     while True:
-        try:
-            data = fetch_speeches_from_ndl(date_from, date_until, start_record)
-        except requests.RequestException as exc:
-            logger.error("NDL API request failed at record %d: %s", start_record, exc)
-            break
+        # リトライ付きリクエスト（最大3回）
+        data = None
+        for attempt in range(3):
+            try:
+                data = fetch_speeches_from_ndl(date_from, date_until, start_record)
+                break
+            except requests.RequestException as exc:
+                logger.warning("NDL API request failed at record %d (attempt %d/3): %s", start_record, attempt + 1, exc)
+                if attempt < 2:
+                    time.sleep(5)
+        if data is None:
+            logger.error("NDL API request failed after 3 attempts at record %d. Skipping page.", start_record)
+            start_record += records_per_page
+            continue
 
         # レスポンス構造の解析
         speech_records = data.get("speechRecord", [])
@@ -91,8 +103,10 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
             if num == 0:
                 logger.info("No records found for the specified period.")
                 break
-            # 空ページ → 終了
-            break
+            # 空ページ → スキップして次へ
+            logger.warning("Empty page at record %d. Skipping.", start_record)
+            start_record += records_per_page
+            continue
 
         if total_api_records is None:
             num = data.get("numberOfRecords", 0)
@@ -118,7 +132,8 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
             if not speaker:
                 continue
 
-            member_id = make_member_id(house, speaker) if house else None
+            speaker_normalized = re.sub(r"\s+", "", speaker)
+            member_id = ndl_name_to_id.get(speaker_normalized) if house else None
 
             # 議事進行判定（speech_text をここで一時的に使うが DB には保存しない）
             speech_text = rec.get("speech", "")
@@ -156,7 +171,7 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
 
         if rows:
             # member_id が members テーブルに存在しない行は除外
-            valid_rows = [r for r in rows if r["member_id"] in member_map]
+            valid_rows = [r for r in rows if r["member_id"] is not None]
             orphan_count = len(rows) - len(valid_rows)
             if orphan_count > 0:
                 logger.debug("Skipped %d speeches with unknown member_id", orphan_count)
