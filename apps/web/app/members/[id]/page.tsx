@@ -264,7 +264,7 @@ export default function MemberDetailPage() {
 
       {/* カード注釈 */}
       <div style={{ fontSize: 11, color: "#475569", marginBottom: 16, padding: "0 4px" }}>
-        ※ 発言セッションは同日・同委員会の発言を1回として集計。当選回数は現在の所属院におけるものです。
+        ※ 発言セッションは同日・同委員会の発言を1回として集計（第210回〜第221回国会の記録に基づく）。当選回数は現在の所属院におけるものです。
       </div>
 
       {/* タブ */}
@@ -272,7 +272,7 @@ export default function MemberDetailPage() {
         border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
         {[
           { id: "committees", label: "🏛 委員会" },
-          { id: "speeches",   label: `💬 発言 (${sessionGroups.length})` },
+          { id: "speeches",   label: `💬 発言 (${member.session_count ?? 0})` },
           { id: "questions",  label: "📝 質問主意書" },
           { id: "votes",      label: `🗳 採決 (${votes.length})` },
           { id: "bills",      label: `📋 議員立法 (${bills.length})` },
