@@ -51,7 +51,7 @@ develop → push → Vercel preview
 #### members（議員）
 | カラム | 型 | 説明 |
 |-------|---|------|
-| id | text PK | {house}-{正規化name}（スペースは全除去） |
+| id | text PK | `{house}-{正規化name}`（スペースは全除去） |
 | name | text | 議員名 |
 | party | text | 政党名（正規化済み） |
 | faction | text | 会派名（生データ） |
@@ -62,7 +62,7 @@ develop → push → Vercel preview
 | is_active | boolean | 現職かどうか |
 | speech_count | integer | 発言数 |
 | session_count | integer | 発言セッション数 |
-| question_count | integer | 質問主意書数 |
+| question_count | integer | 質問主意書数（衆院questions＋参院sangiin_questionsの合算） |
 | keywords | jsonb | ワードクラウド用キーワード |
 | keywords_updated_at | timestamptz | キーワード最終更新日時 |
 | cabinet_post | text | 内閣役職（大臣・副大臣・政務官等） |
@@ -72,35 +72,112 @@ develop → push → Vercel preview
 | カラム | 型 | 説明 |
 |-------|---|------|
 | id | text PK | NDL API由来のID |
-| member_id | text FK | members.id |
-| speech_text | text | 発言全文（★リファクタリングで削除予定） |
+| member_id | text FK → members.id | |
 | spoken_at | date | 発言日 |
 | committee | text | 委員会名 |
 | session_number | integer | 国会回次 |
 | house | text | 衆議院 / 参議院 |
-| url | text | NDLサイトへのリンク |
+| source_url | text | NDLサイトへのリンク |
+| is_procedural | boolean | 議事進行発言フラグ |
 
 **インデックス**: `idx_speeches_member_id` ON speeches(member_id)
 
-#### questions（質問主意書・衆議院）
+**データ管理方針**:
+- 発言本文（speech_text）は保存しない。表示用メタデータのみ
+- speechesテーブルにはレコード数の上限を設け、超過分は古いレコードから削除する
+- session_countはspeechesの全レコードから集計してmembersに保存（Single Source of Truth）
+- バックフィル時は8年前から1年ずつ取得→session_count集計→上限超過分を削除、の手順で処理する
+
+#### questions（質問主意書・衆議院専用）
 | カラム | 型 | 説明 |
 |-------|---|------|
 | id | text PK | `shitsumon-{session}-{number}` |
-| member_id | text FK | members.id |
+| member_id | text FK → members.id | |
+| session | integer | 国会回次 |
+| number | integer | 質問番号 |
+| title | text | 質問タイトル |
+| submitter | text | 提出者名 |
+| faction | text | 会派名 |
+| submitted_at | text | 提出日 |
+| answered_at | text | 答弁日 |
+| source_url | text | 衆議院サイトへのリンク |
+| house | text | 衆議院（固定） |
+| created_at | timestamp | 登録日時 |
+
+※ 衆議院の質問主意書専用。参議院はsangiin_questionsテーブルを使用する。
+
+#### sangiin_questions（参議院質問主意書）
+| カラム | 型 | 説明 |
+|-------|---|------|
+| id | text PK | `sangiin-{session}-{number}` |
+| member_id | text FK → members.id | |
 | session | integer | 国会回次 |
 | title | text | 質問タイトル |
 | submitted_at | date | 提出日 |
-| url | text | 衆議院サイトへのリンク |
+| url | text | 参議院サイトへのリンク |
+
+#### votes（採決記録）
+| カラム | 型 | 説明 |
+|-------|---|------|
+| id | text PK | |
+| member_id | text FK → members.id | |
+| bill_title | text | 議案名 |
+| vote_date | date | 採決日 |
+| vote | text | 賛成/反対/棄権/欠席 |
+| session_number | integer | 国会回次 |
+| house | text | |
+
+#### bills（議員立法）※未実装・フェーズBで対応
+| カラム | 型 | 説明 |
+|-------|---|------|
+| id | text PK | |
+| title | text | 法案名 |
+| submitter_ids | text[] | 提出者のmember_id |
+| submitted_at | date | 提出日 |
+| session_number | integer | 国会回次 |
+| status | text | 状態 |
+| house | text | |
+
+**現状**: テーブルは存在するがデータは空。衆議院サイトの一覧ページに提出者情報がなく、各法案の経過情報ページを個別にクロールする必要があるため、正しいスクレイパーの設計からやり直す必要がある。
 
 #### committee_members（委員会所属）
 | カラム | 型 | 説明 |
 |-------|---|------|
 | id | serial PK | |
-| member_id | text FK | members.id |
+| member_id | text FK → members.id | |
 | name | text | 議員名 |
 | committee | text | 委員会名 |
 | role | text | 委員長 / 理事 / 会長 / 副会長 等 |
 | house | text | 衆議院 / 参議院 |
+
+#### member_keywords（キーワード頻度）
+| カラム | 型 | 説明 |
+|-------|---|------|
+| member_id | text FK → members.id | |
+| word | text | キーワード |
+| count | integer | 出現回数 |
+| last_seen_at | date | 最後にこのワードが出現した発言の日付 |
+| PK: (member_id, word) |
+
+**設計方針**: 
+- 1議員あたり上位100語を保持、表示は上位50語
+- 年単位でNDL APIから発言取得 → 抽出 → countを加算
+- 新しいワードが入ったら下位を押し出す
+
+#### party_keywords（政党ワードクラウド）
+| カラム | 型 | 説明 |
+|-------|---|------|
+| party | text | 政党名 |
+| word | text | キーワード |
+| count | integer | 所属議員の合算出現回数 |
+| last_seen_at | date | 最後にこのワードが出現した日付 |
+| PK: (party, word) |
+
+**構築方式:**
+- member_keywordsの更新後に、政党ごとに所属議員のワードを合算
+- 1政党あたり上位100語を保持、表示は上位50語
+- last_seen_atが1年以上前のワードは入替対象（議員と同じルール）
+- 議員の政党異動時は次回更新で自動的に反映される
 
 #### site_settings（サイト設定）
 | カラム | 型 | 説明 |
@@ -120,23 +197,25 @@ develop → push → Vercel preview
 | description | text | 変更内容 |
 | created_at | timestamptz | 登録日時 |
 
-### 3.2 リファクタリングで追加予定のテーブル
+### 3.2 外部キー制約
 
-#### member_keywords（キーワード頻度）
-| カラム | 型 | 説明 |
-|-------|---|------|
-| member_id | text FK | members.id |
-| word | text | キーワード |
-| count | integer | 出現回数 |
-| last_seen_at | date | 最後にこのワードが出現した発言の日付 |
-| PK: (member_id, word) |
+以下の外部キー制約を設定済み：
+- `speeches.member_id → members.id`
+- `questions.member_id → members.id`
+- `sangiin_questions.member_id → members.id`
+- `votes.member_id → members.id`
+- `committee_members.member_id → members.id`
+- `member_keywords.member_id → members.id`
 
-**設計方針**: 
-- 1議員あたり上位100語を保持、表示は上位50語
-- 年単位でNDL APIから発言取得 → 抽出 → countを加算
-- 新しいワードが入ったら下位を押し出す
+### 3.3 削除済みテーブル（使用しない）
+以下のテーブルは不要のため削除済み：
+- `activity_scores`（議員を評価・序列化しないという基本方針に反するため削除）
+- `attendance`（空テーブル・未使用）
+- `vote_records`（空テーブル・votesテーブルに統合）
+- `political_funds`（空テーブル・未使用）
+- `party_whip`（空テーブル・未使用）
 
-#### ワードクラウド構築・更新方式
+### 3.4 ワードクラウド構築・更新方式
 
 **初回構築（バッチ・1回のみ）:**
 1. 対象: 現在登録されている現職＋前議員
@@ -175,66 +254,6 @@ develop → push → Vercel preview
   - 1文字の名詞
 - 30文字以下の発言（相槌等）はそもそも抽出対象外
 
-#### 政党ワードクラウド
-- 政党に所属する全議員のワードを集約し、政党としてのワードクラウドを生成する
-- 政党詳細ページ（/parties/[party]）に表示
-- member_keywordsから所属議員のワードを合算して生成
-
-**party_keywordsテーブル:**
-| カラム | 型 | 説明 |
-|-------|---|------|
-| party | text FK | 政党名 |
-| word | text | キーワード |
-| count | integer | 所属議員の合算出現回数 |
-| last_seen_at | date | 最後にこのワードが出現した日付 |
-| PK: (party, word) |
-
-**構築方式:**
-- member_keywordsの更新後に、政党ごとに所属議員のワードを合算
-- 1政党あたり上位100語を保持、表示は上位50語
-- last_seen_atが1年以上前のワードは入替対象（議員と同じルール）
-- 議員の政党異動時は次回更新で自動的に反映される
-
-#### votes（採決記録）新規
-| カラム | 型 | 説明 |
-|-------|---|------|
-| id | text PK | |
-| member_id | text FK | |
-| bill_title | text | 議案名 |
-| vote_date | date | 採決日 |
-| vote | text | 賛成/反対/棄権/欠席 |
-| session_number | integer | 国会回次 |
-| house | text | |
-
-#### bills（議員立法）新規
-| カラム | 型 | 説明 |
-|-------|---|------|
-| id | text PK | |
-| title | text | 法案名 |
-| submitter_ids | text[] | 提出者のmember_id |
-| submitted_at | date | 提出日 |
-| session_number | integer | 国会回次 |
-| status | text | 状態 |
-| house | text | |
-
-#### sangiin_questions（参議院質問主意書）新規
-| カラム | 型 | 説明 |
-|-------|---|------|
-| id | text PK | |
-| member_id | text FK | |
-| session | integer | 国会回次 |
-| title | text | |
-| submitted_at | date | |
-| url | text | |
-
-※ party_keywordsテーブルは上記「政党ワードクラウド」の項を参照
-
-### 3.3 speechesテーブルの変更予定
-- `speech_text` カラムを削除（容量削減: 281MB → 16MB）
-- `is_procedural` boolean カラムを追加（委員長・議長の議事進行発言フラグ）
-- NDL API取得時にテキスト冒頭を判定してフラグ付与
-- フラグ判定: 発言テキスト冒頭の `○○○委員長` `○○○会長` `○○○議長` パターン
-
 ---
 
 ## 4. コレクター設計（Python）
@@ -242,35 +261,22 @@ develop → push → Vercel preview
 ### 4.1 現在の構成
 ```
 apps/collector/
-  requirements.txt
-  run_scoring.py          # スコア再計算
-  sources/
-    register_members.py   # 議員データ登録（衆参サイト）
-    ndl_api.py            # 発言データ収集（NDL API）
-    shitsumon_scraper.py  # 質問主意書（衆議院）
-    cabinet_scraper.py    # 内閣役職（官邸サイト）
-    keyword_extractor.py  # ワードクラウド
-```
-
-### 4.2 リファクタリング後の構成
-```
-apps/collector/
   config.py               # 共通設定（日付、PARTY_MAP、STOP_WORDS等）
   db.py                   # DB接続・リトライ付きクエリ
   utils.py                # 名前正規化・政党正規化
   run_scoring.py          # スコア再計算（is_procedural使用）
   sources/
-    register_members.py   # 議員データ登録
+    register_members.py   # 議員データ登録（衆参サイト）
     ndl_api.py            # 発言メタデータ収集（本文保存しない）
     shitsumon_scraper.py  # 質問主意書（衆議院）
-    sangiin_shitsumon.py  # 質問主意書（参議院）★新規
-    cabinet_scraper.py    # 内閣役職
-    keyword_builder.py    # ワードクラウド構築（議員＋政党、年単位）★新規
-    vote_scraper.py       # 採決記録★新規
-    bill_scraper.py       # 議員立法★新規
+    sangiin_shitsumon.py  # 質問主意書（参議院）
+    cabinet_scraper.py    # 内閣役職（官邸サイト）
+    keyword_extractor.py  # ワードクラウド
+    vote_scraper.py       # 採決記録
+    bill_scraper.py       # 議員立法（※未実装・フェーズBで対応）
 ```
 
-### 4.3 共通化すべきもの（config.py）
+### 4.2 共通化すべきもの（config.py）
 
 #### PARTY_MAP（政党名正規化）
 ```python
@@ -317,9 +323,9 @@ RULING_PARTIES = ["自民党", "日本維新の会"]
 - 30文字以下の発言 → 除外（「はい」等の相槌）
 
 #### 議員IDの正規化
-- `{house}-{re.sub(r'\s+', '', name)}` （スペースは全角2つに統一）
+- `{house}-{re.sub(r'\s+', '', name)}`（スペースは全除去）
 
-### 4.4 質問主意書のセッション範囲
+### 4.3 質問主意書のセッション範囲
 ```python
 SESSION_MAX = {
     196: 487, 197: 145, 198: 309, 199: 20,
@@ -332,11 +338,17 @@ SESSION_MAX = {
 }
 ```
 
-### 4.5 NDL API設定
+### 4.4 NDL API設定
 - 取得期間: 環境変数 `NDL_DATE_FROM` / `NDL_DATE_UNTIL`
 - 日次更新のデフォルト: 直近1年分
 - NDL APIのレート制限: 1リクエスト/0.5秒の待機
 - NDL APIのデータ反映遅延: 審議から1〜2週間
+
+### 4.5 run_scoring.py（集計処理）
+日次収集の最後に実行。以下を集計してmembersテーブルに反映：
+- `speech_count`: speechesテーブルからmember_idごとのCOUNT
+- `session_count`: speechesテーブルからmember_idごとのCOUNT(DISTINCT committee || '-' || spoken_at)
+- `question_count`: questionsテーブル + sangiin_questionsテーブルのmember_idごとの合算COUNT
 
 ---
 
@@ -373,6 +385,22 @@ components/
 #### Supabaseクエリ
 - 全てのmembersクエリに `.limit(2000)` を付ける（デフォルト1000行制限対策）
 - `.single()` のクエリにはlimit不要
+
+#### データ取得の堅牢性
+- 議員詳細ページ（/members/[id]）のデータ取得は `Promise.allSettled` を使用
+- 1つのクエリが失敗しても他のデータは正常に表示される
+- 質問主意書は questions（衆院）と sangiin_questions（参院）の両方から取得しマージ
+
+#### revalidate設定
+- サーバーコンポーネントのページ（トップページ等）には `export const revalidate = 3600` を設定
+- "use client" のページには revalidate は使用不可（ブラウザから直接Supabaseにクエリ）
+
+#### 議員詳細ページの注釈表示
+カードとタブの間に以下の注釈を表示：
+```
+※ 発言セッションは同日・同委員会の発言を1回として集計（第210回〜第221回国会の記録に基づく）。当選回数は現在の所属院におけるものです。
+```
+※ 会期範囲はバックフィル完了後に更新すること
 
 #### 禁止表現（UIの全出力で禁止）
 - 評価語: サボり／怠慢／不誠実／ワースト／晒し／告発／糾弾
@@ -424,7 +452,9 @@ steps:
   2. 発言データ収集 (ndl_api.py)
   3. 活動スコア再計算 (run_scoring.py)
   4. 内閣役職データ取得 (cabinet_scraper.py)
-  5. キーワード抽出 (keyword_extractor.py) ← 現在タイムアウトで無効化中
+  5. 質問主意書・衆議院 (shitsumon_scraper.py)
+  6. 質問主意書・参議院 (sangiin_shitsumon.py)
+  7. キーワード更新 (keyword_extractor.py)
 ```
 
 ### 過去データ取得 (.github/workflows/backfill.yml)
@@ -432,47 +462,38 @@ steps:
 - 年を選択: 2024 / 2023 / 2022 / 2021 / 2018-2020
 - 1年分ずつ順番に実行すること（並列はSupabase過負荷の原因）
 
+### キーワード全件再構築 (.github/workflows/keyword-full-rebuild.yml)
+- 手動実行（workflow_dispatch）
+- member_keywordsとparty_keywordsをtruncateし、全議員分を再構築
+
 ---
 
 ## 7. リファクタリング計画
 
-### Phase 1: コレクター共通化
-1. config.py / db.py / utils.py 作成
-2. 各スクリプトを共通モジュール使用に書き換え
-3. エラーハンドリング統一（1つ失敗しても全体が止まらない）
+### フェーズA: データ復旧（公開サイトを正常化）★現在進行中
+- 全議員の発言・質問・採決・キーワードが正しく表示される状態にする
+- speechesテーブルのバックフィル（8年前から1年ずつ取得→集計→上限超過分削除）
+- session_countの正確な集計
+- 発言ゼロ議員の解消
 
-### Phase 2: 新データ追加
-4. 参議院質問主意書スクレイパー
-5. 採決記録スクレイパー
-6. 議員立法スクレイパー
-7. DB新テーブル作成
-
-### Phase 3: speech_text廃止
-8. keyword_builder.py（年単位・累積カウント方式）
-9. is_proceduralフラグ付与ロジック
-10. speech_textカラム削除
-11. VACUUM FULL実行
-
-### Phase 4: フロント改修
-12. lib/queries.ts（共通クエリ関数）
-13. lib/types.ts（型定義）
-14. 議員詳細ページに採決記録・法案提出を追加
-15. 活動データページに新指標追加
-
-### Phase 5: データクリーンアップ
-16. キーワード全件再構築
-17. session_count再計算
-18. terms修正確認
+### フェーズB: 本来のリプレイス（堅牢・拡張性・メンテナンス性）
+- フェーズAで正常化したデータを維持したまま、コードベースを堅牢な設計に作り変える
+- 議員立法スクレイパーの正しい設計と実装（経過情報ページの個別クロール）
+- lib/queries.ts（共通クエリ関数）、lib/types.ts（型定義）の整備
+- エラーハンドリング統一
 
 ---
 
 ## 8. 既知の問題・保留事項
 
-### データの問題（リファクタリングで対応）
-- キーワード抽出がタイムアウトで無効化中
-- session_countに委員長除外ロジックが未反映（コードは修正済み、次回実行で反映）
-- 過去データbackfillが2023年途中で止まった
-- speech_textが容量を圧迫（281MB）
+### データの問題（フェーズAで対応）
+- 発言ゼロの議員が166人存在（NDL APIからの取得漏れ）→ バックフィルで解消予定
+- session_countが第210回〜第221回国会の記録のみに基づく → バックフィルで全期間を集計
+
+### 議員立法（bills）
+- 衆議院サイトの一覧ページに提出者情報がなく、各法案の経過情報ページを個別にクロールする必要がある
+- 現在のbill_scraper.pyはページ構造の解析が不正確でゴミデータを取得していた
+- フェーズBでスクレイパーを設計し直す
 
 ### 衆参鞍替え議員の当選回数
 - 当選回数は公式サイトの情報をそのまま使用する（現在の院での回数のみ）
@@ -498,7 +519,7 @@ steps:
 
 ### IDの重複
 - **原因**: スクレイピング毎にスペースの入り方が変わった
-- **対策**: ID生成時に `re.sub(r'\s+', '  ', name)` で正規化
+- **対策**: ID生成時に `re.sub(r'\s+', '', name)` で全スペース除去に統一
 - **教訓**: IDの正規化は初期設計で入れるべき
 
 ### Supabase 1000行制限
@@ -521,6 +542,16 @@ steps:
 - **対策**: PARTY_MAPを網羅的に定義
 - **教訓**: 会派名は変わりやすいので、PARTY_MAPは定期的に見直す
 
+### 不要テーブルの放置
+- **原因**: 使わないテーブル（activity_scores等）をシステムに残し続けた
+- **対策**: 不要なものは明確に削除する。必要なら仕様書に追加して正しく実装する
+- **教訓**: 「使わないから無視」はメンテナンス性の敵
+
+### 仕様書の不遵守
+- **原因**: 仕様書を確認せず、目の前のエラーを直すことに集中して仕様と異なる実装をした
+- **対策**: 判断の分岐点で必ず仕様書を参照する
+- **教訓**: 仕様書があっても読まなければ存在しないのと同じ
+
 ---
 
 ## 10. 外部リンク・認証情報
@@ -542,6 +573,8 @@ steps:
 4. **正確性100%**: 100%正確でなければ実装しない。推測・補正は禁止
 5. **デプロイ前確認**: 複数の修正がある場合、まとめてデプロイ。途中で「次は？」と聞く
 6. **衆参データの非対称性に注意**: 衆議院と参議院で取得できるデータ項目・形式が異なる場合、どちらに合わせるか必ず確認する。片方にしかないデータを片方だけ表示しない
+7. **仕様書を必ず参照**: コードの変更前に必ず仕様書を確認し、仕様と整合する実装を行う
+8. **将来のデータ増加を考慮**: 現時点で問題なくても、将来のデータ増加を見据えた設計にする。一時凌ぎの対応はしない
 
 ---
 
@@ -580,7 +613,4 @@ Actions → 「過去データ一括取得」→ Run workflow → 年を選択
 ### 運用
 - エラー時の通知方法（今はActions失敗に気づけない）
 - 採決・法案データの取得頻度
-- 発言データの保持期間（現在は3〜4年分を想定）
-
-### 仕様書Phase 3
-- 実装の必要性とタイミング
+- speechesテーブルのレコード上限値の決定
