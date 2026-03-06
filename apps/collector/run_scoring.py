@@ -3,7 +3,8 @@
 speeches / questions / sangiin_questions を Python 側でページング集計して
 members テーブルの speech_count / session_count / question_count を更新する。
 
-RPC（PostgreSQL 関数）は Supabase の statement_timeout に引っかかるため使わない。
+upsert（INSERT + ON CONFLICT UPDATE）は name NOT NULL 違反を起こすため使わない。
+members テーブルへの書き込みは UPDATE のみ（既存行の更新に限定する）。
 """
 
 from __future__ import annotations
@@ -12,27 +13,23 @@ import logging
 import sys
 from collections import defaultdict
 
-from db import get_client, execute_with_retry, batch_upsert
+from db import get_client, execute_with_retry
 
 logger = logging.getLogger("run_scoring")
 
-PAGE = 2000  # 1回の API 呼び出しで取得する行数
+PAGE = 2000
 
 
-def _fetch_all(table: str, select: str, filters: list[tuple] | None = None) -> list[dict]:
+def _fetch_all(table: str, select: str) -> list[dict]:
     """テーブルを全件ページングで取得する。"""
     client = get_client()
     rows: list[dict] = []
     offset = 0
     while True:
-        def _query(o=offset):
-            q = client.table(table).select(select).range(o, o + PAGE - 1)
-            if filters:
-                for method, col, val in filters:
-                    q = getattr(q, method)(col, val)
-            return q
-
-        result = execute_with_retry(_query, label=f"fetch:{table}:{offset}")
+        result = execute_with_retry(
+            lambda o=offset: client.table(table).select(select).range(o, o + PAGE - 1),
+            label=f"fetch:{table}:{offset}",
+        )
         batch = result.data or []
         rows.extend(batch)
         if len(batch) < PAGE:
@@ -54,10 +51,7 @@ def recalculate_scores() -> None:
 
     # ── speech_count / session_count ──────────────────────────
     logger.info("speeches を集計中...")
-    speeches = _fetch_all(
-        "speeches",
-        "member_id, spoken_at, committee, is_procedural",
-    )
+    speeches = _fetch_all("speeches", "member_id, spoken_at, committee, is_procedural")
     logger.info("speeches 取得: %d 件", len(speeches))
 
     speech_counts: dict[str, int] = defaultdict(int)
@@ -71,17 +65,6 @@ def recalculate_scores() -> None:
             speech_counts[mid] += 1
             session_sets[mid].add((s.get("spoken_at"), s.get("committee")))
 
-    speech_updates = [
-        {
-            "id": mid,
-            "speech_count": speech_counts.get(mid, 0),
-            "session_count": len(session_sets.get(mid, set())),
-        }
-        for mid in all_ids
-    ]
-    batch_upsert("members", speech_updates, on_conflict="id", label="update_speech_counts")
-    logger.info("speech_count / session_count 更新完了")
-
     # ── question_count ────────────────────────────────────────
     logger.info("questions を集計中...")
     question_counts: dict[str, int] = defaultdict(int)
@@ -94,12 +77,24 @@ def recalculate_scores() -> None:
                 question_counts[mid] += 1
         logger.info("%s 取得: %d 件", table, len(rows))
 
-    q_updates = [
-        {"id": mid, "question_count": question_counts.get(mid, 0)}
-        for mid in all_ids
-    ]
-    batch_upsert("members", q_updates, on_conflict="id", label="update_question_counts")
-    logger.info("question_count 更新完了")
+    # ── members を UPDATE（upsert は使わない） ─────────────────
+    # batch_upsert は内部で INSERT を試みて name NOT NULL 違反が起きるため、
+    # 個別 UPDATE で既存行のカウントカラムだけを上書きする
+    logger.info("members を更新中...")
+    updated = 0
+    for mid in all_ids:
+        patch = {
+            "speech_count":   speech_counts.get(mid, 0),
+            "session_count":  len(session_sets.get(mid, set())),
+            "question_count": question_counts.get(mid, 0),
+        }
+        execute_with_retry(
+            lambda m=mid, p=patch: client.table("members").update(p).eq("id", m),
+            label=f"upd:{mid}",
+        )
+        updated += 1
+
+    logger.info("更新完了: %d 名", updated)
 
 
 if __name__ == "__main__":

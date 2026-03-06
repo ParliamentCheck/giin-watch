@@ -169,7 +169,7 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
                 "spoken_at": spoken_at if spoken_at else None,
                 "committee": committee,
                 "session_number": session_number,
-                "url": speech_url,
+                "source_url": speech_url,
                 "is_procedural": procedural,
             }
             rows.append(row)
