@@ -51,9 +51,27 @@ def scrape_profile(profile_url: str) -> dict:
         return {"party": "無所属", "faction": "無所属", "district": "不明", "terms": None}
 
 
+def get_current_sangiin_session() -> int:
+    """参議院サイトから最新の国会回次を動的に取得する。"""
+    session = 221  # 既知の最新回次
+    while True:
+        url = f"{SANGIIN_BASE}/{session + 1}/giin.htm"
+        try:
+            resp = httpx.head(url, headers=HEADERS, timeout=10)
+            if resp.status_code == 200:
+                session += 1
+            else:
+                break
+        except Exception:
+            break
+    return session
+
+
 def scrape_sangiin() -> list[dict]:
     logger.info("参議院議員一覧を取得中...")
-    url = f"{SANGIIN_BASE}/221/giin.htm"
+    current_session = get_current_sangiin_session()
+    logger.info("参議院 現在の国会回次: 第%d回", current_session)
+    url = f"{SANGIIN_BASE}/{current_session}/giin.htm"
     resp = httpx.get(url, headers=HEADERS, timeout=30)
     resp.encoding = 'utf-8'
     soup = BeautifulSoup(resp.text, 'html.parser')

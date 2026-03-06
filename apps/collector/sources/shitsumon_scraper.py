@@ -6,7 +6,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 # 共通モジュールからインポート
-from config import SESSION_MAX
+from config import SESSION_MAX, SESSION_MAX_NEXT_START
 from db import get_client, execute_with_retry
 
 logging.basicConfig(level=logging.INFO)
@@ -83,7 +83,24 @@ def main():
 
     total_saved = 0
 
-    for session, max_num in SESSION_MAX.items():
+    # SESSION_MAX に含まれないセッションを自動発見（2セッション連続で1件も取れなければ終了）
+    extra_sessions: dict[int, int] = {}
+    session_num = SESSION_MAX_NEXT_START
+    consecutive_empty = 0
+    while consecutive_empty < 2:
+        probe = scrape_shitsumon(session_num, 1)
+        if probe is None:
+            consecutive_empty += 1
+        else:
+            extra_sessions[session_num] = 9999
+            consecutive_empty = 0
+        session_num += 1
+    if extra_sessions:
+        logger.info("新セッション発見: %s", list(extra_sessions.keys()))
+
+    all_sessions = {**SESSION_MAX, **extra_sessions}
+
+    for session, max_num in all_sessions.items():
         logger.info(f"第{session}回国会 質問主意書を収集中...")
 
         for number in range(1, max_num + 1):

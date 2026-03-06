@@ -64,13 +64,19 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
     # 既存の member_id 一覧を取得して照合用にキャッシュ
     client = get_client()
     members_result = execute_with_retry(
-        lambda: client.table("members").select("id, ndl_names").limit(2000),
+        lambda: client.table("members").select("id, name, ndl_names").limit(2000),
         label="fetch_members",
     )
-    ndl_name_to_id: dict[str, str] = {}  # ndl_name -> member_id
+    ndl_name_to_id: dict[str, str] = {}  # normalized_name -> member_id
     for m in (members_result.data or []):
+        # ndl_names が設定されていればそれを優先（改名対応）
         for ndl_name in (m.get("ndl_names") or []):
-            ndl_name_to_id[ndl_name] = m["id"]
+            ndl_name_to_id[re.sub(r"\s+", "", ndl_name)] = m["id"]
+        # フォールバック: name カラムを正規化して登録（ndl_names 未設定の議員をカバー）
+        if m.get("name"):
+            normalized = re.sub(r"\s+", "", m["name"])
+            ndl_name_to_id.setdefault(normalized, m["id"])
+    logger.info("Member name map built: %d entries", len(ndl_name_to_id))
 
     records_per_page = 100
     start_record = 1

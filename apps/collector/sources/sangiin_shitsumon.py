@@ -23,8 +23,30 @@ logger = logging.getLogger("sangiin_shitsumon")
 
 BASE_URL = "https://www.sangiin.go.jp/japanese/joho1/kousei/syuisyo"
 
-# 対象セッション範囲（必要に応じて拡張）
-SANGIIN_SESSIONS = list(range(196, 222))  # 196回〜221回
+# 既知のセッション範囲
+SANGIIN_SESSIONS_BASE = list(range(196, 222))  # 196回〜221回
+
+
+def get_all_sessions() -> list[int]:
+    """既知セッション + 未知の新セッションを動的発見して返す。
+    最新既知セッションの次から 2 セッション連続でページが存在しなければ終了。"""
+    sessions = SANGIIN_SESSIONS_BASE.copy()
+    next_sess = max(sessions) + 1
+    consecutive_missing = 0
+    while consecutive_missing < 2:
+        url = f"{BASE_URL}/{next_sess}/syuisyo.htm"
+        try:
+            resp = requests.head(url, timeout=10)
+            if resp.status_code == 200:
+                sessions.append(next_sess)
+                consecutive_missing = 0
+                logger.info("新セッション発見: 第%d回", next_sess)
+            else:
+                consecutive_missing += 1
+        except requests.RequestException:
+            consecutive_missing += 1
+        next_sess += 1
+    return sessions
 
 
 def scrape_session(session: int) -> list[dict[str, Any]]:
@@ -100,7 +122,7 @@ def scrape_session(session: int) -> list[dict[str, Any]]:
 
 def collect_sangiin_questions(sessions: list[int] | None = None) -> None:
     """全セッションの参議院質問主意書を収集する。"""
-    sessions = sessions or SANGIIN_SESSIONS
+    sessions = sessions or get_all_sessions()
 
     # members テーブルから参議院議員の id を取得して照合
     client = get_client()
