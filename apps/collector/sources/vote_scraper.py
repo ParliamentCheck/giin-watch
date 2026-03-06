@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 
 from db import get_client, execute_with_retry, batch_upsert
 from utils import make_member_id
+from config import SESSION_MAX
 
 logger = logging.getLogger("vote_scraper")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -22,8 +23,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
 SANGIIN_BASE = "https://www.sangiin.go.jp"
 
-# 最近の国会回次（208〜221）を対象
-TARGET_SESSIONS = list(range(208, 222))
+# 208回〜最新セッションを対象（404は graceful skip）
+TARGET_SESSIONS = list(range(208, max(SESSION_MAX) + 1))
 
 
 def normalize_name(name: str) -> str:

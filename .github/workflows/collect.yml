@@ -18,7 +18,7 @@ env:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +63,16 @@ jobs:
         continue-on-error: true
         run: python apps/collector/sources/sangiin_shitsumon.py
 
+      - name: 委員会所属（衆議院）
+        id: committee_shugiin
+        continue-on-error: true
+        run: python apps/collector/sources/committee_scraper.py
+
+      - name: 委員会所属（参議院）
+        id: committee_sangiin
+        continue-on-error: true
+        run: python apps/collector/sources/sangiin_committee_scraper.py
+
       - name: キーワード更新
         id: keywords
         if: inputs.skip_keywords != true
@@ -82,6 +92,8 @@ jobs:
           echo "| 内閣役職 | ${{ steps.cabinet.outcome }} |"
           echo "| 質問主意書（衆） | ${{ steps.shitsumon.outcome }} |"
           echo "| 質問主意書（参） | ${{ steps.sangiin_q.outcome }} |"
+          echo "| 委員会所属（衆） | ${{ steps.committee_shugiin.outcome }} |"
+          echo "| 委員会所属（参） | ${{ steps.committee_sangiin.outcome }} |"
           echo "| キーワード更新 | ${{ steps.keywords.outcome }} |"
 
       - name: speeches 上限チェック・削除

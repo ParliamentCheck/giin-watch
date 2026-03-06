@@ -193,30 +193,34 @@ def truncate_speeches(max_rows: int | None = None) -> None:
         return
 
     to_delete = count - limit
-    logger.info("%d 行削除します（spoken_at 昇順）", to_delete)
+    logger.info("%d 行削除します（古い順・バッチ処理）", to_delete)
 
-    # to_delete 番目に古い spoken_at を取得
-    cutoff_result = execute_with_retry(
-        lambda: (
-            client.table("speeches")
-            .select("spoken_at")
-            .not_.is_("spoken_at", "null")
-            .order("spoken_at", desc=False)
-            .range(to_delete - 1, to_delete - 1)
-        ),
-        label="find_cutoff_date",
-    )
-    if not cutoff_result.data:
-        logger.warning("カットオフ日付を取得できませんでした。")
-        return
+    # OFFSET を使わず「最古 N 件の ID を取得 → DELETE」をバッチで繰り返す
+    BATCH = 500
+    deleted = 0
+    while deleted < to_delete:
+        n = min(BATCH, to_delete - deleted)
+        rows = execute_with_retry(
+            lambda n=n: (
+                client.table("speeches")
+                .select("id")
+                .order("spoken_at", desc=False)
+                .limit(n)
+            ),
+            label=f"fetch_delete_ids:{deleted}",
+        ).data or []
 
-    cutoff_date = cutoff_result.data[0]["spoken_at"]
-    logger.info("カットオフ日付: %s（この日付より古いものを削除）", cutoff_date)
+        if not rows:
+            logger.warning("削除対象行を取得できませんでした（%d/%d削除済み）", deleted, to_delete)
+            break
 
-    execute_with_retry(
-        lambda: client.table("speeches").delete().lt("spoken_at", cutoff_date),
-        label="delete_old_speeches",
-    )
+        ids = [r["id"] for r in rows]
+        execute_with_retry(
+            lambda b=ids: client.table("speeches").delete().in_("id", b),
+            label=f"delete_speeches:{deleted}",
+        )
+        deleted += len(rows)
+        logger.info("削除済み: %d / %d", deleted, to_delete)
 
     after = execute_with_retry(
         lambda: client.table("speeches").select("id", count="exact").limit(0),

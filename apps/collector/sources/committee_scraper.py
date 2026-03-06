@@ -1,16 +1,12 @@
-import os
+import sys
 import time
 import logging
 import httpx
-from typing import Optional
 from bs4 import BeautifulSoup
-from supabase import create_client
 
-logging.basicConfig(level=logging.INFO)
+from db import get_client, execute_with_retry, batch_upsert
+
 logger = logging.getLogger(__name__)
-
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 HEADERS  = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
 BASE_URL = "https://www.shugiin.go.jp/Internet/itdb_iinkai.nsf/html/iinkai/"
@@ -71,27 +67,26 @@ def scrape_committee_members(committee_name: str, url: str) -> list:
     return members
 
 
-def find_member_id(name: str, house: str, client) -> Optional[str]:
-    result = client.table("members").select("id, name").eq("house", house).execute()
-    for m in result.data:
-        if normalize_name(m["name"]) == name:
-            return m["id"]
-    return None
-
-
 def main():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        logger.error("環境変数が設定されていません")
-        return
+    client = get_client()
 
-    client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    member_cache = {}
+    # 衆議院議員を一括取得してキャッシュ
+    logger.info("衆議院議員を取得中...")
+    members_result = execute_with_retry(
+        lambda: client.table("members").select("id, name").eq("house", "衆議院").limit(2000),
+        label="fetch_shugiin_members",
+    )
+    member_map: dict[str, str] = {}
+    for m in (members_result.data or []):
+        key = normalize_name(m["name"])
+        member_map[key] = m["id"]
+    logger.info(f"衆議院議員: {len(member_map)}名")
 
     logger.info("委員会一覧を取得中...")
     committees = scrape_committee_list()
     logger.info(f"{len(committees)}件の委員会を発見")
 
-    total_saved = 0
+    all_rows: list[dict] = []
 
     for c in committees:
         logger.info(f"収集中: {c['name']}")
@@ -100,24 +95,25 @@ def main():
 
         for m in members:
             name = m["name"]
-            if name not in member_cache:
-                member_cache[name] = find_member_id(name, "衆議院", client)
-            member_id = member_cache[name]
-
-            client.table("committee_members").upsert({
-                "id":         f"shugiin-{c['name']}-{name}",
-                "member_id":  member_id,
-                "name":       name,
-                "committee":  m["committee"],
-                "role":       m["role"],
-                "house":      "衆議院",
-            }).execute()
-            total_saved += 1
+            all_rows.append({
+                "id":        f"shugiin-{c['name']}-{name}",
+                "member_id": member_map.get(name),
+                "name":      name,
+                "committee": m["committee"],
+                "role":      m["role"],
+                "house":     "衆議院",
+            })
 
         time.sleep(1.0)
 
-    logger.info(f"完了: 合計{total_saved}件の委員会所属を登録")
+    if all_rows:
+        batch_upsert("committee_members", all_rows, on_conflict="id", label="shugiin_committee")
+    logger.info(f"完了: 合計{len(all_rows)}件の委員会所属を登録")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logger.exception("Committee scraper (衆院) failed")
+        sys.exit(1)

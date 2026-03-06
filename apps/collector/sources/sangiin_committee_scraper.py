@@ -1,16 +1,12 @@
-import os
+import sys
 import time
 import logging
 import httpx
-from typing import Optional
 from bs4 import BeautifulSoup
-from supabase import create_client
 
-logging.basicConfig(level=logging.INFO)
+from db import get_client, execute_with_retry, batch_upsert
+
 logger = logging.getLogger(__name__)
-
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 HEADERS   = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
 INDEX_URL = "https://www.sangiin.go.jp/japanese/kon_kokkaijyoho/index.html"
@@ -97,15 +93,15 @@ def find_member_id(name: str, member_map: dict) -> Optional[str]:
 
 
 def main():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        logger.error("環境変数が設定されていません")
-        return
-
-    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    client = get_client()
 
     # 参議院議員をキャッシュ（スペース除去・[正字]対応で正規化）
     logger.info("参議院議員を取得中...")
-    members = client.table("members").select("id, name").eq("house", "参議院").execute()
+    members_result = execute_with_retry(
+        lambda: client.table("members").select("id, name").eq("house", "参議院").limit(2000),
+        label="fetch_sangiin_members",
+    )
+    members = members_result.data or []
     member_map = {}
     for m in members.data:
         full = m["name"]
@@ -123,7 +119,7 @@ def main():
     urls = get_committee_urls()
     logger.info(f"{len(urls)}件の委員会を発見")
 
-    total_saved = 0
+    all_rows: list[dict] = []
 
     for url in urls:
         committee_name, members_list = scrape_committee(url)
@@ -138,20 +134,25 @@ def main():
 
         for m in members_list:
             member_id = find_member_id(m["name"], member_map)
-            client.table("committee_members").upsert({
+            all_rows.append({
                 "id":        f"sangiin-{committee_name}-{m['name']}",
                 "member_id": member_id,
                 "name":      m["name"],
                 "committee": committee_name,
                 "role":      m["role"],
                 "house":     "参議院",
-            }).execute()
-            total_saved += 1
+            })
 
         time.sleep(1.0)
 
-    logger.info(f"完了: 合計{total_saved}件の委員会所属を登録")
+    if all_rows:
+        batch_upsert("committee_members", all_rows, on_conflict="id", label="sangiin_committee")
+    logger.info(f"完了: 合計{len(all_rows)}件の委員会所属を登録")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logger.exception("Committee scraper (参院) failed")
+        sys.exit(1)
