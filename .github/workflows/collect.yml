@@ -84,6 +84,11 @@ jobs:
           echo "| 質問主意書（参） | ${{ steps.sangiin_q.outcome }} |"
           echo "| キーワード更新 | ${{ steps.keywords.outcome }} |"
 
+      - name: speeches 上限チェック・削除
+        id: cleanup
+        continue-on-error: true
+        run: python scripts/cleanup.py --task truncate-speeches
+
       - name: 失敗チェック
         if: always()
         run: |

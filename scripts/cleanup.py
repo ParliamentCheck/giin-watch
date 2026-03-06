@@ -172,7 +172,61 @@ def check_orphans() -> None:
 
 
 # ============================================================
-# 5. DB サイズ統計
+# 5. speeches 上限削除
+# ============================================================
+def truncate_speeches(max_rows: int | None = None) -> None:
+    """speeches テーブルが上限を超えたら spoken_at 昇順（古い順）で削除する。"""
+    from config import SPEECHES_MAX_ROWS
+    limit = max_rows or SPEECHES_MAX_ROWS
+
+    client = get_client()
+
+    result = execute_with_retry(
+        lambda: client.table("speeches").select("id", count="exact").limit(0),
+        label="count_speeches",
+    )
+    count = result.count or 0
+    logger.info("speeches: %d 行（上限: %d）", count, limit)
+
+    if count <= limit:
+        logger.info("上限以下のため削除不要。")
+        return
+
+    to_delete = count - limit
+    logger.info("%d 行削除します（spoken_at 昇順）", to_delete)
+
+    # to_delete 番目に古い spoken_at を取得
+    cutoff_result = execute_with_retry(
+        lambda: (
+            client.table("speeches")
+            .select("spoken_at")
+            .not_.is_("spoken_at", "null")
+            .order("spoken_at", desc=False)
+            .range(to_delete - 1, to_delete - 1)
+        ),
+        label="find_cutoff_date",
+    )
+    if not cutoff_result.data:
+        logger.warning("カットオフ日付を取得できませんでした。")
+        return
+
+    cutoff_date = cutoff_result.data[0]["spoken_at"]
+    logger.info("カットオフ日付: %s（この日付より古いものを削除）", cutoff_date)
+
+    execute_with_retry(
+        lambda: client.table("speeches").delete().lt("spoken_at", cutoff_date),
+        label="delete_old_speeches",
+    )
+
+    after = execute_with_retry(
+        lambda: client.table("speeches").select("id", count="exact").limit(0),
+        label="count_after_cleanup",
+    )
+    logger.info("削除後: %d 行", after.count or 0)
+
+
+# ============================================================
+# 6. DB サイズ統計
 # ============================================================
 def db_stats() -> None:
     """テーブルごとのサイズと行数を表示する。"""
@@ -206,6 +260,7 @@ TASKS = {
     "recalc-sessions": recalc_sessions,
     "verify-terms": verify_terms,
     "check-orphans": check_orphans,
+    "truncate-speeches": truncate_speeches,
     "db-stats": db_stats,
 }
 

@@ -93,3 +93,8 @@ jobs:
       - name: スコア再計算
         if: always()
         run: python apps/collector/run_scoring.py
+
+      - name: speeches 上限チェック・削除
+        if: startsWith(inputs.task, 'speeches-')
+        continue-on-error: true
+        run: python scripts/cleanup.py --task truncate-speeches
