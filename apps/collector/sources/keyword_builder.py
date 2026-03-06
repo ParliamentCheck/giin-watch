@@ -141,56 +141,36 @@ def fetch_speech_texts_for_member(
 # ============================================================
 # 議員のキーワードを構築・更新
 # ============================================================
-def build_keywords_for_member(
+def build_keywords_from_texts(
     member_id: str,
     member_name: str,
-    house: str,
-    date_from: str,
-    date_until: str,
+    texts_with_dates: list[tuple[str, str]],
     existing_keywords: dict[str, dict] | None = None,
 ) -> list[dict[str, Any]]:
     """
-    指定期間の発言からキーワードを抽出し、既存キーワードとマージして上位100語を返す。
-
-    Parameters
-    ----------
-    existing_keywords : dict[word, {count, last_seen_at}] or None
-        既存の member_keywords データ。None なら初回構築。
-
-    Returns
-    -------
-    list[dict]
-        member_keywords テーブルに upsert する行リスト。
+    テキストリストからキーワードを抽出し、既存キーワードとマージして上位100語を返す。
+    NDL API を呼ばない純粋な処理関数。ndl_api.py からも呼ばれる。
     """
     existing = existing_keywords or {}
 
-    # NDL API から発言取得
-    speeches = fetch_speech_texts_for_member(member_name, house, date_from, date_until)
-    if not speeches:
-        logger.debug("No speeches for %s in %s~%s", member_name, date_from, date_until)
-        return []
-
-    # 形態素解析してカウント
     period_counter: Counter[str] = Counter()
     latest_date_per_word: dict[str, str] = {}
 
-    for text, spoken_date in speeches:
+    for text, spoken_date in texts_with_dates:
         nouns = extract_nouns(text)
         for noun in nouns:
             if should_exclude_word(noun, member_name):
                 continue
             period_counter[noun] += 1
-            # last_seen_at を更新（より新しい日付を保持）
             if noun not in latest_date_per_word or spoken_date > latest_date_per_word[noun]:
                 latest_date_per_word[noun] = spoken_date
 
-    # 既存キーワードとマージ
+    if not period_counter:
+        return []
+
     merged: dict[str, dict] = {}
     for word, info in existing.items():
-        merged[word] = {
-            "count": info["count"],
-            "last_seen_at": info["last_seen_at"],
-        }
+        merged[word] = {"count": info["count"], "last_seen_at": info["last_seen_at"]}
 
     for word, count in period_counter.items():
         if word in merged:
@@ -204,25 +184,99 @@ def build_keywords_for_member(
                 "last_seen_at": latest_date_per_word.get(word, ""),
             }
 
-    # 古いキーワードにペナルティ: stale なものはソートで下位に
     def sort_key(item: tuple[str, dict]) -> tuple[bool, int]:
-        word, info = item
-        stale = is_stale_keyword(info["last_seen_at"])
-        return (not stale, info["count"])  # non-stale first, then by count desc
+        _, info = item
+        return (not is_stale_keyword(info["last_seen_at"]), info["count"])
 
-    sorted_words = sorted(merged.items(), key=sort_key, reverse=True)
-    top_words = sorted_words[:KEYWORDS_MAX_STORE]
+    top_words = sorted(merged.items(), key=sort_key, reverse=True)[:KEYWORDS_MAX_STORE]
 
-    rows = []
-    for word, info in top_words:
-        rows.append({
+    return [
+        {
             "member_id": member_id,
             "word": word,
             "count": info["count"],
             "last_seen_at": info["last_seen_at"] or None,
-        })
+        }
+        for word, info in top_words
+    ]
 
-    return rows
+
+def build_keywords_for_member(
+    member_id: str,
+    member_name: str,
+    house: str,
+    date_from: str,
+    date_until: str,
+    existing_keywords: dict[str, dict] | None = None,
+) -> list[dict[str, Any]]:
+    """NDL API から発言を取得してキーワードを構築する（daily/full rebuild 用）。"""
+    speeches = fetch_speech_texts_for_member(member_name, house, date_from, date_until)
+    if not speeches:
+        logger.debug("No speeches for %s in %s~%s", member_name, date_from, date_until)
+        return []
+    return build_keywords_from_texts(member_id, member_name, speeches, existing_keywords)
+
+
+def save_member_keywords_from_texts(
+    member_texts: dict[str, list[tuple[str, str]]],
+    member_info: dict[str, dict],
+) -> int:
+    """
+    ndl_api.py が収集したテキストからキーワードを構築して DB に保存する。
+
+    Parameters
+    ----------
+    member_texts : dict[member_id, list[(text, spoken_date)]]
+    member_info  : dict[member_id, {"name": str}]
+
+    Returns
+    -------
+    int : 更新した議員数
+    """
+    client = get_client()
+    today = date.today().isoformat()
+    updated = 0
+
+    for member_id, texts in member_texts.items():
+        name = member_info.get(member_id, {}).get("name", "")
+
+        existing_rows = execute_with_retry(
+            lambda mid=member_id: (
+                client.table("member_keywords")
+                .select("word, count, last_seen_at")
+                .eq("member_id", mid)
+            ),
+            label=f"fetch_mk:{member_id}",
+        ).data or []
+        existing = {
+            r["word"]: {"count": r["count"], "last_seen_at": r.get("last_seen_at", "")}
+            for r in existing_rows
+        }
+
+        new_rows = build_keywords_from_texts(member_id, name, texts, existing)
+        if not new_rows:
+            continue
+
+        try:
+            delete_rows("member_keywords", "member_id", member_id)
+        except Exception:
+            pass
+        batch_upsert(
+            "member_keywords", new_rows,
+            on_conflict="member_id,word",
+            label=f"mk:{member_id}",
+        )
+        execute_with_retry(
+            lambda mid=member_id: (
+                client.table("members")
+                .update({"keywords_updated_at": today})
+                .eq("id", mid)
+            ),
+            label=f"update_kw_ts:{member_id}",
+        )
+        updated += 1
+
+    return updated
 
 
 # ============================================================

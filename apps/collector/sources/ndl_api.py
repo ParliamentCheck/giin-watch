@@ -27,6 +27,12 @@ from config import (
 from db import get_client, batch_upsert, execute_with_retry
 from utils import make_member_id, is_procedural_speech
 
+try:
+    from keyword_builder import save_member_keywords_from_texts, rebuild_party_keywords
+    _KEYWORDS_AVAILABLE = True
+except Exception:
+    _KEYWORDS_AVAILABLE = False
+
 logger = logging.getLogger("ndl_api")
 
 # ============================================================
@@ -64,19 +70,22 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
     # 既存の member_id 一覧を取得して照合用にキャッシュ
     client = get_client()
     members_result = execute_with_retry(
-        lambda: client.table("members").select("id, name, ndl_names").limit(2000),
+        lambda: client.table("members").select("id, name, house, ndl_names").limit(2000),
         label="fetch_members",
     )
     ndl_name_to_id: dict[str, str] = {}  # normalized_name -> member_id
+    member_info: dict[str, dict] = {}    # member_id -> {name, house}
     for m in (members_result.data or []):
-        # ndl_names が設定されていればそれを優先（改名対応）
         for ndl_name in (m.get("ndl_names") or []):
             ndl_name_to_id[re.sub(r"\s+", "", ndl_name)] = m["id"]
-        # フォールバック: name カラムを正規化して登録（ndl_names 未設定の議員をカバー）
         if m.get("name"):
             normalized = re.sub(r"\s+", "", m["name"])
             ndl_name_to_id.setdefault(normalized, m["id"])
+        member_info[m["id"]] = {"name": m.get("name", ""), "house": m.get("house", "")}
     logger.info("Member name map built: %d entries", len(ndl_name_to_id))
+
+    # キーワード構築用テキスト蓄積バッファ
+    member_texts: dict[str, list[tuple[str, str]]] = defaultdict(list)
 
     records_per_page = 100
     start_record = 1
@@ -141,12 +150,14 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
             speaker_normalized = re.sub(r"\s+", "", speaker)
             member_id = ndl_name_to_id.get(speaker_normalized) if house else None
 
-            # 議事進行判定（speech_text をここで一時的に使うが DB には保存しない）
-            speech_text = rec.get("speech", "")
-            procedural = is_procedural_speech(speech_text)
-
             # 日付
             spoken_at = rec.get("date", "")
+
+            # 議事進行判定 + キーワード用テキスト蓄積
+            speech_text = rec.get("speech", "")
+            procedural = is_procedural_speech(speech_text)
+            if not procedural and member_id and speech_text:
+                member_texts[member_id].append((speech_text, spoken_at or ""))
 
             # NDL URL
             speech_url = rec.get("speechURL", "")
@@ -192,6 +203,16 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
         time.sleep(NDL_RATE_LIMIT_SEC)
 
     logger.info("Speech collection complete. Saved %d records.", total_saved)
+
+    # キーワード構築（MeCab が利用可能な場合のみ）
+    if _KEYWORDS_AVAILABLE and member_texts:
+        logger.info("Building keywords for %d members ...", len(member_texts))
+        try:
+            updated = save_member_keywords_from_texts(member_texts, member_info)
+            logger.info("Keywords built for %d members.", updated)
+            rebuild_party_keywords()
+        except Exception:
+            logger.warning("Keyword building failed (non-fatal)", exc_info=True)
 
 
 # ============================================================
