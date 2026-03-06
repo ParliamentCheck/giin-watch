@@ -12,6 +12,7 @@ import logging
 import re
 import sys
 import time
+from collections import defaultdict
 from datetime import date
 from typing import Any
 from urllib.parse import urlencode
