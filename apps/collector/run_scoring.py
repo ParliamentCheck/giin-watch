@@ -21,20 +21,29 @@ PAGE = 2000
 
 
 def _fetch_all(table: str, select: str) -> list[dict]:
-    """テーブルを全件ページングで取得する。"""
+    """テーブルを全件カーソルページングで取得する（OFFSET 不使用で statement timeout 回避）。"""
     client = get_client()
     rows: list[dict] = []
-    offset = 0
+    last_id: str = ""
+    # カーソルに id カラムが必要
+    cols = [s.strip() for s in select.split(",")]
+    select_with_id = select if "id" in cols else select + ", id"
     while True:
         result = execute_with_retry(
-            lambda o=offset: client.table(table).select(select).range(o, o + PAGE - 1),
-            label=f"fetch:{table}:{offset}",
+            lambda lid=last_id: (
+                client.table(table)
+                .select(select_with_id)
+                .order("id")
+                .gt("id", lid)
+                .limit(PAGE)
+            ),
+            label=f"fetch:{table}:{len(rows)}",
         )
         batch = result.data or []
         rows.extend(batch)
         if len(batch) < PAGE:
             break
-        offset += PAGE
+        last_id = batch[-1]["id"]
     return rows
 
 
