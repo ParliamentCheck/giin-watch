@@ -58,7 +58,6 @@ jobs:
 
           case "${{ inputs.task }}" in
             "speeches-all")
-              run_year "2018-01-01" "2020-12-31"
               run_year "2021-01-01" "2021-12-31"
               run_year "2022-01-01" "2022-12-31"
               run_year "2023-01-01" "2023-12-31"
