@@ -8,6 +8,7 @@ on:
         type: choice
         required: true
         options:
+          - "speeches-all"
           - "speeches-2024"
           - "speeches-2023"
           - "speeches-2022"
@@ -45,29 +46,40 @@ jobs:
       - name: 発言データ過去取得
         if: startsWith(inputs.task, 'speeches-')
         run: |
+          run_year() {
+            local from=$1 until=$2
+            echo "=== $from 〜 $until ==="
+            export NDL_DATE_FROM="$from"
+            export NDL_DATE_UNTIL="$until"
+            python apps/collector/sources/ndl_api.py
+            python apps/collector/run_scoring.py
+            python scripts/cleanup.py --task truncate-speeches || true
+          }
+
           case "${{ inputs.task }}" in
+            "speeches-all")
+              run_year "2018-01-01" "2020-12-31"
+              run_year "2021-01-01" "2021-12-31"
+              run_year "2022-01-01" "2022-12-31"
+              run_year "2023-01-01" "2023-12-31"
+              run_year "2024-01-01" "2024-12-31"
+              ;;
             "speeches-2024")
-              export NDL_DATE_FROM="2024-01-01"
-              export NDL_DATE_UNTIL="2024-12-31"
+              run_year "2024-01-01" "2024-12-31"
               ;;
             "speeches-2023")
-              export NDL_DATE_FROM="2023-01-01"
-              export NDL_DATE_UNTIL="2023-12-31"
+              run_year "2023-01-01" "2023-12-31"
               ;;
             "speeches-2022")
-              export NDL_DATE_FROM="2022-01-01"
-              export NDL_DATE_UNTIL="2022-12-31"
+              run_year "2022-01-01" "2022-12-31"
               ;;
             "speeches-2021")
-              export NDL_DATE_FROM="2021-01-01"
-              export NDL_DATE_UNTIL="2021-12-31"
+              run_year "2021-01-01" "2021-12-31"
               ;;
             "speeches-2018-2020")
-              export NDL_DATE_FROM="2018-01-01"
-              export NDL_DATE_UNTIL="2020-12-31"
+              run_year "2018-01-01" "2020-12-31"
               ;;
           esac
-          python apps/collector/sources/ndl_api.py
 
       - name: キーワード全件再構築
         if: inputs.task == 'keyword-full-rebuild'
@@ -90,11 +102,6 @@ jobs:
         if: inputs.task == 'sangiin-questions'
         run: python apps/collector/sources/sangiin_shitsumon.py
 
-      - name: スコア再計算
-        if: always()
+      - name: スコア再計算（speeches-all 以外）
+        if: always() && !startsWith(inputs.task, 'speeches-')
         run: python apps/collector/run_scoring.py
-
-      - name: speeches 上限チェック・削除
-        if: startsWith(inputs.task, 'speeches-')
-        continue-on-error: true
-        run: python scripts/cleanup.py --task truncate-speeches
