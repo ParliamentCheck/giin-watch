@@ -14,6 +14,7 @@ env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
   PYTHONPATH: apps/collector
+  SKIP_KEYWORDS: ${{ inputs.skip_keywords }}
 
 jobs:
   collect:
@@ -36,49 +37,39 @@ jobs:
       - name: 議員データ登録
         id: members
         continue-on-error: true
-        run: python apps/collector/sources/register_members.py
+        run: python apps/collector/sources/members.py
 
       - name: 発言データ収集
         id: speeches
         continue-on-error: true
-        run: python apps/collector/sources/ndl_api.py
+        run: python apps/collector/sources/speeches.py
 
       - name: 活動スコア再計算
         id: scoring
         continue-on-error: true
-        run: python apps/collector/run_scoring.py
+        run: python apps/collector/processors/scoring.py
 
       - name: 内閣役職データ取得
         id: cabinet
         continue-on-error: true
         run: python apps/collector/sources/cabinet_scraper.py
 
-      - name: 質問主意書（衆議院）
-        id: shitsumon
+      - name: 質問主意書収集
+        id: questions
         continue-on-error: true
-        run: python apps/collector/sources/shitsumon_scraper.py
+        run: python apps/collector/sources/questions.py
 
-      - name: 質問主意書（参議院）
-        id: sangiin_q
+      - name: 委員会所属収集
+        id: committees
         continue-on-error: true
-        run: python apps/collector/sources/sangiin_shitsumon.py
-
-      - name: 委員会所属（衆議院）
-        id: committee_shugiin
-        continue-on-error: true
-        run: python apps/collector/sources/committee_scraper.py
-
-      - name: 委員会所属（参議院）
-        id: committee_sangiin
-        continue-on-error: true
-        run: python apps/collector/sources/sangiin_committee_scraper.py
+        run: python apps/collector/sources/committees.py
 
       - name: キーワード更新
         id: keywords
         if: inputs.skip_keywords != true
         continue-on-error: true
         timeout-minutes: 20
-        run: python apps/collector/sources/keyword_builder.py --mode daily
+        run: python apps/collector/sources/keywords.py --mode daily
 
       - name: 実行結果サマリー
         if: always()
@@ -90,16 +81,14 @@ jobs:
           echo "| 発言データ収集 | ${{ steps.speeches.outcome }} |"
           echo "| スコア再計算 | ${{ steps.scoring.outcome }} |"
           echo "| 内閣役職 | ${{ steps.cabinet.outcome }} |"
-          echo "| 質問主意書（衆） | ${{ steps.shitsumon.outcome }} |"
-          echo "| 質問主意書（参） | ${{ steps.sangiin_q.outcome }} |"
-          echo "| 委員会所属（衆） | ${{ steps.committee_shugiin.outcome }} |"
-          echo "| 委員会所属（参） | ${{ steps.committee_sangiin.outcome }} |"
+          echo "| 質問主意書 | ${{ steps.questions.outcome }} |"
+          echo "| 委員会所属 | ${{ steps.committees.outcome }} |"
           echo "| キーワード更新 | ${{ steps.keywords.outcome }} |"
 
       - name: speeches 上限チェック・削除
         id: cleanup
         continue-on-error: true
-        run: python scripts/cleanup.py --task truncate-speeches
+        run: python apps/collector/processors/cleanup.py --task truncate-speeches
 
       - name: 失敗チェック
         if: always()

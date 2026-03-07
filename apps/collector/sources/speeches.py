@@ -29,7 +29,7 @@ from db import get_client, batch_upsert, execute_with_retry
 from utils import make_member_id, is_procedural_speech
 
 try:
-    from keyword_builder import save_member_keywords_from_texts, rebuild_party_keywords
+    from keywords import save_member_keywords_from_texts, rebuild_party_keywords
     _KEYWORDS_AVAILABLE = True
 except Exception:
     _KEYWORDS_AVAILABLE = False
