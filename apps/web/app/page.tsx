@@ -4,38 +4,27 @@ import Link from "next/link";
 
 /* ─── データ取得（サーバーサイド） ─────────────────────────────── */
 async function getStats() {
-  const [totalRes, shugiinRes, sangiinRes, speechRes, questionRes] =
+  const [membersRes, questionRes] =
     await Promise.all([
       supabase
         .from("members")
-        .select("id", { count: "exact", head: true })
+        .select("id, house, party, speech_count, question_count")
         .eq("is_active", true).limit(2000),
-      supabase
-        .from("members")
-        .select("id", { count: "exact", head: true })
-        .eq("house", "衆議院")
-        .eq("is_active", true).limit(2000),
-      supabase
-        .from("members")
-        .select("id", { count: "exact", head: true })
-        .eq("house", "参議院")
-        .eq("is_active", true).limit(2000),
-      supabase.from("speeches").select("id", { count: "exact", head: true }),
       supabase.from("questions").select("id", { count: "exact", head: true }),
     ]);
 
-  const partiesRes = await supabase
-    .from("members")
-    .select("party")
-    .eq("is_active", true).limit(2000);
-  const parties = new Set((partiesRes.data || []).map((m) => m.party)).size;
+  const members = membersRes.data || [];
+  const parties = new Set(members.map((m: any) => m.party)).size;
+  const shugiin = members.filter((m: any) => m.house === "衆議院").length;
+  const sangiin = members.filter((m: any) => m.house === "参議院").length;
+  const speeches = members.reduce((sum: number, m: any) => sum + (m.speech_count || 0), 0);
 
   return {
-    total: totalRes.count || 0,
-    shugiin: shugiinRes.count || 0,
-    sangiin: sangiinRes.count || 0,
+    total: members.length,
+    shugiin,
+    sangiin,
     parties,
-    speeches: speechRes.count || 0,
+    speeches,
     questions: questionRes.count || 0,
   };
 }
