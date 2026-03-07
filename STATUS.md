@@ -1,6 +1,6 @@
 # はたらく議員 — プロジェクト現状ドキュメント
 
-> 最終更新: 2026-03-08
+> 最終更新: 2026-03-08（session 2）
 
 ---
 
@@ -132,6 +132,10 @@ scripts/
 
 ## 解決済みの問題
 
+### ③ トップページ「発言記録」が0件表示（commit 17dae0b）
+**原因**: `page.tsx` が `speeches` テーブルに `count: "exact"` クエリを送っていたが、RLS が anon のカウントをブロックして 0 を返していた。
+**修正**: `members.speech_count` の合計値を使うよう変更。members クエリを1本に統合。
+
 ### ① member_id 不一致（bracket形式）
 **原因**: 参院サイトが議員名の表示形式を `"犬童周作"` → `"いんどう周作[犬童周作]"` に変更。
 `members.id` が bracket形式になり、旧スピーチの `member_id`（kanji形式）と不一致。
@@ -152,11 +156,23 @@ scripts/
 - [ ] **`keyword-full-rebuild`** を Actions で実行
   → 725名分のキーワードが未構築。`daily_update()` は直近7日間のみ対象のため、全件再構築が必要
 
+### 要実行（bills 再収集）
+- [ ] **`bills-collect`** を Actions で再実行
+  → commit 6c8d874 でスクレイパーを修正済み。修正版で再収集が必要
+  → 詳細ページ取得のため完了まで数十分かかる
+  → 完了後に以下のSQLで確認:
+    ```sql
+    SELECT COUNT(*), house FROM bills GROUP BY house;
+    WITH all_sids AS (SELECT unnest(submitter_ids) AS sid FROM bills)
+    SELECT COUNT(*) AS total, COUNT(m.id) AS matched FROM all_sids a LEFT JOIN members m ON m.id = a.sid;
+    ```
+
 ### 未実装・未着手
-- [ ] **議員立法（bills）のデータ品質確認** — スクレイパーは実装済みだが未検証
 - [ ] **議員写真** — プロフィール画像の取得なし
 - [ ] **衆院採決記録** — 個人別データが公開されていないため収集不可
 - [ ] **旧議員のデータ管理ポリシー** — `is_active=False` 議員の過去データ保持方針未整備
+- [ ] **bills スコアリング** — scoring.py に bill_count 集計を追加（bills.submitter_ids は配列型のため Python 側で集計）
+- [ ] **/bills 一覧ページ** — フロントエンド未作成
 
 ### Phase 3: GitHub Actions 整理
 - collect.yml / backfill.yml のさらなる整理（必要に応じて）
