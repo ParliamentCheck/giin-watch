@@ -1,7 +1,7 @@
 """
 はたらく議員 — NDL API 発言メタデータ収集
 国会会議録 API から発言データを取得し、メタデータのみを speeches テーブルに保存する。
-speech_text は保存しない（キーワード構築は keyword_builder.py が別途処理）。
+speech_text は保存しない（キーワード構築は keywords.py が別途処理）。
 
 APIドキュメント: https://kokkai.ndl.go.jp/api.html
 """
