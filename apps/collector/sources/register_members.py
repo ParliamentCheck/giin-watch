@@ -81,9 +81,20 @@ def scrape_sangiin() -> list[dict]:
     logger.info(f"プロフィールリンク: {len(links)}件")
 
     for i, link in enumerate(links):
-        name = link.get_text(strip=True).replace('\u3000', ' ').strip()
-        if not name or len(name) < 2:
+        raw_name = link.get_text(strip=True).replace('\u3000', ' ').strip()
+        if not raw_name or len(raw_name) < 2:
             continue
+
+        # 参院サイトは "よみがな[漢字名]" 形式で表示する場合がある
+        # → ID・表示名は漢字名のみに統一し、読み仮名は ndl_names に追加
+        bracket = re.search(r"\[(.+?)\]", raw_name)
+        if bracket:
+            name = bracket.group(1).strip()
+            yomi = re.sub(r"\[.+?\]", "", raw_name).strip()
+            ndl_names = [name, yomi] if yomi else [name]
+        else:
+            name = re.sub(r"\s+", "", raw_name)
+            ndl_names = [name]
 
         profile_path = link.get('href', '').split('/')[-1]
         profile_url = f"{SANGIIN_BASE}/profile/{profile_path}"
@@ -98,6 +109,7 @@ def scrape_sangiin() -> list[dict]:
             "house":      "参議院",
             "terms":      detail.get("terms"),
             "source_url": profile_url,
+            "ndl_names":  ndl_names,
         })
 
         logger.info(f"[{i+1}/{len(links)}] {name} / {detail['faction']} / {detail['party']} / {detail['district']}")

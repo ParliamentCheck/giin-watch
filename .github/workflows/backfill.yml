@@ -8,6 +8,7 @@ on:
         type: choice
         required: true
         options:
+          - "migrate-member-ids"
           - "scoring-only"
           - "speeches-all"
           - "speeches-2024"
@@ -43,6 +44,10 @@ jobs:
         run: |
           pip install -r apps/collector/requirements.txt
           sudo apt-get update && sudo apt-get install -y mecab libmecab-dev
+
+      - name: member ID マイグレーション
+        if: inputs.task == 'migrate-member-ids'
+        run: python scripts/migrate_member_ids.py
 
       - name: スコアのみ再計算
         if: inputs.task == 'scoring-only'
@@ -107,5 +112,9 @@ jobs:
         run: python apps/collector/sources/sangiin_shitsumon.py
 
       - name: スコア再計算（speeches-all / scoring-only 以外）
-        if: always() && !startsWith(inputs.task, 'speeches-') && inputs.task != 'scoring-only'
+        if: always() && !startsWith(inputs.task, 'speeches-') && inputs.task != 'scoring-only' && inputs.task != 'migrate-member-ids'
+        run: python apps/collector/run_scoring.py
+
+      - name: スコア再計算（migrate 後）
+        if: inputs.task == 'migrate-member-ids'
         run: python apps/collector/run_scoring.py
