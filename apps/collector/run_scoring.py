@@ -40,7 +40,7 @@ def _fetch_all(table: str, select: str) -> list[dict]:
         )
         batch = result.data or []
         rows.extend(batch)
-        if len(batch) < PAGE:
+        if not batch:
             break
         last_id = batch[-1]["id"]
     return rows
