@@ -63,6 +63,11 @@ def recalculate_scores() -> None:
     speeches = _fetch_all("speeches", "member_id, spoken_at, committee, is_procedural")
     logger.info("speeches 取得: %d 件", len(speeches))
 
+    # デバッグ: member_id サンプル確認
+    sample_mids = list({s.get("member_id") for s in speeches[:100] if s.get("member_id")})[:5]
+    logger.info("speeches member_id サンプル: %s", sample_mids)
+    logger.info("members id サンプル: %s", all_ids[:5])
+
     speech_counts: dict[str, int] = defaultdict(int)
     session_sets: dict[str, set] = defaultdict(set)
 
@@ -86,6 +91,12 @@ def recalculate_scores() -> None:
                 question_counts[mid] += 1
         logger.info("%s 取得: %d 件", table, len(rows))
 
+    # デバッグ: カウント結果サンプル
+    nonzero = [(k, v) for k, v in speech_counts.items() if v > 0]
+    logger.info("speech_count > 0 の議員: %d 名 / サンプル: %s", len(nonzero), nonzero[:3])
+    matched = sum(1 for mid in all_ids if speech_counts.get(mid, 0) > 0)
+    logger.info("all_ids と一致した議員: %d / %d", matched, len(all_ids))
+
     # ── members を UPDATE（upsert は使わない） ─────────────────
     # batch_upsert は内部で INSERT を試みて name NOT NULL 違反が起きるため、
     # 個別 UPDATE で既存行のカウントカラムだけを上書きする
@@ -107,6 +118,7 @@ def recalculate_scores() -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:
         recalculate_scores()
     except Exception:
