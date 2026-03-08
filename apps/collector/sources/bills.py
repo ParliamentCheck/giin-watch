@@ -36,9 +36,9 @@ ERA_OFFSETS = {"令和": 2018, "平成": 1988, "昭和": 1925}
 # ============================================================
 
 def _parse_jp_date(text: str) -> str | None:
-    """和暦日付（例: 令和6年1月26日）を YYYY-MM-DD に変換する。"""
+    """和暦日付（例: 令和6年1月26日、令和 7年 2月 5日）を YYYY-MM-DD に変換する。"""
     for era, offset in ERA_OFFSETS.items():
-        m = re.search(rf"{era}(\d+)年(\d+)月(\d+)日", text)
+        m = re.search(rf"{era}\s*(\d+)年\s*(\d+)月\s*(\d+)日", text)
         if m:
             return f"{offset + int(m.group(1))}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
     m = re.search(r"(\d{4})[年./](\d{1,2})[月./](\d{1,2})", text)
@@ -51,6 +51,11 @@ def _find_section_table(soup: BeautifulSoup, keyword: str):
     """keyword を含む見出し直後のテーブルを返す。"""
     for tag in soup.find_all(["h2", "h3", "h4", "caption", "p", "td", "th"]):
         if keyword in tag.get_text():
+            # caption はテーブル内にあるので親テーブルを直接返す
+            if tag.name == "caption":
+                parent = tag.find_parent("table")
+                if parent:
+                    return parent
             for sibling in tag.find_all_next():
                 if sibling.name == "table":
                     return sibling
@@ -59,8 +64,25 @@ def _find_section_table(soup: BeautifulSoup, keyword: str):
     return None
 
 
+_BILL_TYPE_HOUSE = {"衆法": "衆議院", "参法": "参議院"}
+
+
+def _parse_name_cell(cell_el: Any, house: str) -> list[str]:
+    """提出者セルから member_id リストを返す。"""
+    raw = re.sub(r"外[〇一二三四五六七八九十百千\d]+名", "", cell_el.get_text()).strip()
+    result = []
+    for part in re.split(r"[、,，；;]+", raw):
+        name = re.sub(r"[君氏]$", "", part.strip())
+        name = re.sub(r"\s+", "", name)
+        if 2 <= len(name) <= 10:
+            result.append(make_member_id(house, name))
+    return result
+
+
 def _fetch_detail(url: str, house: str) -> tuple[list[str], str | None]:
-    """経過詳細ページから提出者リストと提出日を取得する。"""
+    """経過詳細ページから提出者リストと提出日を取得する。
+    衆院 keika ページと参院 meisai ページ両方に対応する。
+    """
     try:
         resp = requests.get(url, headers=HEADERS, timeout=30)
         if resp.status_code != 200:
@@ -71,28 +93,35 @@ def _fetch_detail(url: str, house: str) -> tuple[list[str], str | None]:
         logger.warning("Detail fetch failed %s: %s", url, exc)
         return [], None
 
-    submitter_ids: list[str] = []
+    primary_ids: list[str] = []   # 議案提出者 / 発議者（筆頭のみ）
+    full_ids: list[str] = []      # 議案提出者一覧（全員 / 衆院のみ）
     submitted_at: str | None = None
+    actual_house = house
 
     for cell in soup.find_all(["th", "td"]):
         text = cell.get_text(strip=True)
-        if "提出者" in text:
-            sibling = cell.find_next_sibling(["th", "td"])
-            if sibling:
-                names = [a.get_text(strip=True) for a in sibling.find_all("a")]
-                if not names:
-                    raw = re.sub(r"\s+", " ", sibling.get_text()).strip()
-                    names = re.split(r"[　\s、,]+", raw)
-                for name in names:
-                    name = re.sub(r"\s+", "", name)
-                    if 2 <= len(name) <= 10:
-                        submitter_ids.append(make_member_id(house, name))
-        elif "提出年月日" in text or ("提出日" in text and "提出年月日" not in text):
-            sibling = cell.find_next_sibling(["th", "td"])
-            if sibling:
-                submitted_at = _parse_jp_date(sibling.get_text())
+        sibling = cell.find_next_sibling(["th", "td"])
+        if sibling is None:
+            continue
+        sib_text = sibling.get_text(strip=True)
 
-    return submitter_ids, submitted_at
+        if text == "議案種類":
+            # 衆院 keika ページ: 衆法/参法から提出者の院を確定
+            actual_house = _BILL_TYPE_HOUSE.get(sib_text, house)
+
+        elif text in ("議案提出者", "提出者", "発議者"):
+            if not primary_ids:
+                primary_ids = _parse_name_cell(sibling, actual_house)
+
+        elif text == "議案提出者一覧":
+            # 衆院 keika ページ: 全提出者リスト（優先使用）
+            full_ids = _parse_name_cell(sibling, actual_house)
+
+        elif text == "提出日" or f"{actual_house}議案受理年月日" in text or "提出年月日" in text:
+            if submitted_at is None:
+                submitted_at = _parse_jp_date(sib_text)
+
+    return (full_ids if full_ids else primary_ids), submitted_at
 
 
 # ============================================================
@@ -197,12 +226,12 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
 
         submitter_ids: list[str] = []
         submitted_at: str | None = None
-        if len(tds) > 4:
-            link = tds[4].find("a")
-            if link and link.get("href"):
-                detail_url = urljoin(url, link["href"])
-                submitter_ids, submitted_at = _fetch_detail(detail_url, "参議院")
-                time.sleep(1)
+        # tds[2]（件名）のリンクが meisai 詳細ページ（tds[4] は PDF）
+        link = tds[2].find("a")
+        if link and link.get("href"):
+            detail_url = urljoin(url, link["href"])
+            submitter_ids, submitted_at = _fetch_detail(detail_url, "参議院")
+            time.sleep(1)
 
         rows.append({
             "id": f"bill-san-{session}-{bill_num_text}",
