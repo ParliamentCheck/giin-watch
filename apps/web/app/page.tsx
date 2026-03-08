@@ -134,13 +134,6 @@ export default async function TopPage() {
               border: "hover:border-blue-500/50",
             },
             {
-              icon: "📊",
-              title: "発言活動データ",
-              desc: "発言セッション数・質問主意書数で見る、国会で活発な議員",
-              path: "/activity",
-              border: "hover:border-violet-500/50",
-            },
-            {
               icon: "🏛️",
               title: "委員会別",
               desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",
@@ -178,10 +171,10 @@ export default async function TopPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-slate-100">最近の発言記録</h2>
               <Link
-                href="/activity"
+                href="/members"
                 className="text-xs text-slate-500 hover:text-blue-400 transition-colors"
               >
-                活動データを見る →
+                議員一覧を見る →
               </Link>
             </div>
 

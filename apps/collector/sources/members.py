@@ -185,26 +185,29 @@ def register_members(members: list[dict]) -> None:
 def main():
     client = get_client()
 
-    # 全員を一旦 is_active=false にして、スクレイプで見つかった議員だけ true に戻す
-    execute_with_retry(
-        lambda: client.table("members").update({"is_active": False}).eq("house", "衆議院"),
-        label="reset_shugiin",
-    )
-    execute_with_retry(
-        lambda: client.table("members").update({"is_active": False}).eq("house", "参議院"),
-        label="reset_sangiin",
-    )
-    logger.info("全議員の is_active を false にリセットしました")
-
+    # 先にスクレイプして、取得成功した院だけリセット→登録する
+    # （スクレイプ失敗時に is_active を壊さないため）
     shugiin = scrape_shugiin()
-    if shugiin:
-        register_members(shugiin)
-
     time.sleep(2)
-
     sangiin = scrape_sangiin()
+
+    if shugiin:
+        execute_with_retry(
+            lambda: client.table("members").update({"is_active": False}).eq("house", "衆議院"),
+            label="reset_shugiin",
+        )
+        register_members(shugiin)
+    else:
+        logger.warning("衆院スクレイプ失敗 — is_active をリセットしません")
+
     if sangiin:
+        execute_with_retry(
+            lambda: client.table("members").update({"is_active": False}).eq("house", "参議院"),
+            label="reset_sangiin",
+        )
         register_members(sangiin)
+    else:
+        logger.warning("参院スクレイプ失敗 — is_active をリセットしません")
 
     shugiin_count = execute_with_retry(
         lambda: client.table('members').select('id', count='exact').eq('house', '衆議院'),
