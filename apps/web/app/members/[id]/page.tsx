@@ -17,6 +17,7 @@ interface Member {
   session_count: number | null;
   question_count: number | null;
   bill_count: number | null;
+  cabinet_post: string | null;
   source_url: string | null;
   is_active: boolean;
   keywords: { word: string; count: number }[] | null;
@@ -233,6 +234,12 @@ export default function MemberDetailPage() {
                 <span style={{ background: "#1e293b", color: "#94a3b8",
                   border: "1px solid #334155", padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
                   🏛 会派: {member.faction}
+                </span>
+              )}
+              {member.cabinet_post && (
+                <span style={{ background: "#f59e0b22", color: "#f59e0b",
+                  border: "1px solid #f59e0b44", padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                  👑 {member.cabinet_post}
                 </span>
               )}
               {member.source_url && (
