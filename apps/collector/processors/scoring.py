@@ -88,6 +88,15 @@ def recalculate_scores() -> None:
                 question_counts[mid] += 1
         logger.info("%s 取得: %d 件", table, len(rows))
 
+    # ── bill_count ────────────────────────────────────────────
+    logger.info("bills を集計中...")
+    bill_counts: dict[str, int] = defaultdict(int)
+    bills = _fetch_all("bills", "submitter_ids")
+    for bill in bills:
+        for mid in (bill.get("submitter_ids") or []):
+            bill_counts[mid] += 1
+    logger.info("bills 取得: %d 件", len(bills))
+
     # ── members を UPDATE（upsert は使わない） ─────────────────
     logger.info("members を更新中...")
     updated = 0
@@ -96,6 +105,7 @@ def recalculate_scores() -> None:
             "speech_count":   speech_counts.get(mid, 0),
             "session_count":  len(session_sets.get(mid, set())),
             "question_count": question_counts.get(mid, 0),
+            "bill_count":     bill_counts.get(mid, 0),
         }
         execute_with_retry(
             lambda m=mid, p=patch: client.table("members").update(p).eq("id", m),

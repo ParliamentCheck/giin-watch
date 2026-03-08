@@ -14,6 +14,9 @@ interface Member {
   prefecture: string;
   terms: number | null;
   is_active: boolean;
+  speech_count: number | null;
+  question_count: number | null;
+  bill_count: number | null;
 }
 
 const PARTY_COLORS: Record<string, string> = {
@@ -34,23 +37,33 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
-// 1. メインのコンポーネント名を MembersContent に変更し、export default を外します
+type SortKey = "name" | "speech_count" | "question_count" | "bill_count" | "terms";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "name",           label: "名前順" },
+  { value: "speech_count",   label: "発言数順" },
+  { value: "question_count", label: "質問主意書数順" },
+  { value: "bill_count",     label: "議員立法数順" },
+  { value: "terms",          label: "当選回数順" },
+];
+
 function MembersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // フィルター値はURLパラメータが唯一の状態
-  const search       = searchParams.get("q")     || "";
-  const selectedHouse  = searchParams.get("house") || "";
-  const selectedParty  = searchParams.get("party") || "";
+  const search        = searchParams.get("q")      || "";
+  const selectedHouse = searchParams.get("house")  || "";
+  const selectedParty = searchParams.get("party")  || "";
+  const sortKey       = (searchParams.get("sort")  || "name") as SortKey;
 
-  const updateUrl = (q: string, house: string, party: string) => {
+  const updateUrl = (q: string, house: string, party: string, sort: string) => {
     const params = new URLSearchParams();
     if (q)     params.set("q",     q);
     if (house) params.set("house", house);
     if (party) params.set("party", party);
+    if (sort && sort !== "name") params.set("sort", sort);
     const qs = params.toString();
     router.replace(qs ? `/members?${qs}` : "/members", { scroll: false });
   };
@@ -59,8 +72,9 @@ function MembersContent() {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
-        .select("*")
-        .eq("is_active", true).limit(2000)
+        .select("id, name, party, faction, house, district, prefecture, terms, is_active, speech_count, question_count, bill_count")
+        .eq("is_active", true)
+        .limit(2000)
         .order("name");
       if (error) console.error(error);
       else setMembers(data || []);
@@ -72,39 +86,38 @@ function MembersContent() {
   const parties = Array.from(new Set(members.map((m) => m.party))).sort();
 
   const filtered = members.filter((m) => {
-    if (search       && !m.name.includes(search) && !m.district.includes(search)) return false;
-    if (selectedHouse  && m.house  !== selectedHouse)  return false;
-    if (selectedParty  && m.party  !== selectedParty)  return false;
+    if (search        && !m.name.includes(search) && !m.district.includes(search)) return false;
+    if (selectedHouse && m.house  !== selectedHouse) return false;
+    if (selectedParty && m.party  !== selectedParty) return false;
     return true;
   });
 
-  const showFaction = (m: Member) => {
-    if (!m.faction) return false;
-    if (m.faction === m.party) return false;
-    if (m.faction === "無所属" && m.party === "無所属") return false;
-    return true;
-  };
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortKey === "name") return a.name.localeCompare(b.name, "ja");
+    const av = (a[sortKey] as number | null) ?? -1;
+    const bv = (b[sortKey] as number | null) ?? -1;
+    return bv - av;
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
 
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>🔍 現職議員一覧</h1>
-      <p style={{ color: "#64748b", marginBottom: 24 }}>
-        現在 {members.length}名の議員データを収録
-      </p>
+      <p style={{ color: "#64748b", marginBottom: 24 }}>現在 {members.length}名の議員データを収録</p>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+      {/* フィルター・ソート */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
         <input
           type="text"
           placeholder="議員名・選挙区で検索"
           value={search}
-          onChange={(e) => updateUrl(e.target.value, selectedHouse, selectedParty)}
-          style={{ flex: 1, minWidth: 200, background: "#1e293b", border: "1px solid #334155",
+          onChange={(e) => updateUrl(e.target.value, selectedHouse, selectedParty, sortKey)}
+          style={{ flex: 1, minWidth: 160, background: "#1e293b", border: "1px solid #334155",
             color: "#e2e8f0", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
         />
         <select value={selectedHouse}
-          onChange={(e) => updateUrl(search, e.target.value, selectedParty)}
+          onChange={(e) => updateUrl(search, e.target.value, selectedParty, sortKey)}
           style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
             padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
           <option value="">🏛 衆院・参院</option>
@@ -112,14 +125,20 @@ function MembersContent() {
           <option value="参議院">参議院</option>
         </select>
         <select value={selectedParty}
-          onChange={(e) => updateUrl(search, selectedHouse, e.target.value)}
+          onChange={(e) => updateUrl(search, selectedHouse, e.target.value, sortKey)}
           style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
             padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
           <option value="">🗳 政党を選択</option>
           {parties.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
-        {(search || selectedHouse || selectedParty) && (
-          <button onClick={() => updateUrl("", "", "")}
+        <select value={sortKey}
+          onChange={(e) => updateUrl(search, selectedHouse, selectedParty, e.target.value)}
+          style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
+            padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
+          {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        {(search || selectedHouse || selectedParty || sortKey !== "name") && (
+          <button onClick={() => updateUrl("", "", "", "name")}
             style={{ background: "#334155", border: "none", color: "#94a3b8",
               padding: "10px 16px", borderRadius: 10, cursor: "pointer" }}>
             クリア
@@ -127,56 +146,43 @@ function MembersContent() {
         )}
       </div>
 
-      <p style={{ color: "#475569", marginBottom: 16, fontSize: 14 }}>
-        {filtered.length}名表示中
-      </p>
+      <p style={{ color: "#475569", marginBottom: 12, fontSize: 14 }}>{sorted.length}名表示中</p>
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>データ読み込み中...</div>
       ) : (
-        <div style={{ display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
-          {filtered.map((m) => {
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {sorted.map((m) => {
             const color = PARTY_COLORS[m.party] || "#7f8c8d";
             return (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                style={{ background: "#0f172a", border: "1px solid #1e293b",
-                  borderRadius: 12, padding: 18, transition: "all 0.2s", cursor: "pointer" }}
+                style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10,
+                  padding: "12px 16px", cursor: "pointer", transition: "border-color 0.15s" }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                    background: "#1e293b", border: `2px solid ${color}`,
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-                    👤
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9" }}>{m.name}</div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{m.district} · {m.house}</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-                  <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                    padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
-                    🗳 {m.party}
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
+                  {/* 名前 */}
+                  <span style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9", minWidth: 90 }}>
+                    {m.name}
                   </span>
-                  {m.terms && (
-                    <span style={{ background: "#1e293b", color: "#64748b",
-                      padding: "2px 8px", borderRadius: 4, fontSize: 11 }}>
-                      {m.terms}期
-                    </span>
-                  )}
+                  {/* 政党バッジ */}
+                  <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
+                    padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                    {m.party}
+                  </span>
+                  {/* 院・選挙区・期数 */}
+                  <span style={{ color: "#64748b", fontSize: 12, whiteSpace: "nowrap" }}>
+                    {m.house} · {m.district}{m.terms ? ` · ${m.terms}期` : ""}
+                  </span>
+                  {/* 活動指標 */}
+                  <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 12,
+                    color: "#94a3b8", whiteSpace: "nowrap" }}>
+                    <span title="発言数">💬 {(m.speech_count ?? 0).toLocaleString()}</span>
+                    <span title="質問主意書数">❓ {m.question_count ?? 0}</span>
+                    <span title="議員立法数">📋 {m.bill_count ?? 0}</span>
+                  </span>
                 </div>
-                {showFaction(m) && (
-                  <div style={{ marginTop: 6 }}>
-                    <span style={{ background: "#1e293b", color: "#94a3b8",
-                      border: "1px solid #334155", padding: "2px 8px",
-                      borderRadius: 4, fontSize: 11 }}>
-                      🏛 会派: {m.faction}
-                    </span>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -188,9 +194,10 @@ function MembersContent() {
 
 export default function MembersPage() {
   return (
-    <Suspense 
+    <Suspense
       fallback={
-        <div style={{ minHeight: "100vh", background: "#020817", color: "#64748b", padding: "24px", textAlign: "center" }}>
+        <div style={{ minHeight: "100vh", background: "#020817", color: "#64748b",
+          padding: "24px", textAlign: "center" }}>
           読み込み中...
         </div>
       }
