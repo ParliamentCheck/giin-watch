@@ -104,6 +104,7 @@ export default function MemberDetailPage() {
   const [committees, setCommittees] = useState<CommitteeMember[]>([]);
   const [votes,      setVotes]      = useState<Vote[]>([]);
   const [bills,      setBills]      = useState<Bill[]>([]);
+  const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState("committees");
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
@@ -123,6 +124,8 @@ export default function MemberDetailPage() {
           .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(100),
         supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids")
           .contains("submitter_ids", [memberId]).limit(50),
+        supabase.from("member_keywords").select("word,count")
+          .eq("member_id", memberId).order("count", { ascending: false }).limit(50),
       ]);
 
       const safe = (i: number) => results[i].status === "fulfilled" ? results[i].value.data : null;
@@ -137,6 +140,7 @@ export default function MemberDetailPage() {
       if (safe(4)) setCommittees(safe(4));
       if (safe(5)) setVotes(safe(5));
       if (safe(6)) setBills(safe(6));
+      if (safe(7)) setKeywords(safe(7));
       setLoading(false);
     }
     fetchAll();
@@ -380,7 +384,7 @@ export default function MemberDetailPage() {
       {/* キーワードタブ */}
       {tab === "keywords" && (
         <div style={{ padding: "16px 0" }}>
-          <WordCloud keywords={member.keywords || []} width={600} height={320} />
+          <WordCloud keywords={keywords} width={600} height={320} />
         </div>
       )}
 
