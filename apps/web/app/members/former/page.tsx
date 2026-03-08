@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
@@ -53,11 +53,17 @@ function FormerMembersContent() {
   const searchParams = useSearchParams();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inputValue, setInputValue] = useState("");
+  const isComposing = useRef(false);
 
   const search        = searchParams.get("q")     || "";
   const selectedHouse = searchParams.get("house") || "";
   const selectedParty = searchParams.get("party") || "";
   const sortKey       = (searchParams.get("sort") || "name") as SortKey;
+
+  useEffect(() => {
+    if (!isComposing.current) setInputValue(search);
+  }, [search]);
 
   const updateUrl = (q: string, house: string, party: string, sort: string) => {
     const params = new URLSearchParams();
@@ -112,8 +118,16 @@ function FormerMembersContent() {
         <input
           type="text"
           placeholder="議員名・選挙区で検索"
-          value={search}
-          onChange={(e) => updateUrl(e.target.value, selectedHouse, selectedParty, sortKey)}
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            if (!isComposing.current) updateUrl(e.target.value, selectedHouse, selectedParty, sortKey);
+          }}
+          onCompositionStart={() => { isComposing.current = true; }}
+          onCompositionEnd={(e) => {
+            isComposing.current = false;
+            updateUrl((e.target as HTMLInputElement).value, selectedHouse, selectedParty, sortKey);
+          }}
           style={{ flex: 1, minWidth: 160, background: "#1e293b", border: "1px solid #334155",
             color: "#e2e8f0", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
         />
