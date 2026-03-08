@@ -13,6 +13,36 @@ interface Member {
   cabinet_post: string;
 }
 
+// 役職の表示優先度（上位ほど先）
+const POST_PRIORITY: string[] = [
+  "内閣総理大臣",
+  "総務大臣",
+  "法務大臣",
+  "外務大臣",
+  "財務大臣",
+  "文部科学大臣",
+  "厚生労働大臣",
+  "農林水産大臣",
+  "経済産業大臣",
+  "国土交通大臣",
+  "環境大臣",
+  "防衛大臣",
+  "内閣官房長官",
+  "デジタル大臣",
+  "こども政策担当",
+  "少子化対策担当",
+  "地方創生担当",
+  "経済安全保障担当",
+];
+
+function postPriority(post: string): number {
+  const idx = POST_PRIORITY.findIndex((p) => post.includes(p));
+  if (idx !== -1) return idx;
+  if (post.includes("副大臣"))   return 1000;
+  if (post.includes("政務官"))   return 2000;
+  return 500; // その他の大臣職
+}
+
 const PARTY_COLORS: Record<string, string> = {
   "自民党":       "#c0392b",
   "立憲民主党":   "#2980b9",
@@ -42,10 +72,9 @@ export default function CabinetPage() {
         .from("members")
         .select("id, name, party, house, district, cabinet_post")
         .eq("is_active", true)
-        .not("cabinet_post", "is", null)
-        .order("cabinet_post");
+        .not("cabinet_post", "is", null);
       if (error) console.error(error);
-      else setMembers(data || []);
+      else setMembers((data || []).sort((a, b) => postPriority(a.cabinet_post) - postPriority(b.cabinet_post)));
       setLoading(false);
     }
     fetchCabinet();
