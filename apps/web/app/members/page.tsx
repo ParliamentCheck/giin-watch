@@ -178,9 +178,9 @@ function MembersContent() {
                   {/* 活動指標 */}
                   <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 12,
                     color: "#94a3b8", whiteSpace: "nowrap" }}>
-                    <span title="発言数">💬 {(m.speech_count ?? 0).toLocaleString()}</span>
-                    <span title="質問主意書数">❓ {m.question_count ?? 0}</span>
-                    <span title="議員立法数">📋 {m.bill_count ?? 0}</span>
+                    <span>発言：{(m.speech_count ?? 0).toLocaleString()}</span>
+                    <span>質問主意書：{m.question_count ?? 0}</span>
+                    <span>議員立法：{m.bill_count ?? 0}</span>
                   </span>
                 </div>
               </div>
