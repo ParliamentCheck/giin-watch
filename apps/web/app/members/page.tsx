@@ -14,7 +14,7 @@ interface Member {
   prefecture: string;
   terms: number | null;
   is_active: boolean;
-  speech_count: number | null;
+  session_count: number | null;
   question_count: number | null;
   bill_count: number | null;
 }
@@ -37,11 +37,11 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
-type SortKey = "name" | "speech_count" | "question_count" | "bill_count" | "terms";
+type SortKey = "name" | "session_count" | "question_count" | "bill_count" | "terms";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "name",           label: "名前順" },
-  { value: "speech_count",   label: "発言数順" },
+  { value: "session_count",  label: "発言セッション数順" },
   { value: "question_count", label: "質問主意書数順" },
   { value: "bill_count",     label: "議員立法数順" },
   { value: "terms",          label: "当選回数順" },
@@ -79,7 +79,7 @@ function MembersContent() {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
-        .select("id, name, party, faction, house, district, prefecture, terms, is_active, speech_count, question_count, bill_count")
+        .select("id, name, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count")
         .eq("is_active", true)
         .limit(2000)
         .order("name");
@@ -193,7 +193,7 @@ function MembersContent() {
                   {/* 活動指標 */}
                   <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 12,
                     color: "#94a3b8", whiteSpace: "nowrap" }}>
-                    <span>発言：{(m.speech_count ?? 0).toLocaleString()}</span>
+                    <span>発言セッション：{(m.session_count ?? 0).toLocaleString()}</span>
                     <span>質問主意書：{m.question_count ?? 0}</span>
                     <span>議員立法：{m.bill_count ?? 0}</span>
                   </span>

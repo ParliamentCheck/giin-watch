@@ -16,6 +16,7 @@ interface Member {
   speech_count: number | null;
   session_count: number | null;
   question_count: number | null;
+  bill_count: number | null;
   source_url: string | null;
   is_active: boolean;
   keywords: { word: string; count: number }[] | null;
@@ -277,9 +278,9 @@ export default function MemberDetailPage() {
         {[
           { id: "committees", label: "🏛 委員会" },
           { id: "speeches",   label: `💬 発言 (${member.session_count ?? 0})` },
-          { id: "questions",  label: "📝 質問主意書" },
+          { id: "questions",  label: `📝 質問主意書 (${member.question_count ?? 0})` },
           { id: "votes",      label: `🗳 採決 (${votes.length})` },
-          { id: "bills",      label: `📋 議員立法 (${bills.length})` },
+          { id: "bills",      label: `📋 議員立法 (${member.bill_count ?? bills.length})` },
           { id: "keywords",   label: "☁️ キーワード" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
