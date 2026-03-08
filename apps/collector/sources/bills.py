@@ -191,6 +191,24 @@ def scrape_shugiin_bills(session: int) -> list[dict[str, Any]]:
 # ============================================================
 SANGIIN_LIST_URL = "https://www.sangiin.go.jp/japanese/joho1/kousei/gian/{session}/gian.htm"
 
+_KNOWN_SESSION = 221  # 既知の最新回次
+
+
+def _detect_current_session() -> int:
+    """参議院法案一覧ページの存在確認で現在の国会回次を検出する。"""
+    session = _KNOWN_SESSION
+    while True:
+        url = SANGIIN_LIST_URL.format(session=session + 1)
+        try:
+            r = requests.head(url, headers=HEADERS, timeout=10)
+            if r.status_code == 200:
+                session += 1
+            else:
+                break
+        except requests.RequestException:
+            break
+    return session
+
 
 def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
     """参議院の議員提出法案（参法）を取得する。"""
@@ -250,9 +268,14 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
 # ============================================================
 # メイン
 # ============================================================
-def collect_bills(sessions: list[int] | None = None) -> None:
-    """全セッションの議員立法を収集する。"""
-    sessions = sessions or list(range(208, 222))
+def collect_bills(sessions: list[int] | None = None, daily: bool = False) -> None:
+    """議員立法を収集する。daily=True のときは現在進行中のセッションのみ対象。"""
+    if daily:
+        current = _detect_current_session()
+        sessions = [current]
+        logger.info("日次モード: 第%d回国会のみ対象", current)
+    else:
+        sessions = sessions or list(range(208, 222))
 
     total_saved = 0
     for session in sessions:

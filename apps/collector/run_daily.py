@@ -32,6 +32,7 @@ def main() -> None:
     from sources.cabinet_scraper import main as collect_cabinet
     from sources.questions import collect_shugiin_questions, collect_sangiin_questions
     from sources.committees import collect_shugiin_committees, collect_sangiin_committees
+    from sources.bills import collect_bills
     from sources.keywords import daily_update as keywords_daily
     from processors.cleanup import truncate_speeches
 
@@ -42,6 +43,7 @@ def main() -> None:
         "speeches":       _step("発言データ収集",     collect_speeches),
         "scoring":        _step("スコア再計算",        recalculate_scores),
         "cabinet":        _step("内閣役職",           collect_cabinet),
+        "bills":          _step("議員立法（日次）",    lambda: collect_bills(daily=True)),
         "questions_shu":  _step("質問主意書（衆）",   collect_shugiin_questions),
         "questions_san":  _step("質問主意書（参）",   collect_sangiin_questions),
         "committees_shu": _step("委員会（衆）",       collect_shugiin_committees),
