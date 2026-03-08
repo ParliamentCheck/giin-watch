@@ -74,7 +74,7 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
 
         current_post = ""
         for line in lines:
-            name_match = re.match(r"^(.+?)（(.+?)）$", line)
+            name_match = re.match(r"^(.+?)（([ぁ-んァ-ンー\s　]+)）$", line)
             if name_match:
                 name = name_match.group(1).replace("\u3000", " ").strip()
                 if current_post:
