@@ -91,7 +91,7 @@ def main() -> None:
 
     elif task == "sangiin-questions":
         from sources.questions import collect_sangiin_questions
-        collect_sangiin_questions()
+        collect_sangiin_questions(full=True)
 
     from processors.scoring import recalculate_scores as _rescore
     if task not in ("scoring-only", "migrate-member-ids") and not task.startswith("speeches-"):

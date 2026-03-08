@@ -80,7 +80,11 @@ def _scrape_shitsumon(session: int, number: int) -> Optional[dict]:
         return None
 
 
-def collect_shugiin_questions() -> None:
+def collect_shugiin_questions(full: bool = False) -> None:
+    """
+    full=False（日次）: 進行中セッション（max_num=9999）と新規発見セッションのみ対象。
+    full=True（バックフィル）: 全セッションを再収集。
+    """
     client = get_client()
     members_result = execute_with_retry(
         lambda: client.table("members").select("id, name").eq("house", "衆議院").limit(2000),
@@ -109,7 +113,14 @@ def collect_shugiin_questions() -> None:
     if extra_sessions:
         logger.info("新セッション発見: %s", list(extra_sessions.keys()))
 
-    all_sessions = {**SESSION_MAX, **extra_sessions}
+    if full:
+        all_sessions = {**SESSION_MAX, **extra_sessions}
+    else:
+        # 日次: 進行中セッション（max_num=9999）と新規セッションのみ
+        ongoing = {s: m for s, m in SESSION_MAX.items() if m == 9999}
+        all_sessions = {**ongoing, **extra_sessions}
+        logger.info("日次モード: セッション %s のみ対象", sorted(all_sessions.keys()))
+
     total_saved = 0
 
     for session, max_num in all_sessions.items():
@@ -230,8 +241,15 @@ def _scrape_sangiin_session(session: int) -> list[dict[str, Any]]:
     return rows
 
 
-def collect_sangiin_questions(sessions: list[int] | None = None) -> None:
-    sessions = sessions or _get_sangiin_sessions()
+def collect_sangiin_questions(sessions: list[int] | None = None, full: bool = False) -> None:
+    if sessions is None:
+        all_known = _get_sangiin_sessions()
+        if full:
+            sessions = all_known
+        else:
+            # 日次: 直近2セッションのみ
+            sessions = all_known[-2:]
+            logger.info("日次モード: 参院セッション %s のみ対象", sessions)
     client = get_client()
     member_ids = {
         m["id"]
@@ -256,8 +274,13 @@ def collect_sangiin_questions(sessions: list[int] | None = None) -> None:
 
 
 def main() -> None:
-    collect_shugiin_questions()
-    collect_sangiin_questions()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--full", action="store_true", help="全セッションを再収集（バックフィル用）")
+    args = parser.parse_args()
+
+    collect_shugiin_questions(full=args.full)
+    collect_sangiin_questions(full=args.full)
 
 
 if __name__ == "__main__":
