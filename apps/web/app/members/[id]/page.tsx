@@ -55,6 +55,7 @@ interface Bill {
   status: string | null;
   session_number: number;
   house: string;
+  source_url: string | null;
 }
 
 interface CommitteeMember {
@@ -124,7 +125,7 @@ export default function MemberDetailPage() {
         supabase.from("committee_members").select("*").eq("member_id", memberId),
         supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
           .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(100),
-        supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids")
+        supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url")
           .contains("submitter_ids", [memberId]).limit(50),
         supabase.from("member_keywords").select("word,count")
           .eq("member_id", memberId).order("count", { ascending: false }).limit(50),
@@ -499,10 +500,17 @@ export default function MemberDetailPage() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", marginBottom: 4 }}>
                   {b.title}
                 </div>
-                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#64748b" }}>
+                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#64748b", alignItems: "center" }}>
                   <span>{b.submitted_at || "日付不明"}</span>
                   <span>第{b.session_number}回国会</span>
                   {b.status && <span style={{ color: "#94a3b8" }}>{b.status}</span>}
+                  {b.source_url && (
+                    <a href={b.source_url} target="_blank" rel="noopener noreferrer"
+                      style={{ color: "#3b82f6", textDecoration: "none" }}
+                      onClick={(e) => e.stopPropagation()}>
+                      📄 本文を見る →
+                    </a>
+                  )}
                 </div>
               </div>
             ))

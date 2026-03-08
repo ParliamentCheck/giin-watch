@@ -165,12 +165,17 @@ def scrape_shugiin_bills(session: int) -> list[dict[str, Any]]:
 
         submitter_ids: list[str] = []
         submitted_at: str | None = None
+        source_url: str | None = None
         if len(tds) > 4:
             link = tds[4].find("a")
             if link and link.get("href"):
                 detail_url = urljoin(url, link["href"])
                 submitter_ids, submitted_at = _fetch_detail(detail_url, "衆議院")
                 time.sleep(1)
+        if len(tds) > 5:
+            text_link = tds[5].find("a")
+            if text_link and text_link.get("href"):
+                source_url = urljoin(url, text_link["href"])
 
         rows.append({
             "id": f"bill-shu-{session}-{bill_num_text}",
@@ -180,6 +185,7 @@ def scrape_shugiin_bills(session: int) -> list[dict[str, Any]]:
             "session_number": session,
             "status": status,
             "house": "衆議院",
+            "source_url": source_url,
         })
 
     logger.info("Shugiin session %d: %d bills", session, len(rows))
@@ -244,10 +250,12 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
 
         submitter_ids: list[str] = []
         submitted_at: str | None = None
+        source_url: str | None = None
         # tds[2]（件名）のリンクが meisai 詳細ページ（tds[4] は PDF）
         link = tds[2].find("a")
         if link and link.get("href"):
             detail_url = urljoin(url, link["href"])
+            source_url = detail_url
             submitter_ids, submitted_at = _fetch_detail(detail_url, "参議院")
             time.sleep(1)
 
@@ -259,6 +267,7 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
             "session_number": session,
             "status": status,
             "house": "参議院",
+            "source_url": source_url,
         })
 
     logger.info("Sangiin session %d: %d bills", session, len(rows))
