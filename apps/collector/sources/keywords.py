@@ -364,19 +364,40 @@ def daily_update() -> None:
     """新しい発言のみ処理してキーワードを更新する。"""
     client = get_client()
 
-    # keywords_updated_at が古い or NULL の議員を対象
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=7)).isoformat()  # 1週間分（NDL遅延考慮）
+
+    # 直近7日に発言がある議員のIDだけ対象にする（全員叩くと時間超過）
+    recent_speech_rows = execute_with_retry(
+        lambda: (
+            client.table("speeches")
+            .select("member_id")
+            .gte("spoken_at", yesterday)
+            .limit(2000)
+        ),
+        label="fetch_recent_speakers",
+    ).data or []
+    recent_speaker_ids = {r["member_id"] for r in recent_speech_rows if r.get("member_id")}
+    logger.info("直近7日に発言あり: %d 名", len(recent_speaker_ids))
+
+    if not recent_speaker_ids:
+        logger.info("更新対象なし。終了。")
+        rebuild_party_keywords()
+        return
+
     members = execute_with_retry(
         lambda: (
             client.table("members")
-            .select("id, name, house, keywords_updated_at")
+            .select("id, name, house")
             .eq("is_active", True)
             .limit(2000)
         ),
         label="fetch_members_for_keywords",
     ).data or []
 
-    today = date.today().isoformat()
-    yesterday = (date.today() - timedelta(days=7)).isoformat()  # 1週間分（NDL遅延考慮）
+    # 直近に発言がある議員のみに絞る
+    members = [m for m in members if m["id"] in recent_speaker_ids]
+    logger.info("キーワード更新対象: %d 名", len(members))
 
     updated = 0
     for m in members:
