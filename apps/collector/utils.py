@@ -108,12 +108,11 @@ def should_exclude_word(word: str, member_name: str = "") -> bool:
     for suffix in STOP_WORD_SUFFIXES:
         if word.endswith(suffix):
             return True
-    # 議員自身の名前（姓・名それぞれ）を除外
+    # 議員自身の名前（部分文字列も除外）
     if member_name:
-        name_parts = re.split(r"\s+", member_name.strip())
-        for part in name_parts:
-            if part and word == part:
-                return True
+        clean = re.sub(r"\s+", "", member_name.strip())
+        if len(word) >= 2 and word in clean:
+            return True
     return False
 
 
