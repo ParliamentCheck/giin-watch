@@ -74,6 +74,9 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
 
         current_post = ""
         for line in lines:
+            # ナビゲーションヘッダー（「閣僚名簿」「副大臣名簿」等）を除外
+            if "名簿" in line:
+                continue
             name_match = re.match(r"^(.+?)（([ぁ-んァ-ンー\s　]+)）$", line)
             if name_match:
                 name = name_match.group(1).replace("\u3000", " ").strip()
@@ -88,13 +91,9 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
             else:
                 if ("大臣" in line or "長官" in line or "担当" in line or
                     "副大臣" in line or "政務官" in line or "補佐官" in line):
-                    if not current_post or not line.startswith("兼"):
-                        if not current_post:
-                            current_post = line
-                        elif line.startswith("兼"):
-                            pass
-                        else:
-                            current_post = line
+                    # 最初の役職行のみ使用（兼任・追加担当で上書きしない）
+                    if not current_post and not line.startswith("兼"):
+                        current_post = line
 
     return results
 
