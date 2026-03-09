@@ -27,6 +27,22 @@ interface KeywordData {
   count: number;
 }
 
+const PARTY_URLS: Record<string, string> = {
+  "自民党":         "https://www.jimin.jp/",
+  "立憲民主党":     "https://cdp-japan.jp/",
+  "中道改革連合":   "https://www.dpfp.or.jp/",
+  "公明党":         "https://www.komei.or.jp/",
+  "日本維新の会":   "https://o-ishin.jp/",
+  "国民民主党":     "https://new-kokumin.jp/",
+  "共産党":         "https://www.jcp.or.jp/",
+  "れいわ新選組":   "https://reiwa-shinsengumi.com/",
+  "社民党":         "https://sdp.or.jp/",
+  "参政党":         "https://www.sanseito.jp/",
+  "チームみらい":   "https://team-mirai.jp/",
+  "日本保守党":     "https://nihon-hoshuto.jp/",
+  "有志の会":       "https://yushigroup.jp/",
+};
+
 const PARTY_COLORS: Record<string, string> = {
   "自民党":         "#c0392b",
   "立憲民主党":     "#2980b9",
@@ -173,7 +189,24 @@ export default function PartyDetailPage() {
         borderRadius: 16, padding: 28, marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
           <div style={{ width: 16, height: 16, borderRadius: "50%", background: color }} />
-          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#f1f5f9" }}>{party}</h1>
+          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#f1f5f9", flex: 1 }}>{party}</h1>
+          {PARTY_URLS[party] && (
+            <a href={PARTY_URLS[party]} target="_blank" rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{ fontSize: 12, color: "#64748b", border: "1px solid #334155",
+                padding: "4px 10px", borderRadius: 6, textDecoration: "none",
+                flexShrink: 0, transition: "color 0.2s, border-color 0.2s" }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLAnchorElement).style.color = color;
+                (e.currentTarget as HTMLAnchorElement).style.borderColor = color;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLAnchorElement).style.color = "#64748b";
+                (e.currentTarget as HTMLAnchorElement).style.borderColor = "#334155";
+              }}>
+              公式サイト →
+            </a>
+          )}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
