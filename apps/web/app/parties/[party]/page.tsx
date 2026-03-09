@@ -30,7 +30,7 @@ interface KeywordData {
 const PARTY_URLS: Record<string, string> = {
   "自民党":         "https://www.jimin.jp/",
   "立憲民主党":     "https://cdp-japan.jp/",
-  "中道改革連合":   "https://www.dpfp.or.jp/",
+  "中道改革連合":   "https://craj.jp/",
   "公明党":         "https://www.komei.or.jp/",
   "日本維新の会":   "https://o-ishin.jp/",
   "国民民主党":     "https://new-kokumin.jp/",
@@ -38,8 +38,8 @@ const PARTY_URLS: Record<string, string> = {
   "れいわ新選組":   "https://reiwa-shinsengumi.com/",
   "社民党":         "https://sdp.or.jp/",
   "参政党":         "https://www.sanseito.jp/",
-  "チームみらい":   "https://team-mirai.jp/",
-  "日本保守党":     "https://nihon-hoshuto.jp/",
+  "チームみらい":   "https://team-mir.ai/",
+  "日本保守党":     "https://hoshuto.jp/",
   "有志の会":       "https://yushigroup.jp/",
 };
 
