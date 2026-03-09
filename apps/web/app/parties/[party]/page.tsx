@@ -65,16 +65,18 @@ export default function PartyDetailPage() {
         ? await supabase
             .from("committee_members")
             .select("member_id, name, role, committee")
-            .in("member_id", memberIds)
             .in("role", ["委員長", "理事", "会長", "副会長"])
         : { data: [] };
 
+      const memberIdSet = new Set(memberIds);
       setMembers(membersRes.data || []);
-      setChairs((committeeRes.data || []).map((c) => ({
-        name:      c.name,
-        role:      c.role,
-        committee: c.committee,
-      })));
+      setChairs((committeeRes.data || [])
+        .filter((c) => memberIdSet.has(c.member_id))
+        .map((c) => ({
+          name:      c.name,
+          role:      c.role,
+          committee: c.committee,
+        })));
       setLoading(false);
     }
     fetchAll();
