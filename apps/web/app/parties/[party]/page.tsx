@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
+import WordCloud from "../../components/WordCloud";
 
 interface Member {
   id: string;
@@ -19,6 +20,11 @@ interface CommitteeRole {
   name: string;
   role: string;
   committee: string;
+}
+
+interface KeywordData {
+  word: string;
+  count: number;
 }
 
 const PARTY_COLORS: Record<string, string> = {
@@ -39,6 +45,27 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
+async function fetchKeywordsBatched(memberIds: string[]): Promise<KeywordData[]> {
+  const BATCH = 50;
+  const wordMap: Record<string, number> = {};
+  for (let i = 0; i < memberIds.length; i += BATCH) {
+    const batch = memberIds.slice(i, i + BATCH);
+    const res = await supabase
+      .from("member_keywords")
+      .select("word, count")
+      .in("member_id", batch)
+      .order("count", { ascending: false })
+      .limit(1000);
+    for (const k of res.data || []) {
+      wordMap[k.word] = (wordMap[k.word] || 0) + k.count;
+    }
+  }
+  return Object.entries(wordMap)
+    .map(([word, count]) => ({ word, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 50);
+}
+
 export default function PartyDetailPage() {
   const params  = useParams();
   const router  = useRouter();
@@ -47,7 +74,9 @@ export default function PartyDetailPage() {
 
   const [members,    setMembers]    = useState<Member[]>([]);
   const [chairs,     setChairs]     = useState<CommitteeRole[]>([]);
+  const [keywords,   setKeywords]   = useState<KeywordData[]>([]);
   const [loading,    setLoading]    = useState(true);
+  const [kwLoading,  setKwLoading]  = useState(false);
   const [tab,        setTab]        = useState("members");
   const [sortBy,     setSortBy]     = useState("speech_count");
 
@@ -78,13 +107,20 @@ export default function PartyDetailPage() {
           committee: c.committee,
         })));
       setLoading(false);
+
+      // キーワードはバッチフェッチ（遅延）
+      if (memberIds.length > 0) {
+        setKwLoading(true);
+        const kw = await fetchKeywordsBatched(memberIds);
+        setKeywords(kw);
+        setKwLoading(false);
+      }
     }
     fetchAll();
   }, [party]);
 
   const totalSpeeches  = members.reduce((s, m) => s + (m.speech_count   || 0), 0);
   const totalQuestions = members.reduce((s, m) => s + (m.question_count || 0), 0);
-  const avgSpeeches    = members.length > 0 ? Math.round(totalSpeeches / members.length) : 0;
 
   const sorted = [...members].sort((a, b) => {
     if (sortBy === "speech_count")   return (b.speech_count   || 0) - (a.speech_count   || 0);
@@ -95,12 +131,30 @@ export default function PartyDetailPage() {
   const chairList  = chairs.filter((c) => c.role === "委員長" || c.role === "会長");
   const execList   = chairs.filter((c) => c.role === "理事"   || c.role === "副会長");
 
+  // 内訳集計
+  const shugiin  = members.filter((m) => m.house === "衆議院").length;
+  const sangiin  = members.filter((m) => m.house === "参議院").length;
+  const termsBuckets = [
+    { label: "初当選（1期）",  count: members.filter((m) => (m.terms || 0) === 1).length },
+    { label: "2〜3期",         count: members.filter((m) => (m.terms || 0) >= 2 && (m.terms || 0) <= 3).length },
+    { label: "4〜6期",         count: members.filter((m) => (m.terms || 0) >= 4 && (m.terms || 0) <= 6).length },
+    { label: "7期以上",        count: members.filter((m) => (m.terms || 0) >= 7).length },
+    { label: "不明",           count: members.filter((m) => !m.terms).length },
+  ].filter((b) => b.count > 0);
+
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#020817", display: "flex",
       alignItems: "center", justifyContent: "center", color: "#64748b" }}>
       データ読み込み中...
     </div>
   );
+
+  const tabs = [
+    { id: "members",    label: `👤 議員一覧 (${members.length})` },
+    { id: "committees", label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
+    { id: "wordcloud",  label: "☁️ ワードクラウド" },
+    { id: "breakdown",  label: "📊 内訳" },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
@@ -122,11 +176,11 @@ export default function PartyDetailPage() {
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#f1f5f9" }}>{party}</h1>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
-            { label: "議員数",          value: members.length,  unit: "名" },
-            { label: "発言数合計",      value: totalSpeeches.toLocaleString(),  unit: "件" },
-            { label: "質問主意書合計",  value: totalQuestions,  unit: "件" },
+            { label: "議員数",         value: members.length,                 unit: "名" },
+            { label: "発言数合計",     value: totalSpeeches.toLocaleString(), unit: "件" },
+            { label: "質問主意書合計", value: totalQuestions,                 unit: "件" },
           ].map((item) => (
             <div key={item.label} style={{ background: "#1e293b", borderRadius: 12, padding: 16, textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color, marginBottom: 4 }}>
@@ -141,16 +195,13 @@ export default function PartyDetailPage() {
 
       {/* タブ */}
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
-        border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
-        {[
-          { id: "members",    label: `👤 議員一覧 (${members.length})` },
-          { id: "committees", label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
-        ].map((t) => (
+        border: "1px solid #1e293b", borderRadius: 12, padding: 4, flexWrap: "wrap" }}>
+        {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
+            style={{ flex: 1, minWidth: 120, padding: "10px 0", borderRadius: 9, border: "none",
               background: tab === t.id ? color : "transparent",
               color: tab === t.id ? "white" : "#64748b", cursor: "pointer",
-              fontWeight: tab === t.id ? 700 : 400, fontSize: 13, transition: "all 0.2s" }}>
+              fontWeight: tab === t.id ? 700 : 400, fontSize: 12, transition: "all 0.2s" }}>
             {t.label}
           </button>
         ))}
@@ -256,6 +307,87 @@ export default function PartyDetailPage() {
               委員長・理事のデータがありません。
             </div>
           )}
+        </div>
+      )}
+
+      {/* ワードクラウドタブ */}
+      {tab === "wordcloud" && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 24 }}>
+          <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#94a3b8",
+            textTransform: "uppercase", letterSpacing: 1 }}>
+            ☁️ {party} の発言キーワード
+          </h3>
+          {kwLoading ? (
+            <div style={{ textAlign: "center", padding: "60px 0", color: "#64748b" }}>
+              キーワードを集計中...
+            </div>
+          ) : (
+            <WordCloud keywords={keywords} width={800} height={400} />
+          )}
+        </div>
+      )}
+
+      {/* 内訳タブ */}
+      {tab === "breakdown" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* 衆参比率 */}
+          <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 24 }}>
+            <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#94a3b8",
+              textTransform: "uppercase", letterSpacing: 1 }}>
+              🏠 衆議院 / 参議院
+            </h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              {[
+                { label: "衆議院", count: shugiin, bg: "#2563eb" },
+                { label: "参議院", count: sangiin, bg: "#7c3aed" },
+              ].map((h) => (
+                <div key={h.label} style={{ background: "#1e293b", borderRadius: 10, padding: 16, textAlign: "center" }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: h.bg, marginBottom: 4 }}>
+                    {h.count}
+                    <span style={{ fontSize: 13, color: "#64748b", marginLeft: 4 }}>名</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>{h.label}</div>
+                  <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
+                    {members.length > 0 ? Math.round(h.count / members.length * 100) : 0}%
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* バー */}
+            <div style={{ height: 10, borderRadius: 5, overflow: "hidden",
+              display: "flex", background: "#1e293b" }}>
+              <div style={{ width: `${members.length > 0 ? shugiin / members.length * 100 : 0}%`,
+                background: "#2563eb", transition: "width 0.6s ease" }} />
+              <div style={{ flex: 1, background: "#7c3aed" }} />
+            </div>
+          </div>
+
+          {/* 当選回数分布 */}
+          <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 24 }}>
+            <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#94a3b8",
+              textTransform: "uppercase", letterSpacing: 1 }}>
+              🗳 当選回数分布
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {termsBuckets.map((b) => {
+                const pct = members.length > 0 ? b.count / members.length * 100 : 0;
+                return (
+                  <div key={b.label}>
+                    <div style={{ display: "flex", justifyContent: "space-between",
+                      fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>
+                      <span>{b.label}</span>
+                      <span style={{ color: color, fontWeight: 700 }}>{b.count}名（{Math.round(pct)}%）</span>
+                    </div>
+                    <div style={{ height: 8, background: "#1e293b", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ width: `${pct}%`, height: "100%",
+                        background: color, borderRadius: 4, transition: "width 0.6s ease" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
