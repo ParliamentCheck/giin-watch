@@ -11,8 +11,6 @@ interface CommitteeMember {
   party: string;
   house: string;
   district: string;
-  speech_count: number | null;
-  question_count: number | null;
 }
 
 const PARTY_COLORS: Record<string, string> = {
@@ -69,7 +67,7 @@ export default function CommitteeDetailPage() {
       // 2. 議員情報を取得（1委員会の所属数は多くないのでIN句で問題なし）
       const mRes = await supabase
         .from("members")
-        .select("id, party, house, district, speech_count, question_count")
+        .select("id, party, house, district")
         .in("id", memberIds)
         .limit(500);
 
@@ -78,14 +76,12 @@ export default function CommitteeDetailPage() {
       const combined: CommitteeMember[] = cmData.map((c) => {
         const m = memberMap.get(c.member_id);
         return {
-          member_id:      c.member_id,
-          name:           c.name,
-          role:           c.role || "",
-          party:          m?.party || "不明",
-          house:          m?.house || "",
-          district:       m?.district || "",
-          speech_count:   m?.speech_count ?? null,
-          question_count: m?.question_count ?? null,
+          member_id: c.member_id,
+          name:      c.name,
+          role:      c.role || "",
+          party:     m?.party || "不明",
+          house:     m?.house || "",
+          district:  m?.district || "",
         };
       });
 
@@ -110,9 +106,7 @@ export default function CommitteeDetailPage() {
 
   // ソート
   const sorted = [...members].sort((a, b) => {
-    if (sortBy === "role")           return roleRank(a.role) - roleRank(b.role);
-    if (sortBy === "speech_count")   return (b.speech_count   || 0) - (a.speech_count   || 0);
-    if (sortBy === "question_count") return (b.question_count || 0) - (a.question_count || 0);
+    if (sortBy === "role") return roleRank(a.role) - roleRank(b.role);
     return a.name.localeCompare(b.name, "ja");
   });
 
@@ -280,10 +274,8 @@ export default function CommitteeDetailPage() {
         {/* ソート */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           {[
-            { value: "role",           label: "役職順" },
-            { value: "name",           label: "名前順" },
-            { value: "speech_count",   label: "発言数順" },
-            { value: "question_count", label: "質問主意書順" },
+            { value: "role", label: "役職順" },
+            { value: "name", label: "名前順" },
           ].map((s) => (
             <button key={s.value} onClick={() => setSortBy(s.value)}
               style={{ background: sortBy === s.value ? houseColor + "33" : "#1e293b",
@@ -320,10 +312,6 @@ export default function CommitteeDetailPage() {
                   padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
                   {m.party}
                 </span>
-                <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#64748b", flexShrink: 0 }}>
-                  <span>💬 {m.speech_count   || 0}</span>
-                  <span>📝 {m.question_count || 0}</span>
-                </div>
               </div>
             );
           })}
