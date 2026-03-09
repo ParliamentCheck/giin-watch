@@ -20,9 +20,9 @@ export default function CommitteesPage() {
   useEffect(() => {
     async function fetchCommittees() {
       const { data, error } = await supabase
-        .from("speeches")
-        .select("committee")
-        .neq("committee", "");
+        .from("committee_members")
+        .select("committee, house")
+        .limit(2000);
 
       if (error) {
         console.error(error);
@@ -30,22 +30,22 @@ export default function CommitteesPage() {
         return;
       }
 
-      // 委員会ごとに集計
+      // 委員会ごとに所属人数を集計（member_idベースで重複排除）
       const countMap: Record<string, number> = {};
+      const houseMap: Record<string, string> = {};
       for (const row of data || []) {
         const name = row.committee?.trim();
         if (!name) continue;
         countMap[name] = (countMap[name] || 0) + 1;
+        if (!houseMap[name]) houseMap[name] = row.house || "その他";
       }
 
-      // 院を推定（本会議・衆議院→衆議院、参議院→参議院）
       const result: CommitteeStats[] = Object.entries(countMap)
-        .map(([committee, count]) => {
-          let house = "その他";
-          if (committee.includes("衆議院") || committee.includes("衆院")) house = "衆議院";
-          else if (committee.includes("参議院") || committee.includes("参院")) house = "参議院";
-          return { committee, count, house };
-        })
+        .map(([committee, count]) => ({
+          committee,
+          count,
+          house: houseMap[committee] || "その他",
+        }))
         .sort((a, b) => b.count - a.count);
 
       setCommittees(result);
@@ -68,7 +68,6 @@ export default function CommitteesPage() {
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-        {/* ヘッダー */}
         <button onClick={() => router.push("/")}
           style={{ background: "transparent", border: "1px solid #334155", color: "#94a3b8",
             padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24,
@@ -76,9 +75,9 @@ export default function CommitteesPage() {
           ← トップに戻る
         </button>
 
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🏛 委員会別発言数</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🏛 委員会一覧</h1>
         <p style={{ color: "#64748b", marginBottom: 24, fontSize: 14 }}>
-          第219〜221回国会の委員会・本会議別の発言件数（収録済みデータに基づく）
+          現在の委員会・調査会ごとの所属議員数
         </p>
 
         {/* フィルター */}
@@ -94,10 +93,9 @@ export default function CommitteesPage() {
           <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
             style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
               padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
-            <option value="">🏛 衆院・参院・その他</option>
+            <option value="">衆院・参院すべて</option>
             <option value="衆議院">衆議院</option>
             <option value="参議院">参議院</option>
-            <option value="その他">その他</option>
           </select>
           {(search || selectedHouse) && (
             <button onClick={() => { setSearch(""); setSelectedHouse(""); }}
@@ -109,42 +107,35 @@ export default function CommitteesPage() {
         </div>
 
         <p style={{ color: "#475569", marginBottom: 16, fontSize: 14 }}>
-          {filtered.length}件の委員会・会議
+          {filtered.length}件の委員会・調査会
         </p>
 
-        {/* 委員会リスト */}
         {loading ? (
           <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
             データ読み込み中...
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
-            データ収集中です。しばらくお待ちください。
+            該当する委員会がありません。
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {filtered.map((c, i) => {
+            {filtered.map((c) => {
               const barWidth = (c.count / maxCount) * 100;
-              const houseColor = c.house === "衆議院" ? "#3b82f6"
-                : c.house === "参議院" ? "#8b5cf6" : "#64748b";
+              const houseColor = c.house === "衆議院" ? "#3b82f6" : "#8b5cf6";
 
               return (
                 <div key={c.committee}
                   onClick={() => router.push(`/committees/${encodeURIComponent(c.committee)}`)}
                   style={{ background: "#0f172a", border: "1px solid #1e293b",
-                    borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "border-color 0.2s" }}
+                    borderRadius: 12, padding: "16px 20px", cursor: "pointer",
+                    transition: "border-color 0.2s" }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = houseColor; }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; }}>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                    {/* 順位 */}
-                    <div style={{ fontSize: 13, color: "#475569", minWidth: 28, textAlign: "right" }}>
-                      {i + 1}
-                    </div>
-
-                    {/* 委員会名 */}
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9", marginBottom: 2 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9", marginBottom: 4 }}>
                         {c.committee}
                       </div>
                       <span style={{ background: houseColor + "22", color: houseColor,
@@ -154,16 +145,14 @@ export default function CommitteesPage() {
                       </span>
                     </div>
 
-                    {/* 発言数 */}
-                    <div style={{ textAlign: "right", flexShrink: 0, minWidth: 60 }}>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <span style={{ fontSize: 18, fontWeight: 800, color: "#f1f5f9" }}>
-                        {c.count.toLocaleString()}
+                        {c.count}
                       </span>
-                      <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>件</span>
+                      <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>名</span>
                     </div>
                   </div>
 
-                  {/* バー */}
                   <div style={{ background: "#1e293b", borderRadius: 4, height: 4, overflow: "hidden" }}>
                     <div style={{ width: `${barWidth}%`, height: "100%",
                       background: houseColor, borderRadius: 4, transition: "width 0.8s ease" }} />
@@ -173,13 +162,6 @@ export default function CommitteesPage() {
             })}
           </div>
         )}
-
-        {/* 注意書き */}
-        <div style={{ marginTop: 32, padding: 16, background: "#0f172a",
-          border: "1px solid #1e293b", borderRadius: 12, fontSize: 12, color: "#475569" }}>
-          ※ 発言件数は国立国会図書館「国会会議録検索システム」に登録された発言数です。
-          データ収集が完了するまで件数が少なく表示される場合があります。
-        </div>
       </div>
     </div>
   );
