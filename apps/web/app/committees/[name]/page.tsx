@@ -73,9 +73,11 @@ export default function CommitteeDetailPage() {
 
       const memberMap = new Map((mRes.data || []).map((m) => [m.id, m]));
 
-      const combined: CommitteeMember[] = cmData.map((c) => {
+      // member_id で重複排除（最上位役職を残す）
+      const seen = new Map<string, CommitteeMember>();
+      for (const c of cmData) {
         const m = memberMap.get(c.member_id);
-        return {
+        const entry: CommitteeMember = {
           member_id: c.member_id,
           name:      c.name,
           role:      c.role || "",
@@ -83,7 +85,12 @@ export default function CommitteeDetailPage() {
           house:     m?.house || "",
           district:  m?.district || "",
         };
-      });
+        const existing = seen.get(c.member_id);
+        if (!existing || roleRank(entry.role) < roleRank(existing.role)) {
+          seen.set(c.member_id, entry);
+        }
+      }
+      const combined = Array.from(seen.values());
 
       setMembers(combined);
       setLoading(false);
