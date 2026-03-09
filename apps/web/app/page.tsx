@@ -26,7 +26,7 @@ async function getRecentQuestions() {
   const [shuRes, sanRes] = await Promise.all([
     supabase.from("questions")
       .select("id, title, submitted_at, member_id, source_url, members(name, party)")
-      .order("submitted_at", { ascending: false }).limit(10),
+      .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
     supabase.from("sangiin_questions")
       .select("id, title, submitted_at, member_id, url, members(name, party)")
       .order("submitted_at", { ascending: false }).limit(10),
