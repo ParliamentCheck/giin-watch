@@ -1,0 +1,334 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "../../../lib/supabase";
+
+interface CommitteeMember {
+  member_id: string;
+  name: string;
+  role: string;
+  party: string;
+  house: string;
+  district: string;
+  speech_count: number | null;
+  question_count: number | null;
+}
+
+const PARTY_COLORS: Record<string, string> = {
+  "自民党":         "#c0392b",
+  "立憲民主党":     "#2980b9",
+  "中道改革連合":   "#3498db",
+  "公明党":         "#8e44ad",
+  "日本維新の会":   "#318e2c",
+  "国民民主党":     "#fabe00",
+  "共産党":         "#e74c3c",
+  "れいわ新選組":   "#e4007f",
+  "社民党":         "#795548",
+  "参政党":         "#ff6d00",
+  "チームみらい":   "#00bcd4",
+  "日本保守党":     "#607d8b",
+  "沖縄の風":       "#009688",
+  "有志の会":       "#9c27b0",
+  "無所属":         "#7f8c8d",
+};
+
+const ROLE_ORDER = ["委員長", "会長", "理事", "副会長", "委員", "幹事", ""];
+
+function roleRank(role: string) {
+  const i = ROLE_ORDER.indexOf(role);
+  return i === -1 ? ROLE_ORDER.length : i;
+}
+
+export default function CommitteeDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const committeeName = decodeURIComponent(params.name as string);
+
+  const [members,  setMembers]  = useState<CommitteeMember[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [sortBy,   setSortBy]   = useState("role");
+
+  useEffect(() => {
+    async function fetchAll() {
+      // 1. 委員会所属情報を取得
+      const cmRes = await supabase
+        .from("committee_members")
+        .select("member_id, name, role")
+        .eq("committee", committeeName)
+        .limit(500);
+
+      const cmData = cmRes.data || [];
+      const memberIds = cmData.map((c) => c.member_id).filter(Boolean);
+
+      if (memberIds.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      // 2. 議員情報を取得（1委員会の所属数は多くないのでIN句で問題なし）
+      const mRes = await supabase
+        .from("members")
+        .select("id, party, house, district, speech_count, question_count")
+        .in("id", memberIds)
+        .limit(500);
+
+      const memberMap = new Map((mRes.data || []).map((m) => [m.id, m]));
+
+      const combined: CommitteeMember[] = cmData.map((c) => {
+        const m = memberMap.get(c.member_id);
+        return {
+          member_id:      c.member_id,
+          name:           c.name,
+          role:           c.role || "",
+          party:          m?.party || "不明",
+          house:          m?.house || "",
+          district:       m?.district || "",
+          speech_count:   m?.speech_count ?? null,
+          question_count: m?.question_count ?? null,
+        };
+      });
+
+      setMembers(combined);
+      setLoading(false);
+    }
+    fetchAll();
+  }, [committeeName]);
+
+  // 役職別
+  const chairList = members.filter((m) => m.role === "委員長" || m.role === "会長");
+  const execList  = members.filter((m) => m.role === "理事"   || m.role === "副会長");
+
+  // 党別構成
+  const partyCount: Record<string, number> = {};
+  for (const m of members) {
+    partyCount[m.party] = (partyCount[m.party] || 0) + 1;
+  }
+  const partyBreakdown = Object.entries(partyCount)
+    .sort((a, b) => b[1] - a[1]);
+  const maxPartyCount = partyBreakdown[0]?.[1] || 1;
+
+  // ソート
+  const sorted = [...members].sort((a, b) => {
+    if (sortBy === "role")           return roleRank(a.role) - roleRank(b.role);
+    if (sortBy === "speech_count")   return (b.speech_count   || 0) - (a.speech_count   || 0);
+    if (sortBy === "question_count") return (b.question_count || 0) - (a.question_count || 0);
+    return a.name.localeCompare(b.name, "ja");
+  });
+
+  // 院の色
+  const houseColor = committeeName.includes("参議院") || committeeName.includes("参院")
+    ? "#7c3aed" : "#2563eb";
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: "#020817", display: "flex",
+      alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+      データ読み込み中...
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
+      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
+      padding: "24px", maxWidth: 900, margin: "0 auto" }}>
+
+      {/* 戻るボタン */}
+      <button onClick={() => router.push("/committees")}
+        style={{ background: "transparent", border: "1px solid #334155", color: "#94a3b8",
+          padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24, fontSize: 14 }}>
+        ← 委員会一覧に戻る
+      </button>
+
+      {/* ヘッダー */}
+      <div style={{ background: "#0f172a", border: `1px solid ${houseColor}44`,
+        borderRadius: 16, padding: 28, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <div style={{ width: 14, height: 14, borderRadius: "50%", background: houseColor }} />
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#f1f5f9" }}>
+            {committeeName}
+          </h1>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {[
+            { label: "所属議員数",   value: members.length,      unit: "名" },
+            { label: "委員長・会長", value: chairList.length,     unit: "名" },
+            { label: "理事・副会長", value: execList.length,      unit: "名" },
+          ].map((item) => (
+            <div key={item.label} style={{ background: "#1e293b", borderRadius: 12,
+              padding: 16, textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: houseColor, marginBottom: 4 }}>
+                {item.value}
+                <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>{item.unit}</span>
+              </div>
+              <div style={{ fontSize: 11, color: "#64748b" }}>{item.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 党別構成 */}
+      <div style={{ background: "#0f172a", border: "1px solid #1e293b",
+        borderRadius: 12, padding: 24, marginBottom: 16 }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
+          textTransform: "uppercase", letterSpacing: 1 }}>
+          🗳 党別構成
+        </h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {partyBreakdown.map(([party, count]) => {
+            const color = PARTY_COLORS[party] || "#7f8c8d";
+            const pct   = Math.round(count / members.length * 100);
+            return (
+              <div key={party}>
+                <div style={{ display: "flex", justifyContent: "space-between",
+                  fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%",
+                      background: color, display: "inline-block" }} />
+                    {party}
+                  </span>
+                  <span style={{ color, fontWeight: 700 }}>{count}名（{pct}%）</span>
+                </div>
+                <div style={{ height: 6, background: "#1e293b", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ width: `${count / maxPartyCount * 100}%`, height: "100%",
+                    background: color, borderRadius: 3, transition: "width 0.6s ease" }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 委員長・理事 */}
+      {(chairList.length > 0 || execList.length > 0) && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b",
+          borderRadius: 12, padding: 24, marginBottom: 16 }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
+            textTransform: "uppercase", letterSpacing: 1 }}>
+            🏛 委員長・理事
+          </h3>
+          {chairList.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+              {chairList.map((c, i) => {
+                const color = PARTY_COLORS[c.party] || "#7f8c8d";
+                return (
+                  <div key={i}
+                    onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
+                    style={{ display: "flex", alignItems: "center", gap: 12,
+                      padding: "12px 16px", borderRadius: 10, background: "#1e293b",
+                      cursor: "pointer", transition: "background 0.15s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
+                    <span style={{ background: "#f59e0b22", color: "#f59e0b",
+                      border: "1px solid #f59e0b44", padding: "2px 8px",
+                      borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      {c.role}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: "#64748b" }}>{c.house} · {c.district}</div>
+                    </div>
+                    <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
+                      padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                      {c.party}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {execList.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {execList.map((c, i) => {
+                const color = PARTY_COLORS[c.party] || "#7f8c8d";
+                return (
+                  <div key={i}
+                    onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
+                    style={{ display: "flex", alignItems: "center", gap: 12,
+                      padding: "12px 16px", borderRadius: 10, background: "#1e293b",
+                      cursor: "pointer", transition: "background 0.15s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
+                    <span style={{ background: "#3b82f622", color: "#3b82f6",
+                      border: "1px solid #3b82f644", padding: "2px 8px",
+                      borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      {c.role}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: "#64748b" }}>{c.house} · {c.district}</div>
+                    </div>
+                    <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
+                      padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                      {c.party}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 所属議員一覧 */}
+      <div style={{ background: "#0f172a", border: "1px solid #1e293b",
+        borderRadius: 12, padding: 24 }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
+          textTransform: "uppercase", letterSpacing: 1 }}>
+          👤 所属議員一覧（{members.length}名）
+        </h3>
+
+        {/* ソート */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {[
+            { value: "role",           label: "役職順" },
+            { value: "name",           label: "名前順" },
+            { value: "speech_count",   label: "発言数順" },
+            { value: "question_count", label: "質問主意書順" },
+          ].map((s) => (
+            <button key={s.value} onClick={() => setSortBy(s.value)}
+              style={{ background: sortBy === s.value ? houseColor + "33" : "#1e293b",
+                border: `1px solid ${sortBy === s.value ? houseColor : "#334155"}`,
+                color: sortBy === s.value ? houseColor : "#64748b",
+                padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {sorted.map((m) => {
+            const color = PARTY_COLORS[m.party] || "#7f8c8d";
+            return (
+              <div key={m.member_id}
+                onClick={() => router.push(`/members/${encodeURIComponent(m.member_id)}`)}
+                style={{ display: "flex", alignItems: "center", gap: 12,
+                  padding: "12px 16px", borderRadius: 10, background: "#1e293b",
+                  cursor: "pointer", transition: "background 0.15s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
+                {m.role && (
+                  <span style={{ fontSize: 10, color: "#64748b", border: "1px solid #334155",
+                    padding: "1px 6px", borderRadius: 3, flexShrink: 0 }}>
+                    {m.role}
+                  </span>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{m.name}</div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>{m.house} · {m.district}</div>
+                </div>
+                <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
+                  padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                  {m.party}
+                </span>
+                <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#64748b", flexShrink: 0 }}>
+                  <span>💬 {m.speech_count   || 0}</span>
+                  <span>📝 {m.question_count || 0}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

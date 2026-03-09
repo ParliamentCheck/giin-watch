@@ -130,8 +130,11 @@ export default function CommitteesPage() {
 
               return (
                 <div key={c.committee}
+                  onClick={() => router.push(`/committees/${encodeURIComponent(c.committee)}`)}
                   style={{ background: "#0f172a", border: "1px solid #1e293b",
-                    borderRadius: 12, padding: "16px 20px" }}>
+                    borderRadius: 12, padding: "16px 20px", cursor: "pointer", transition: "border-color 0.2s" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = houseColor; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; }}>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                     {/* 順位 */}
