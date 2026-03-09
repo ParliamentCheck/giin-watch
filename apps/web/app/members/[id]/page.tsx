@@ -140,7 +140,17 @@ export default function MemberDetailPage() {
       const allQuestions = [...shugiinQ, ...sangiinQ]
         .sort((a: any, b: any) => (b.submitted_at || "").localeCompare(a.submitted_at || ""));
       setQuestions(allQuestions);
-      if (safe(4)) setCommittees(safe(4));
+      if (safe(4)) {
+        // (committee, role) の組み合わせで重複排除
+        const seen = new Set<string>();
+        const deduped = (safe(4) as any[]).filter((c: any) => {
+          const key = `${c.committee}__${c.role}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setCommittees(deduped);
+      }
       if (safe(5)) setVotes(safe(5));
       if (safe(6)) setBills(safe(6));
       if (safe(7)) setKeywords(safe(7));

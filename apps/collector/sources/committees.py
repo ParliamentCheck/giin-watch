@@ -91,7 +91,6 @@ def collect_shugiin_committees() -> None:
         logger.info("  → %d名", len(members))
         for m in members:
             all_rows.append({
-                "id":        f"shugiin-{c['name']}-{m['name']}",
                 "member_id": member_map.get(m["name"]),
                 "name":      m["name"],
                 "committee": m["committee"],
@@ -101,7 +100,7 @@ def collect_shugiin_committees() -> None:
         time.sleep(1.0)
 
     if all_rows:
-        batch_upsert("committee_members", all_rows, on_conflict="id", label="shugiin_committee")
+        batch_upsert("committee_members", all_rows, on_conflict="member_id,committee,role", label="shugiin_committee")
     logger.info("衆院委員会 完了: %d件", len(all_rows))
 
 
@@ -212,7 +211,6 @@ def collect_sangiin_committees() -> None:
         for m in members:
             key = m["name"].replace(" ", "").replace("　", "").strip()
             all_rows.append({
-                "id":        f"sangiin-{committee_name}-{m['name']}",
                 "member_id": member_map.get(key),
                 "name":      m["name"],
                 "committee": committee_name,
@@ -222,7 +220,7 @@ def collect_sangiin_committees() -> None:
         time.sleep(1.0)
 
     if all_rows:
-        batch_upsert("committee_members", all_rows, on_conflict="id", label="sangiin_committee")
+        batch_upsert("committee_members", all_rows, on_conflict="member_id,committee,role", label="sangiin_committee")
     logger.info("参院委員会 完了: %d件", len(all_rows))
 
 
