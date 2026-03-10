@@ -29,6 +29,7 @@ export default function AboutPage() {
               { label: "国立国会図書館（国会会議録検索システム）", url: "https://kokkai.ndl.go.jp/" },
               { label: "衆議院 公式ウェブサイト", url: "https://www.shugiin.go.jp/" },
               { label: "参議院 公式ウェブサイト", url: "https://www.sangiin.go.jp/" },
+              { label: "首相官邸（閣僚名簿）", url: "https://www.kantei.go.jp/" },
             ].map((s) => (
               <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer"
                 style={{ color: "#3b82f6", textDecoration: "none" }}>
@@ -45,6 +46,9 @@ export default function AboutPage() {
             当サイトは特定の政党や政治家を支持・応援するものではありません。
             取得したデータに対して管理者による主観的な修正や手作業による改変は一切行わず、
             システムによる機械的な集計結果のみを掲載しています。
+            この「人の手を介さない自動収集・自動集計」という運用方針は、
+            著作権・名誉毀損・公職選挙法のいずれの観点においても、
+            当サイトの法的リスクを最小化するための基本原則でもあります。
           </p>
         </section>
 
