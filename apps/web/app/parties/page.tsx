@@ -156,7 +156,7 @@ export default function PartiesPage() {
                   </div>
 
                   {/* 統計グリッド */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                  <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
                     {[
                       { label: "発言数合計",    value: p.speeches.toLocaleString(),   unit: "件" },
                       { label: "1人あたり発言", value: avgSpeeches,                   unit: "件" },

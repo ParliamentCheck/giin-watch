@@ -209,7 +209,7 @@ export default function PartyDetailPage() {
           )}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
             { label: "議員数",         value: members.length,                 unit: "名" },
             { label: "発言数合計",     value: totalSpeeches.toLocaleString(), unit: "件" },
