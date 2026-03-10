@@ -209,11 +209,11 @@ export default function PartyDetailPage() {
           )}
         </div>
 
-        <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="party-stats-grid">
           {[
-            { label: "議員数",         value: members.length,                 unit: "名" },
             { label: "発言数合計",     value: totalSpeeches.toLocaleString(), unit: "件" },
             { label: "質問主意書合計", value: totalQuestions,                 unit: "件" },
+            { label: "議員数",         value: members.length,                 unit: "名" },
           ].map((item) => (
             <div key={item.label} style={{ background: "#1e293b", borderRadius: 12, padding: 16, textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color, marginBottom: 4 }}>

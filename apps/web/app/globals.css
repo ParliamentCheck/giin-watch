@@ -10,14 +10,19 @@
   --color-foreground: var(--foreground);
 }
 
-/* 政党一覧: 発言を全幅1行、質問・人数を2列 */
+/* 政党: PC=3列横並び、モバイル=発言全幅+質問・人数2列 */
 .party-stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
-.party-stats-grid > *:first-child {
-  grid-column: 1 / -1;
+@media (max-width: 768px) {
+  .party-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .party-stats-grid > *:first-child {
+    grid-column: 1 / -1;
+  }
 }
 
 body {
