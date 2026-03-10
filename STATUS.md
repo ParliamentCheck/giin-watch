@@ -36,13 +36,14 @@ apps/collector/
     members.py                 # 議員登録（衆院・参院サイトをスクレイピング）
     speeches.py                # NDL API 発言収集（メタデータのみ保存・テキスト破棄）
     questions.py               # 質問主意書（衆院 questions + 参院 sangiin_questions に保存）
+    petitions.py               # 請願（衆院 petitions + 参院 sangiin_petitions に保存）
     committees.py              # 委員会所属（衆院・参院 → committee_members に保存）
     votes.py                   # 参院採決記録（votes に保存）※衆院は個人別データ非公開
     bills.py                   # 議員立法（bills に保存）
     keywords.py                # ワードクラウド構築（member_keywords / party_keywords）
     cabinet_scraper.py         # 内閣役職データ
   processors/
-    scoring.py                 # speech_count / session_count / question_count 再計算
+    scoring.py                 # speech_count / session_count / question_count / petition_count 再計算
     cleanup.py                 # speeches 上限削除・各種検証タスク
 scripts/
   migrate_member_ids.py        # 一回限りのDB移行スクリプト（bracket形式ID → kanji形式）
@@ -59,6 +60,8 @@ scripts/
 | `speeches` | 発言メタデータ（NDL API） | FK to members.id |
 | `questions` | 衆院質問主意書 | FK to members.id |
 | `sangiin_questions` | 参院質問主意書 | FK to members.id |
+| `petitions` | 衆院請願 | `introducer_ids`（配列型） |
+| `sangiin_petitions` | 参院請願 | `introducer_ids`（配列型） |
 | `committee_members` | 委員会所属 | FK to members.id |
 | `votes` | 参院採決記録 | FK to members.id |
 | `bills` | 議員立法 | `submitter_ids`（配列型） |
@@ -79,9 +82,10 @@ scripts/
 3. スコア再計算（`processors/scoring.py`）
 4. 内閣役職（`sources/cabinet_scraper.py`）
 5. 質問主意書（`sources/questions.py`）※衆院+参院
-6. 委員会所属（`sources/committees.py`）※衆院+参院
-7. キーワード更新（`sources/keywords.py --mode daily`）
-8. speeches 上限チェック（`processors/cleanup.py --task truncate-speeches`）
+6. 請願（`sources/petitions.py`）※衆院+参院（日次は直近2セッションのみ）
+7. 委員会所属（`sources/committees.py`）※衆院+参院
+8. キーワード更新（`sources/keywords.py --mode daily`）
+9. speeches 上限チェック（`processors/cleanup.py --task truncate-speeches`）
 
 各ステップは `continue-on-error: true` で独立。
 
@@ -97,6 +101,7 @@ scripts/
 | `votes-collect` | 参院採決記録収集 |
 | `bills-collect` | 議員立法収集 |
 | `sangiin-questions` | 参院質問主意書収集 |
+| `petitions-collect` | 衆院・参院請願収集（全セッション） |
 
 ---
 
@@ -166,6 +171,11 @@ scripts/
     WITH all_sids AS (SELECT unnest(submitter_ids) AS sid FROM bills)
     SELECT COUNT(*) AS total, COUNT(m.id) AS matched FROM all_sids a LEFT JOIN members m ON m.id = a.sid;
     ```
+
+### 要実行（請願データ初期取得）
+- [ ] **`petitions-collect`** を Actions で実行
+  → `petitions` / `sangiin_petitions` テーブルにデータを一括投入
+  → 完了後、scoring-only を実行して `petition_count` を更新
 
 ### 未実装・未着手
 - [ ] **議員写真** — プロフィール画像の取得なし
