@@ -41,47 +41,45 @@ async function getRecentQuestions() {
 }
 
 async function getLatestCommitteeActivity() {
-  // 最新日付を取得
-  const latestRes = await supabase
-    .from("speeches")
-    .select("spoken_at")
-    .eq("is_procedural", false)
-    .order("spoken_at", { ascending: false })
-    .limit(1);
-
-  const latestDate = latestRes.data?.[0]?.spoken_at;
-  if (!latestDate) return { date: null, committees: [] };
-
-  // その日の発言を取得
   const { data } = await supabase
     .from("speeches")
-    .select("committee, member_id, members(name)")
-    .eq("spoken_at", latestDate)
+    .select("spoken_at, committee, member_id, members(name)")
     .eq("is_procedural", false)
-    .limit(1000);
+    .order("spoken_at", { ascending: false })
+    .limit(500);
 
-  // 委員会ごとに発言者を集約（重複除去）
-  const committeeMap = new Map<string, Set<string>>();
-  const memberNames = new Map<string, string>();
+  if (!data || data.length === 0) return [];
 
-  for (const s of data || []) {
+  // 「日付＋委員会」でグルーピング（Map は挿入順を保持するので日付降順になる）
+  const groupMap = new Map<string, {
+    date: string;
+    committee: string;
+    memberIds: Set<string>;
+    memberNames: Map<string, string>;
+  }>();
+
+  for (const s of data) {
     const committee = s.committee?.trim();
-    if (!committee) continue;
-    if (!committeeMap.has(committee)) committeeMap.set(committee, new Set());
+    if (!s.spoken_at || !committee) continue;
+    const key = `${s.spoken_at}__${committee}`;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, { date: s.spoken_at, committee, memberIds: new Set(), memberNames: new Map() });
+    }
+    const group = groupMap.get(key)!;
     if (s.member_id) {
-      committeeMap.get(committee)!.add(s.member_id);
-      if ((s.members as any)?.name) memberNames.set(s.member_id, (s.members as any).name);
+      group.memberIds.add(s.member_id);
+      if ((s.members as any)?.name) group.memberNames.set(s.member_id, (s.members as any).name);
     }
   }
 
-  const committees = [...committeeMap.entries()]
-    .map(([name, memberIds]) => ({
-      name,
-      members: [...memberIds].map((id) => ({ id, name: memberNames.get(id) || "" })),
-    }))
-    .sort((a, b) => b.members.length - a.members.length);
-
-  return { date: latestDate, committees };
+  return [...groupMap.values()]
+    .slice(0, 8)
+    .map((g) => ({
+      date: g.date,
+      committee: g.committee,
+      members: [...g.memberIds].map((id) => ({ id, name: g.memberNames.get(id) || "" })),
+      ndlUrl: `https://kokkai.ndl.go.jp/#/search?startRecord=1&from=${g.date}&until=${g.date}&nameOfMeeting=${encodeURIComponent(g.committee)}`,
+    }));
 }
 
 async function getPartyBreakdown() {
@@ -108,7 +106,7 @@ async function getPartyBreakdown() {
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
-  const [stats, recentQuestions, committeeActivity, partyBreakdown] = await Promise.all([
+  const [stats, recentQuestions, committeeActivities, partyBreakdown] = await Promise.all([
     getStats(),
     getRecentQuestions(),
     getLatestCommitteeActivity(),
@@ -223,31 +221,32 @@ export default async function TopPage() {
           )}
 
           {/* 直近の委員会活動 */}
-          {committeeActivity.date && committeeActivity.committees.length > 0 && (
+          {committeeActivities.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-bold text-slate-100">🏛 直近の委員会活動</h2>
-                <span className="text-xs text-slate-500 tabular-nums">{committeeActivity.date}</span>
               </div>
               <div className="space-y-2">
-                {committeeActivity.committees.map((c) => (
-                  <div key={c.name}
-                    className="bg-slate-900/40 border border-slate-800/60 rounded-xl px-4 py-3">
-                    <div className="text-sm font-semibold text-slate-200 mb-2">{c.name}</div>
+                {committeeActivities.map((c) => (
+                  <a key={`${c.date}-${c.committee}`} href={c.ndlUrl}
+                    target="_blank" rel="noopener noreferrer"
+                    className="block bg-slate-900/40 border border-slate-800/60 rounded-xl px-4 py-3 hover:border-slate-700 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold text-slate-200">{c.committee}</div>
+                      <span className="text-xs text-slate-500 tabular-nums shrink-0 ml-2">{c.date}</span>
+                    </div>
                     <div className="flex flex-wrap gap-1.5">
                       {c.members.slice(0, 8).map((m) => (
-                        <Link key={m.id} href={`/members/${encodeURIComponent(m.id)}`}
-                          className="text-xs text-slate-400 hover:text-blue-400 bg-slate-800/60 px-2 py-0.5 rounded transition-colors">
+                        <span key={m.id}
+                          className="text-xs text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded">
                           {m.name}
-                        </Link>
+                        </span>
                       ))}
                       {c.members.length > 8 && (
-                        <span className="text-xs text-slate-600 px-2 py-0.5">
-                          他{c.members.length - 8}名
-                        </span>
+                        <span className="text-xs text-slate-600 px-2 py-0.5">他{c.members.length - 8}名</span>
                       )}
                     </div>
-                  </div>
+                  </a>
                 ))}
               </div>
               <p className="text-[11px] text-slate-600 mt-2">
