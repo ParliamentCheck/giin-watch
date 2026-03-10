@@ -32,7 +32,7 @@ export default function DisclaimerPage() {
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#94a3b8", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>データの更新について</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
-            データは毎日午前3時に自動収集・更新されます。
+            データは毎日午前3時に自動収集・更新されます（参院採決データを除く）。
             国会会議録の登録には1〜2週間のタイムラグがあるため、直近の発言は反映されていない場合があります。
             最新・正確な情報は各公式サイトをご確認ください。
           </p>
@@ -44,7 +44,7 @@ export default function DisclaimerPage() {
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
             発言セッション数は、同日・同委員会での複数の発言をまとめて1セッションとして集計しています。
             発言の長さや内容は考慮されていません。
-            なお、以下の発言はカウントから除外しています：委員長・会長・議長・副議長の議事進行発言、および30文字以下の短い発言（相槌等）。
+            なお、以下の発言はカウントから除外しています：委員長・会長・議長の議事進行発言、および30文字以下の短い発言（相槌等）。
           </p>
         </section>
 
@@ -71,7 +71,7 @@ export default function DisclaimerPage() {
             textTransform: "uppercase", letterSpacing: 1 }}>免責</h2>
           <p style={{ lineHeight: 1.9, color: "#94a3b8" }}>
             本サイトの情報の正確性・完全性について保証するものではありません。
-            AIによる自動解析の性質上、誤情報が入り込んだり、情報が古くなったりする可能性がございます。
+            自動収集・スクレイピングの性質上、誤情報が入り込んだり、情報が古くなったりする可能性がございます。
             本サイトの情報を利用したことによって生じたいかなる損害についても、運営者は責任を負いません。
             最終的な情報の確認や判断は、各公的機関の公式情報等をご参照の上、ご自身の責任において行ってください。
           </p>
@@ -95,6 +95,7 @@ export default function DisclaimerPage() {
               { label: "国立国会図書館 国会会議録検索システム", url: "https://kokkai.ndl.go.jp/" },
               { label: "衆議院公式サイト", url: "https://www.shugiin.go.jp/" },
               { label: "参議院公式サイト", url: "https://www.sangiin.go.jp/" },
+              { label: "首相官邸", url: "https://www.kantei.go.jp/" },
             ].map((s) => (
               <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer"
                 style={{ color: "#3b82f6", textDecoration: "none" }}>
