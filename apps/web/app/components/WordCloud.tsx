@@ -50,8 +50,9 @@ export default function WordCloud({ keywords, width = 500, height = 300 }: Props
       .fontSize((d) => d.size || 12)
       .on("end", (words) => {
         d3.select(svgRef.current)
-          .attr("width", width)
-          .attr("height", height)
+          .attr("viewBox", `0 0 ${width} ${height}`)
+          .attr("width", "100%")
+          .attr("height", null)
           .append("g")
           .attr("transform", `translate(${width / 2},${height / 2})`)
           .selectAll("text")
@@ -82,7 +83,7 @@ export default function WordCloud({ keywords, width = 500, height = 300 }: Props
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <svg ref={svgRef} style={{ maxWidth: "100%", height: "auto" }} />
+        <svg ref={svgRef} style={{ width: "100%", height: "auto", display: "block" }} />
       </div>
       <p style={{ fontSize: 11, color: "#475569", textAlign: "center", marginTop: 12, lineHeight: 1.8 }}>
         国会会議録の発言テキストから名詞を抽出し、出現頻度の高い上位50語を表示しています。<br />
