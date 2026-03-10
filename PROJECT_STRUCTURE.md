@@ -26,6 +26,7 @@ giin-watch/
 │   │   │   ├── committees/
 │   │   │   │   ├── page.tsx                  # 委員会一覧
 │   │   │   │   └── [name]/page.tsx           # 委員会詳細
+│   │   │   ├── favorites/page.tsx            # お気に入り議員（マイダッシュボード）
 │   │   │   ├── changelog/page.tsx            # 更新履歴
 │   │   │   ├── about/page.tsx                # サイトについて（仕様書）
 │   │   │   ├── disclaimer/page.tsx           # 免責事項
@@ -41,6 +42,7 @@ giin-watch/
 │   │   │
 │   │   └── lib/
 │   │       ├── supabase.ts   # Supabase クライアント
+│   │       ├── favorites.ts  # お気に入り管理（localStorage）
 │   │       ├── queries.ts    # 共通クエリ関数
 │   │       └── types.ts      # TypeScript 型定義
 │   │
@@ -93,6 +95,20 @@ GitHub Actions（`collect.yml`）が UTC 18:00（JST 03:00）に毎日実行。
 - 新機能はコンポーネントとして作る
 - 既存コードは修正が必要になったタイミングで切り出す
 - 動いているものへの大規模リファクタリングは行わない
+
+## お気に入り議員機能
+
+ユーザーが任意の議員を最大10人登録し、まとめて活動を確認できる機能。
+
+- **保存先**: ブラウザの localStorage（サーバーには一切送信しない）
+- **上限**: 10人
+- **データ取得**: ページ表示のたびに Supabase から最新データを取得
+- **URLシェア**: 登録済み議員IDをURLパラメータに変換してクリップボードにコピー。受け取り側は `/favorites?ids=...` でインポート
+- **活動タイムライン**: 発言・質問主意書・議員立法・採決を混合表示（議員ごと最新3件）
+- **登録ボタン設置場所**: 議員一覧（各カード右端★）・議員詳細（右上⭐）
+- **注意**: ブラウザデータ消去・プライベートモードでは消える。端末・ブラウザ間での同期なし
+
+`lib/favorites.ts` が localStorage の読み書きを担当。`useSearchParams` を使用するため `favorites/page.tsx` は必ず Suspense ラッパーが必要。
 
 ## 法的運用方針
 
