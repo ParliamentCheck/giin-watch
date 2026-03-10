@@ -51,7 +51,7 @@ export default function GlobalFooter() {
           ))}
         </div>
         <div style={{ textAlign: "center", color: "#475569", fontSize: 12 }}>
-          データソース: 国立国会図書館 / 衆議院 / 参議院 ｜ 毎日午前3時に自動更新
+          データソース: 国立国会図書館 / 衆議院 / 参議院 ｜ 収集期間: 2018年〜現在 ｜ 毎日午前3時に自動更新
         </div>
         <div style={{ textAlign: "center", color: "#334155", fontSize: 11, marginTop: 8 }}>
           © 2025 はたらく議員
