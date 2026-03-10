@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
+import { getFavorites, addFavorite, removeFavorite } from "../../lib/favorites";
 
 interface Member {
   id: string;
@@ -53,6 +54,7 @@ function MembersContent() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
+  const [favIds, setFavIds] = useState<string[]>([]);
   const isComposing = useRef(false);
 
   const search        = searchParams.get("q")      || "";
@@ -64,6 +66,8 @@ function MembersContent() {
   useEffect(() => {
     if (!isComposing.current) setInputValue(search);
   }, [search]);
+
+  useEffect(() => { setFavIds(getFavorites()); }, []);
 
   const updateUrl = (q: string, house: string, party: string, sort: string) => {
     const params = new URLSearchParams();
@@ -105,6 +109,17 @@ function MembersContent() {
     const bv = (b[sortKey] as number | null) ?? -1;
     return bv - av;
   });
+
+  const toggleFav = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (favIds.includes(id)) {
+      removeFavorite(id);
+      setFavIds((prev) => prev.filter((v) => v !== id));
+    } else {
+      const result = addFavorite(id);
+      if (result.ok) setFavIds((prev) => [...prev, id]);
+    }
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
@@ -191,11 +206,20 @@ function MembersContent() {
                     {m.house} · {m.district}{m.terms ? ` · ${m.terms}期` : ""}
                   </span>
                   {/* 活動指標 */}
-                  <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 12,
-                    color: "#94a3b8", whiteSpace: "nowrap" }}>
-                    <span>発言セッション：{(m.session_count ?? 0).toLocaleString()}</span>
-                    <span>質問主意書：{m.question_count ?? 0}</span>
-                    <span>議員立法：{m.bill_count ?? 0}</span>
+                  <span style={{ marginLeft: "auto", display: "flex", alignItems: "center",
+                    gap: 12, fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>
+                    <span className="hidden-mobile">発言セッション：{(m.session_count ?? 0).toLocaleString()}</span>
+                    <span className="hidden-mobile">質問主意書：{m.question_count ?? 0}</span>
+                    <span className="hidden-mobile">議員立法：{m.bill_count ?? 0}</span>
+                    <button
+                      onClick={(e) => toggleFav(e, m.id)}
+                      title={favIds.includes(m.id) ? "お気に入りから解除" : "お気に入りに追加"}
+                      style={{ background: "none", border: "none", cursor: "pointer",
+                        fontSize: 18, lineHeight: 1, padding: "2px 4px",
+                        color: favIds.includes(m.id) ? "#f59e0b" : "#334155",
+                        transition: "color 0.15s", flexShrink: 0 }}>
+                      ★
+                    </button>
                   </span>
                 </div>
               </div>

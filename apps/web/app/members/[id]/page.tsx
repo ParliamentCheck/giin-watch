@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
+import { isFavorite, addFavorite, removeFavorite } from "../../../lib/favorites";
 
 interface Member {
   id: string;
@@ -111,6 +112,8 @@ export default function MemberDetailPage() {
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState("committees");
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
+  const [fav,        setFav]        = useState(false);
+  const [favMsg,     setFavMsg]     = useState("");
 
   useEffect(() => {
     async function fetchAll() {
@@ -133,7 +136,10 @@ export default function MemberDetailPage() {
 
       const safe = (i: number) => results[i].status === "fulfilled" ? results[i].value.data : null;
 
-      if (safe(0)) setMember(safe(0));
+      if (safe(0)) {
+        setMember(safe(0));
+        setFav(isFavorite(memberId));
+      }
       if (safe(1)) setSpeeches(safe(1));
       const shugiinQ = safe(2) || [];
       const sangiinQ = safe(3) || [];
@@ -202,12 +208,35 @@ export default function MemberDetailPage() {
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
-      {/* 戻るボタン */}
-      <button onClick={() => router.back()}
-        style={{ background: "transparent", border: "1px solid #334155", color: "#94a3b8",
-          padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24, fontSize: 14 }}>
-        ← 一覧に戻る
-      </button>
+      {/* 戻るボタン + お気に入り */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <button onClick={() => router.back()}
+          style={{ background: "transparent", border: "1px solid #334155", color: "#94a3b8",
+            padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 14 }}>
+          ← 一覧に戻る
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {favMsg && <span style={{ fontSize: 12, color: "#ef4444" }}>{favMsg}</span>}
+          <button onClick={() => {
+            if (fav) {
+              removeFavorite(memberId);
+              setFav(false);
+              setFavMsg("");
+            } else {
+              const result = addFavorite(memberId);
+              if (result.ok) { setFav(true); setFavMsg(""); }
+              else { setFavMsg(result.reason || ""); }
+            }
+          }}
+            style={{ background: fav ? "#f59e0b22" : "#0f172a",
+              border: `1px solid ${fav ? "#f59e0b" : "#334155"}`,
+              color: fav ? "#f59e0b" : "#64748b",
+              padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13,
+              fontWeight: fav ? 700 : 400 }}>
+            {fav ? "⭐ 登録済み" : "☆ お気に入り登録"}
+          </button>
+        </div>
+      </div>
 
       {/* ヘッダー */}
       <div style={{ background: "#0f172a", border: "1px solid #1e293b",

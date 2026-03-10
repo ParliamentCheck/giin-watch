@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: "政党・会派",   path: "/parties" },
   { label: "委員会別",     path: "/committees" },
   { label: "前議員",       path: "/members/former" },
+  { label: "⭐ お気に入り", path: "/favorites" },
 ];
 
 export default function GlobalNav() {
