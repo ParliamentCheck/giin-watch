@@ -136,8 +136,11 @@ export default async function TopPage() {
           <p className="text-lg text-slate-400 mb-2">
             国会議員の活動を、データで見える化
           </p>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 mb-1">
             衆議院・参議院の全議員の発言・質問主意書・委員会活動を収集・公開
+          </p>
+          <p className="text-xs text-slate-600">
+            収集期間: 2018年〜現在（毎日自動更新）
           </p>
         </div>
       </section>
