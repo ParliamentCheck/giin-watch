@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import {
@@ -38,7 +38,7 @@ const TYPE_LABELS: Record<string, string> = {
   speech: "💬 発言", question: "📝 質問主意書", bill: "📋 議員立法", vote: "🗳 採決",
 };
 
-export default function FavoritesPage() {
+function FavoritesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -345,5 +345,16 @@ export default function FavoritesPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function FavoritesPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#020817", color: "#64748b",
+        padding: "24px", textAlign: "center" }}>読み込み中...</div>
+    }>
+      <FavoritesContent />
+    </Suspense>
   );
 }
