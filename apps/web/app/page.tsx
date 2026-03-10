@@ -79,7 +79,7 @@ async function getLatestCommitteeActivity() {
       date: g.date,
       committee: g.committee,
       members: [...g.memberIds].map((id) => ({ id, name: g.memberNames.get(id) || "" })),
-      ndlUrl: g.sourceUrl,
+      ndlUrl: g.sourceUrl ? g.sourceUrl.replace(/\/\d+$/, "/0") : "",
     }));
 }
 
