@@ -124,11 +124,6 @@ export default async function TopPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-4xl mx-auto px-5 pt-20 pb-12 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-8 rounded-full border border-slate-700/60 bg-slate-800/40 text-xs text-slate-400">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            毎日自動更新中
-          </div>
-
           <h1 className="mb-4">
             <img src="/logo-main.svg" alt="はたらく議員" className="h-32 sm:h-40 mx-auto" />
           </h1>
@@ -136,12 +131,13 @@ export default async function TopPage() {
           <p className="text-lg text-slate-400 mb-2">
             国会議員の活動を、データで見える化
           </p>
-          <p className="text-sm text-slate-500 mb-1">
+          <p className="text-sm text-slate-500 mb-4">
             衆議院・参議院の全議員の発言・質問主意書・委員会活動を収集・公開
           </p>
-          <p className="text-xs text-slate-600">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-700/60 bg-slate-800/40 text-xs text-slate-400">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             収集期間: 2018年〜現在（毎日自動更新）
-          </p>
+          </div>
         </div>
       </section>
 
