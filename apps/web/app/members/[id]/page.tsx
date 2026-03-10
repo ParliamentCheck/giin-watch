@@ -267,7 +267,7 @@ export default function MemberDetailPage() {
       </div>
 
       {/* 活動サマリーカード */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
+      <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
         {[
           { label: "委員会所属",     value: committees.length,        unit: "件" },
           { label: "発言セッション", value: member.session_count,     unit: "回" },
@@ -291,7 +291,7 @@ export default function MemberDetailPage() {
       </div>
 
       {/* タブ */}
-      <div className="resp-scroll" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
+      <div className="tab-bar" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#0f172a",
         border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
         {[
           { id: "committees", label: "🏛 委員会" },

@@ -43,4 +43,11 @@ body {
   .resp-text-sm { font-size: 12px !important; }
   .resp-pad { padding: 16px !important; }
   .resp-gap-sm { gap: 8px !important; }
+
+  /* 議員詳細: サマリーカード 4列→2列 */
+  .summary-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* 議員詳細: タブバー 2列折り返し */
+  .tab-bar { flex-wrap: wrap !important; }
+  .tab-bar button { flex: 0 0 calc(50% - 2px) !important; }
 }
