@@ -187,12 +187,13 @@ export default function PartyDetailPage() {
       {/* ヘッダー */}
       <div style={{ background: "#0f172a", border: `1px solid ${color}44`,
         borderRadius: 16, padding: 28, marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+        <div className="party-header" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
           <div style={{ width: 16, height: 16, borderRadius: "50%", background: color }} />
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#f1f5f9", flex: 1 }}>{party}</h1>
           {PARTY_URLS[party] && (
             <a href={PARTY_URLS[party]} target="_blank" rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
+              className="party-header-link"
               style={{ fontSize: 12, color: "#64748b", border: "1px solid #334155",
                 padding: "4px 10px", borderRadius: 6, textDecoration: "none",
                 flexShrink: 0, transition: "color 0.2s, border-color 0.2s" }}

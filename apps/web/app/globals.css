@@ -23,6 +23,10 @@
   .party-stats-grid > *:first-child {
     grid-column: 1 / -1;
   }
+
+  /* 政党詳細ヘッダー: 政党名と公式サイトリンクを段分け */
+  .party-header { flex-wrap: wrap !important; }
+  .party-header-link { flex: 0 0 100% !important; }
 }
 
 body {
