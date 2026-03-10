@@ -21,6 +21,7 @@ on:
           - "votes-collect"
           - "bills-collect"
           - "sangiin-questions"
+          - "petitions-collect"
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

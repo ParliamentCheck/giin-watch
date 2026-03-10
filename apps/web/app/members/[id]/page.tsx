@@ -59,6 +59,17 @@ interface Bill {
   source_url: string | null;
 }
 
+interface Petition {
+  id: string;
+  session: number;
+  number: number;
+  title: string;
+  committee_name: string | null;
+  result: string | null;
+  result_date: string | null;
+  source_url: string | null;
+}
+
 interface CommitteeMember {
   id: string;
   committee: string;
@@ -108,6 +119,7 @@ export default function MemberDetailPage() {
   const [committees, setCommittees] = useState<CommitteeMember[]>([]);
   const [votes,      setVotes]      = useState<Vote[]>([]);
   const [bills,      setBills]      = useState<Bill[]>([]);
+  const [petitions,  setPetitions]  = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState("committees");
@@ -132,6 +144,10 @@ export default function MemberDetailPage() {
           .contains("submitter_ids", [memberId]).limit(50),
         supabase.from("member_keywords").select("word,count")
           .eq("member_id", memberId).order("count", { ascending: false }).limit(50),
+        supabase.from("petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
+          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
+        supabase.from("sangiin_petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
+          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
       ]);
 
       const safe = (i: number) => results[i].status === "fulfilled" ? results[i].value.data : null;
@@ -160,6 +176,11 @@ export default function MemberDetailPage() {
       if (safe(5)) setVotes(safe(5));
       if (safe(6)) setBills(safe(6));
       if (safe(7)) setKeywords(safe(7));
+      const shugiinP = safe(8) || [];
+      const sangiinP = safe(9) || [];
+      const allPetitions = [...shugiinP, ...sangiinP]
+        .sort((a: any, b: any) => b.session - a.session);
+      setPetitions(allPetitions);
       setLoading(false);
     }
     fetchAll();
@@ -328,6 +349,7 @@ export default function MemberDetailPage() {
           { id: "questions",  label: `📝 質問主意書 (${member.question_count ?? 0})` },
           { id: "votes",      label: `🗳 採決 (${votes.length})` },
           { id: "bills",      label: `📋 議員立法 (${member.bill_count ?? bills.length})` },
+          { id: "petitions",  label: `📜 請願 (${petitions.length})` },
           { id: "keywords",   label: "☁️ キーワード" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -422,6 +444,58 @@ export default function MemberDetailPage() {
                       ))}
                     </div>
                   )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* 請願タブ */}
+      {tab === "petitions" && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 20 }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
+            textTransform: "uppercase", letterSpacing: 1 }}>
+            紹介議員を務めた請願
+          </h3>
+          {petitions.length === 0 ? (
+            <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>
+              請願の紹介議員記録がありません。
+            </div>
+          ) : (
+            petitions.map((p, i) => {
+              const resultColor = p.result === "採択" ? "#22c55e"
+                : p.result === "不採択" ? "#ef4444" : "#64748b";
+              return (
+                <div key={p.id} style={{ padding: "14px 0",
+                  borderBottom: i < petitions.length - 1 ? "1px solid #1e293b" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", flex: 1 }}>
+                      {p.title}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#475569", flexShrink: 0 }}>
+                      第{p.session}回 #{p.number}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    {p.committee_name && (
+                      <span style={{ fontSize: 12, color: "#64748b" }}>🏛 {p.committee_name}</span>
+                    )}
+                    {p.result && (
+                      <span style={{ fontSize: 11, color: resultColor, fontWeight: 700,
+                        background: resultColor + "22", border: `1px solid ${resultColor}44`,
+                        padding: "2px 8px", borderRadius: 4 }}>
+                        {p.result}
+                      </span>
+                    )}
+                    {p.source_url && (
+                      <a href={p.source_url} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
+                        📄 詳細を見る →
+                      </a>
+                    )}
+                  </div>
                 </div>
               );
             })

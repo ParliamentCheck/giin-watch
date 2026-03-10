@@ -34,6 +34,7 @@ def main() -> None:
         "votes-collect",
         "bills-collect",
         "sangiin-questions",
+        "petitions-collect",
     ])
     parser.add_argument("--years", type=int, default=4, help="keyword-full-rebuild の遡及年数")
     args = parser.parse_args()
@@ -92,6 +93,11 @@ def main() -> None:
     elif task == "sangiin-questions":
         from sources.questions import collect_sangiin_questions
         collect_sangiin_questions(full=True)
+
+    elif task == "petitions-collect":
+        from sources.petitions import collect_shugiin_petitions, collect_sangiin_petitions
+        collect_shugiin_petitions(full=True)
+        collect_sangiin_petitions(full=True)
 
     from processors.scoring import recalculate_scores as _rescore
     if task not in ("scoring-only", "migrate-member-ids") and not task.startswith("speeches-"):

@@ -13,6 +13,16 @@ interface CommitteeMember {
   district: string;
 }
 
+interface Petition {
+  id: string;
+  session: number;
+  number: number;
+  title: string;
+  result: string | null;
+  introducer_names: string[] | null;
+  source_url: string | null;
+}
+
 const PARTY_COLORS: Record<string, string> = {
   "自民党":         "#c0392b",
   "立憲民主党":     "#2980b9",
@@ -43,9 +53,10 @@ export default function CommitteeDetailPage() {
   const router = useRouter();
   const committeeName = decodeURIComponent(params.name as string);
 
-  const [members,  setMembers]  = useState<CommitteeMember[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [sortBy,   setSortBy]   = useState("role");
+  const [members,   setMembers]   = useState<CommitteeMember[]>([]);
+  const [petitions, setPetitions] = useState<Petition[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [sortBy,    setSortBy]    = useState("role");
 
   useEffect(() => {
     async function fetchAll() {
@@ -98,6 +109,26 @@ export default function CommitteeDetailPage() {
       const combined = Array.from(seenById.values());
 
       setMembers(combined);
+
+      // 請願データを取得（両院、最新30件）
+      const [pRes, spRes] = await Promise.all([
+        supabase
+          .from("petitions")
+          .select("id,session,number,title,result,introducer_names,source_url")
+          .eq("committee_name", committeeName)
+          .order("session", { ascending: false })
+          .limit(30),
+        supabase
+          .from("sangiin_petitions")
+          .select("id,session,number,title,result,introducer_names,source_url")
+          .eq("committee_name", committeeName)
+          .order("session", { ascending: false })
+          .limit(30),
+      ]);
+      const allPetitions = [...(pRes.data || []), ...(spRes.data || [])]
+        .sort((a, b) => b.session - a.session);
+      setPetitions(allPetitions);
+
       setLoading(false);
     }
     fetchAll();
@@ -329,6 +360,59 @@ export default function CommitteeDetailPage() {
           })}
         </div>
       </div>
+
+      {/* 請願一覧 */}
+      {petitions.length > 0 && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b",
+          borderRadius: 12, padding: 24, marginTop: 16 }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
+            textTransform: "uppercase", letterSpacing: 1 }}>
+            📜 付託された請願（最新{petitions.length}件）
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {petitions.map((p, i) => {
+              const resultColor = p.result === "採択" ? "#22c55e"
+                : p.result === "不採択" ? "#ef4444" : "#64748b";
+              return (
+                <div key={p.id} style={{ padding: "14px 0",
+                  borderBottom: i < petitions.length - 1 ? "1px solid #1e293b" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", flex: 1 }}>
+                      {p.title}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#475569", flexShrink: 0 }}>
+                      第{p.session}回 #{p.number}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    {p.result && (
+                      <span style={{ fontSize: 11, color: resultColor, fontWeight: 700,
+                        background: resultColor + "22", border: `1px solid ${resultColor}44`,
+                        padding: "2px 8px", borderRadius: 4 }}>
+                        {p.result}
+                      </span>
+                    )}
+                    {p.introducer_names && p.introducer_names.length > 0 && (
+                      <span style={{ fontSize: 12, color: "#64748b" }}>
+                        紹介: {p.introducer_names.slice(0, 3).join("・")}
+                        {p.introducer_names.length > 3 && ` 他${p.introducer_names.length - 3}名`}
+                      </span>
+                    )}
+                    {p.source_url && (
+                      <a href={p.source_url} target="_blank" rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
+                        📄 詳細 →
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

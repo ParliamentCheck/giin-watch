@@ -59,6 +59,11 @@ jobs:
         continue-on-error: true
         run: python apps/collector/sources/questions.py
 
+      - name: 請願収集
+        id: petitions
+        continue-on-error: true
+        run: python apps/collector/sources/petitions.py
+
       - name: 委員会所属収集
         id: committees
         continue-on-error: true
@@ -82,6 +87,7 @@ jobs:
           echo "| スコア再計算 | ${{ steps.scoring.outcome }} |"
           echo "| 内閣役職 | ${{ steps.cabinet.outcome }} |"
           echo "| 質問主意書 | ${{ steps.questions.outcome }} |"
+          echo "| 請願収集 | ${{ steps.petitions.outcome }} |"
           echo "| 委員会所属 | ${{ steps.committees.outcome }} |"
           echo "| キーワード更新 | ${{ steps.keywords.outcome }} |"
 

@@ -31,6 +31,7 @@ def main() -> None:
     from processors.scoring import recalculate_scores
     from sources.cabinet_scraper import main as collect_cabinet
     from sources.questions import collect_shugiin_questions, collect_sangiin_questions
+    from sources.petitions import collect_shugiin_petitions, collect_sangiin_petitions
     from sources.committees import collect_shugiin_committees, collect_sangiin_committees
     from sources.bills import collect_bills
     from sources.keywords import daily_update as keywords_daily
@@ -46,6 +47,8 @@ def main() -> None:
         "bills":          _step("議員立法（日次）",    lambda: collect_bills(daily=True)),
         "questions_shu":  _step("質問主意書（衆）",   collect_shugiin_questions),
         "questions_san":  _step("質問主意書（参）",   collect_sangiin_questions),
+        "petitions_shu":  _step("請願（衆）",         collect_shugiin_petitions),
+        "petitions_san":  _step("請願（参）",         collect_sangiin_petitions),
         "committees_shu": _step("委員会（衆）",       collect_shugiin_committees),
         "committees_san": _step("委員会（参）",       collect_sangiin_committees),
     }
