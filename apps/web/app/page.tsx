@@ -43,7 +43,7 @@ async function getRecentQuestions() {
 async function getLatestCommitteeActivity() {
   const { data } = await supabase
     .from("speeches")
-    .select("spoken_at, committee, member_id, members(name)")
+    .select("spoken_at, committee, member_id, source_url, members(name)")
     .eq("is_procedural", false)
     .order("spoken_at", { ascending: false })
     .limit(500);
@@ -54,6 +54,7 @@ async function getLatestCommitteeActivity() {
   const groupMap = new Map<string, {
     date: string;
     committee: string;
+    sourceUrl: string;
     memberIds: Set<string>;
     memberNames: Map<string, string>;
   }>();
@@ -63,7 +64,7 @@ async function getLatestCommitteeActivity() {
     if (!s.spoken_at || !committee) continue;
     const key = `${s.spoken_at}__${committee}`;
     if (!groupMap.has(key)) {
-      groupMap.set(key, { date: s.spoken_at, committee, memberIds: new Set(), memberNames: new Map() });
+      groupMap.set(key, { date: s.spoken_at, committee, sourceUrl: s.source_url || "", memberIds: new Set(), memberNames: new Map() });
     }
     const group = groupMap.get(key)!;
     if (s.member_id) {
@@ -78,7 +79,7 @@ async function getLatestCommitteeActivity() {
       date: g.date,
       committee: g.committee,
       members: [...g.memberIds].map((id) => ({ id, name: g.memberNames.get(id) || "" })),
-      ndlUrl: `https://kokkai.ndl.go.jp/#/search?startRecord=1&from=${g.date}&until=${g.date}&nameOfMeeting=${encodeURIComponent(g.committee)}`,
+      ndlUrl: g.sourceUrl,
     }));
 }
 
@@ -228,7 +229,7 @@ export default async function TopPage() {
               </div>
               <div className="space-y-2">
                 {committeeActivities.map((c) => (
-                  <a key={`${c.date}-${c.committee}`} href={c.ndlUrl}
+                  <a key={`${c.date}-${c.committee}`} href={c.ndlUrl || undefined}
                     target="_blank" rel="noopener noreferrer"
                     className="block bg-slate-900/40 border border-slate-800/60 rounded-xl px-4 py-3 hover:border-slate-700 transition-colors">
                     <div className="flex items-center justify-between mb-2">
