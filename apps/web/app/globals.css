@@ -10,6 +10,16 @@
   --color-foreground: var(--foreground);
 }
 
+/* 政党一覧: 発言を全幅1行、質問・人数を2列 */
+.party-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.party-stats-grid > *:first-child {
+  grid-column: 1 / -1;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -46,6 +56,7 @@ body {
 
   /* 議員詳細: サマリーカード 4列→2列 */
   .summary-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
 
   /* 議員詳細: タブバー 2列折り返し */
   .tab-bar { flex-wrap: wrap !important; }

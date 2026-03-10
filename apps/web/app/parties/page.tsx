@@ -156,12 +156,11 @@ export default function PartiesPage() {
                   </div>
 
                   {/* 統計グリッド */}
-                  <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                  <div className="party-stats-grid">
                     {[
                       { label: "発言数合計",    value: p.speeches.toLocaleString(),   unit: "件" },
-                      { label: "1人あたり発言", value: avgSpeeches,                   unit: "件" },
                       { label: "質問主意書",    value: p.questions,                   unit: "件" },
-                      { label: "委員長・理事",  value: `${p.committee_chairs + p.committee_execs}`, unit: `名 (委${p.committee_chairs}理${p.committee_execs})` },
+                      { label: "議員数",        value: p.total,                       unit: "名" },
                     ].map((item) => (
                       <div key={item.label} style={{ background: "#1e293b", borderRadius: 10, padding: 12 }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginBottom: 2 }}>
