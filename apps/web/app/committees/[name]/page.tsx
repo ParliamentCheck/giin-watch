@@ -57,6 +57,7 @@ export default function CommitteeDetailPage() {
   const [petitions, setPetitions] = useState<Petition[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [sortBy,    setSortBy]    = useState("role");
+  const [tab,       setTab]       = useState<"chairs" | "members" | "petitions">("chairs");
 
   useEffect(() => {
     async function fetchAll() {
@@ -235,182 +236,205 @@ export default function CommitteeDetailPage() {
         </div>
       </div>
 
-      {/* 委員長・理事 */}
-      {(chairList.length > 0 || execList.length > 0) && (
+      {/* タブバー */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16,
+        background: "#0f172a", border: "1px solid #1e293b", borderRadius: 12, padding: 4 }}>
+        {([
+          { id: "chairs"   as const, label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
+          { id: "members"  as const, label: `👤 議員一覧 (${members.length})` },
+          { id: "petitions" as const, label: `📜 請願 (${petitions.length})` },
+        ]).map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
+              background: tab === t.id ? houseColor : "transparent",
+              color: tab === t.id ? "white" : "#64748b",
+              cursor: "pointer", fontWeight: tab === t.id ? 700 : 400,
+              fontSize: 13, transition: "all 0.2s" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 委員長・理事タブ */}
+      {tab === "chairs" && (
         <div style={{ background: "#0f172a", border: "1px solid #1e293b",
-          borderRadius: 12, padding: 24, marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
-            textTransform: "uppercase", letterSpacing: 1 }}>
-            🏛 委員長・理事
-          </h3>
-          {chairList.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
-              {chairList.map((c, i) => {
-                const color = PARTY_COLORS[c.party] || "#7f8c8d";
-                return (
-                  <div key={i}
-                    onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
-                    style={{ display: "flex", alignItems: "center", gap: 12,
-                      padding: "12px 16px", borderRadius: 10, background: "#1e293b",
-                      cursor: "pointer", transition: "background 0.15s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
-                    <span style={{ background: "#f59e0b22", color: "#f59e0b",
-                      border: "1px solid #f59e0b44", padding: "2px 8px",
-                      borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                      {c.role}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: "#64748b" }}>{c.house} · {c.district}</div>
-                    </div>
-                    <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                      padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
-                      {c.party}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          {execList.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {execList.map((c, i) => {
-                const color = PARTY_COLORS[c.party] || "#7f8c8d";
-                return (
-                  <div key={i}
-                    onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
-                    style={{ display: "flex", alignItems: "center", gap: 12,
-                      padding: "12px 16px", borderRadius: 10, background: "#1e293b",
-                      cursor: "pointer", transition: "background 0.15s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
-                    <span style={{ background: "#3b82f622", color: "#3b82f6",
-                      border: "1px solid #3b82f644", padding: "2px 8px",
-                      borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                      {c.role}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: "#64748b" }}>{c.house} · {c.district}</div>
-                    </div>
-                    <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                      padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
-                      {c.party}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+          borderRadius: 12, padding: 24 }}>
+          {chairList.length === 0 && execList.length === 0 ? (
+            <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>データがありません。</div>
+          ) : (
+            <>
+              {chairList.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: execList.length > 0 ? 12 : 0 }}>
+                  {chairList.map((c, i) => {
+                    const color = PARTY_COLORS[c.party] || "#7f8c8d";
+                    return (
+                      <div key={i}
+                        onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
+                        style={{ display: "flex", alignItems: "center", gap: 12,
+                          padding: "12px 16px", borderRadius: 10, background: "#1e293b",
+                          cursor: "pointer", transition: "background 0.15s" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
+                        <span style={{ background: "#f59e0b22", color: "#f59e0b",
+                          border: "1px solid #f59e0b44", padding: "2px 8px",
+                          borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                          {c.role}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{c.name}</div>
+                          <div style={{ fontSize: 11, color: "#64748b" }}>{c.house} · {c.district}</div>
+                        </div>
+                        <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
+                          padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                          {c.party}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {execList.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {execList.map((c, i) => {
+                    const color = PARTY_COLORS[c.party] || "#7f8c8d";
+                    return (
+                      <div key={i}
+                        onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
+                        style={{ display: "flex", alignItems: "center", gap: 12,
+                          padding: "12px 16px", borderRadius: 10, background: "#1e293b",
+                          cursor: "pointer", transition: "background 0.15s" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
+                        <span style={{ background: "#3b82f622", color: "#3b82f6",
+                          border: "1px solid #3b82f644", padding: "2px 8px",
+                          borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                          {c.role}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{c.name}</div>
+                          <div style={{ fontSize: 11, color: "#64748b" }}>{c.house} · {c.district}</div>
+                        </div>
+                        <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
+                          padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                          {c.party}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
 
-      {/* 所属議員一覧 */}
-      <div style={{ background: "#0f172a", border: "1px solid #1e293b",
-        borderRadius: 12, padding: 24 }}>
-        <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
-          textTransform: "uppercase", letterSpacing: 1 }}>
-          👤 所属議員一覧（{members.length}名）
-        </h3>
-
-        {/* ソート */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          {[
-            { value: "role", label: "役職順" },
-            { value: "name", label: "名前順" },
-          ].map((s) => (
-            <button key={s.value} onClick={() => setSortBy(s.value)}
-              style={{ background: sortBy === s.value ? houseColor + "33" : "#1e293b",
-                border: `1px solid ${sortBy === s.value ? houseColor : "#334155"}`,
-                color: sortBy === s.value ? houseColor : "#64748b",
-                padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
-              {s.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {sorted.map((m) => {
-            const color = PARTY_COLORS[m.party] || "#7f8c8d";
-            return (
-              <div key={m.member_id}
-                onClick={() => router.push(`/members/${encodeURIComponent(m.member_id)}`)}
-                style={{ display: "flex", alignItems: "center", gap: 12,
-                  padding: "12px 16px", borderRadius: 10, background: "#1e293b",
-                  cursor: "pointer", transition: "background 0.15s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
-                {m.role && (
-                  <span style={{ fontSize: 10, color: "#64748b", border: "1px solid #334155",
-                    padding: "1px 6px", borderRadius: 3, flexShrink: 0 }}>
-                    {m.role}
-                  </span>
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{m.name}</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>{m.house} · {m.district}</div>
-                </div>
-                <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                  padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
-                  {m.party}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 請願一覧 */}
-      {petitions.length > 0 && (
+      {/* 議員一覧タブ */}
+      {tab === "members" && (
         <div style={{ background: "#0f172a", border: "1px solid #1e293b",
-          borderRadius: 12, padding: 24, marginTop: 16 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#94a3b8",
-            textTransform: "uppercase", letterSpacing: 1 }}>
-            📜 付託された請願（最新{petitions.length}件）
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {petitions.map((p, i) => {
-              const resultColor = p.result === "採択" ? "#22c55e"
-                : p.result === "不採択" ? "#ef4444" : "#64748b";
+          borderRadius: 12, padding: 24 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            {[
+              { value: "role", label: "役職順" },
+              { value: "name", label: "名前順" },
+            ].map((s) => (
+              <button key={s.value} onClick={() => setSortBy(s.value)}
+                style={{ background: sortBy === s.value ? houseColor + "33" : "#1e293b",
+                  border: `1px solid ${sortBy === s.value ? houseColor : "#334155"}`,
+                  color: sortBy === s.value ? houseColor : "#64748b",
+                  padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {sorted.map((m) => {
+              const color = PARTY_COLORS[m.party] || "#7f8c8d";
               return (
-                <div key={p.id} style={{ padding: "14px 0",
-                  borderBottom: i < petitions.length - 1 ? "1px solid #1e293b" : "none" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between",
-                    alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", flex: 1 }}>
-                      {p.title}
+                <div key={m.member_id}
+                  onClick={() => router.push(`/members/${encodeURIComponent(m.member_id)}`)}
+                  style={{ display: "flex", alignItems: "center", gap: 12,
+                    padding: "12px 16px", borderRadius: 10, background: "#1e293b",
+                    cursor: "pointer", transition: "background 0.15s" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#1e293b"; }}>
+                  {m.role && (
+                    <span style={{ fontSize: 10, color: "#64748b", border: "1px solid #334155",
+                      padding: "1px 6px", borderRadius: 3, flexShrink: 0 }}>
+                      {m.role}
                     </span>
-                    <span style={{ fontSize: 11, color: "#475569", flexShrink: 0 }}>
-                      第{p.session}回 #{p.number}
-                    </span>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9" }}>{m.name}</div>
+                    <div style={{ fontSize: 11, color: "#64748b" }}>{m.house} · {m.district}</div>
                   </div>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                    {p.result && (
-                      <span style={{ fontSize: 11, color: resultColor, fontWeight: 700,
-                        background: resultColor + "22", border: `1px solid ${resultColor}44`,
-                        padding: "2px 8px", borderRadius: 4 }}>
-                        {p.result}
-                      </span>
-                    )}
-                    {p.introducer_names && p.introducer_names.length > 0 && (
-                      <span style={{ fontSize: 12, color: "#64748b" }}>
-                        紹介: {p.introducer_names.slice(0, 3).join("・")}
-                        {p.introducer_names.length > 3 && ` 他${p.introducer_names.length - 3}名`}
-                      </span>
-                    )}
-                    {p.source_url && (
-                      <a href={p.source_url} target="_blank" rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
-                        📄 詳細 →
-                      </a>
-                    )}
-                  </div>
+                  <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
+                    padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                    {m.party}
+                  </span>
                 </div>
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* 請願タブ */}
+      {tab === "petitions" && (
+        <div style={{ background: "#0f172a", border: "1px solid #1e293b",
+          borderRadius: 12, padding: 24 }}>
+          {petitions.length === 0 ? (
+            <div style={{ color: "#475569", fontSize: 13, padding: "20px 0" }}>
+              付託された請願データがありません。
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {petitions.map((p, i) => {
+                const resultColor = p.result === "採択" ? "#22c55e"
+                  : p.result === "不採択" ? "#ef4444" : "#64748b";
+                return (
+                  <div key={p.id} style={{ padding: "14px 0",
+                    borderBottom: i < petitions.length - 1 ? "1px solid #1e293b" : "none" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between",
+                      alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", flex: 1 }}>
+                        {p.title}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#475569", flexShrink: 0 }}>
+                        第{p.session}回 #{p.number}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+                      {p.result && (
+                        <span style={{ fontSize: 11, color: resultColor, fontWeight: 700,
+                          background: resultColor + "22", border: `1px solid ${resultColor}44`,
+                          padding: "2px 8px", borderRadius: 4 }}>
+                          {p.result}
+                        </span>
+                      )}
+                      {p.source_url && (
+                        <a href={p.source_url} target="_blank" rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ fontSize: 12, color: "#3b82f6", textDecoration: "none" }}>
+                          📄 詳細 →
+                        </a>
+                      )}
+                    </div>
+                    {p.introducer_names && p.introducer_names.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {p.introducer_names.map((name) => (
+                          <span key={name} style={{ fontSize: 11, color: "#94a3b8",
+                            background: "#1e293b", border: "1px solid #334155",
+                            padding: "1px 6px", borderRadius: 3 }}>
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
