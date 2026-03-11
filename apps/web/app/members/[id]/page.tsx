@@ -179,7 +179,13 @@ export default function MemberDetailPage() {
       const shugiinP = safe(8) || [];
       const sangiinP = safe(9) || [];
       const allPetitions = [...shugiinP, ...sangiinP]
-        .sort((a: any, b: any) => b.session - a.session);
+        .sort((a: any, b: any) => {
+          if (a.result_date && b.result_date) return b.result_date.localeCompare(a.result_date);
+          if (a.result_date && !b.result_date) return -1;
+          if (!a.result_date && b.result_date) return 1;
+          if (b.session !== a.session) return b.session - a.session;
+          return b.number - a.number;
+        });
       setPetitions(allPetitions);
       setLoading(false);
     }

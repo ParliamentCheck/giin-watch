@@ -1,6 +1,7 @@
 export const revalidate = 3600;
 import { supabase } from "../lib/supabase";
 import Link from "next/link";
+import ActivityTabs from "./components/ActivityTabs";
 
 /* ─── データ取得（サーバーサイド） ─────────────────────────────── */
 async function getStats() {
@@ -37,6 +38,27 @@ async function getRecentQuestions() {
 
   return [...shu, ...san]
     .sort((a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || ""))
+    .slice(0, 10);
+}
+
+async function getRecentPetitions() {
+  const [shuRes, sanRes] = await Promise.all([
+    supabase.from("petitions")
+      .select("id, session, number, title, committee_name, result, result_date, source_url")
+      .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
+    supabase.from("sangiin_petitions")
+      .select("id, session, number, title, committee_name, result, result_date, source_url")
+      .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
+  ]);
+
+  const shu = (shuRes.data || []).map((p: any) => ({ ...p, house: "衆" as const }));
+  const san = (sanRes.data || []).map((p: any) => ({ ...p, house: "参" as const }));
+
+  return [...shu, ...san]
+    .sort((a, b) => {
+      if (b.session !== a.session) return b.session - a.session;
+      return b.number - a.number;
+    })
     .slice(0, 10);
 }
 
@@ -107,11 +129,12 @@ async function getPartyBreakdown() {
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
-  const [stats, recentQuestions, committeeActivities, partyBreakdown] = await Promise.all([
+  const [stats, recentQuestions, committeeActivities, partyBreakdown, recentPetitions] = await Promise.all([
     getStats(),
     getRecentQuestions(),
     getLatestCommitteeActivity(),
     getPartyBreakdown(),
+    getRecentPetitions(),
   ]);
 
   const maxPartyCount = partyBreakdown[0]?.total || 1;
@@ -178,83 +201,12 @@ export default async function TopPage() {
           ))}
         </section>
 
-        {/* ── 2カラム：質問主意書 + 委員会活動 ───────────────── */}
-        <section className="grid lg:grid-cols-2 gap-6 mb-16">
-
-          {/* 最新の質問主意書 */}
-          {recentQuestions.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-slate-100">📝 最新の質問主意書</h2>
-              </div>
-              <div className="space-y-2">
-                {recentQuestions.map((q: any) => (
-                  <div key={q.id}
-                    className="bg-slate-900/40 border border-slate-800/60 rounded-xl px-4 py-3">
-                    <div className="flex items-start gap-2 mb-1.5">
-                      <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${
-                        q.house === "衆" ? "bg-sky-900/60 text-sky-400" : "bg-violet-900/60 text-violet-400"
-                      }`}>{q.house}</span>
-                      {q.source_url ? (
-                        <a href={q.source_url} target="_blank" rel="noopener noreferrer"
-                          className="text-sm text-slate-300 hover:text-white leading-snug transition-colors line-clamp-2">
-                          {q.title}
-                        </a>
-                      ) : (
-                        <span className="text-sm text-slate-300 leading-snug line-clamp-2">{q.title}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 pl-6">
-                      <Link href={`/members/${encodeURIComponent(q.member_id)}`}
-                        className="hover:text-blue-400 transition-colors">
-                        {(q.members as any)?.name}
-                      </Link>
-                      <span className="text-slate-700">·</span>
-                      <span>{(q.members as any)?.party}</span>
-                      <span className="text-slate-700">·</span>
-                      <span className="tabular-nums">{q.submitted_at}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 直近の委員会活動 */}
-          {committeeActivities.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-slate-100">🏛 直近の委員会活動</h2>
-              </div>
-              <div className="space-y-2">
-                {committeeActivities.map((c) => (
-                  <a key={`${c.date}-${c.committee}`} href={c.ndlUrl || undefined}
-                    target="_blank" rel="noopener noreferrer"
-                    className="block bg-slate-900/40 border border-slate-800/60 rounded-xl px-4 py-3 hover:border-slate-700 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm font-semibold text-slate-200">{c.committee}</div>
-                      <span className="text-xs text-slate-500 tabular-nums shrink-0 ml-2">{c.date}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {c.members.slice(0, 8).map((m) => (
-                        <span key={m.id}
-                          className="text-xs text-slate-400 bg-slate-800/60 px-2 py-0.5 rounded">
-                          {m.name}
-                        </span>
-                      ))}
-                      {c.members.length > 8 && (
-                        <span className="text-xs text-slate-600 px-2 py-0.5">他{c.members.length - 8}名</span>
-                      )}
-                    </div>
-                  </a>
-                ))}
-              </div>
-              <p className="text-[11px] text-slate-600 mt-2">
-                ※ 国会会議録システムへの反映には1〜2週間かかる場合があります
-              </p>
-            </div>
-          )}
-        </section>
+        {/* ── 活動タブ：質問主意書 / 委員会活動 / 請願 ───────── */}
+        <ActivityTabs
+          recentQuestions={recentQuestions as any}
+          committeeActivities={committeeActivities}
+          recentPetitions={recentPetitions as any}
+        />
 
         {/* ── 政党別 議員数 ──────────────────────────────────── */}
         {partyBreakdown.length > 0 && (
