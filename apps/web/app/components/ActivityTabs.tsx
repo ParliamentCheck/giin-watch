@@ -30,6 +30,7 @@ interface Petition {
   result_date: string | null;
   source_url: string | null;
   house: "衆" | "参";
+  introducer_names: string[] | null;
 }
 
 interface Props {
@@ -179,6 +180,21 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                     </>
                   )}
                 </div>
+                {p.introducer_names && p.introducer_names.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5 pl-6">
+                    {p.introducer_names.slice(0, 5).map((name) => (
+                      <span key={name}
+                        className="text-[11px] text-slate-400 bg-slate-800/60 px-1.5 py-0.5 rounded">
+                        {name}
+                      </span>
+                    ))}
+                    {p.introducer_names.length > 5 && (
+                      <span className="text-[11px] text-slate-600 px-1.5 py-0.5">
+                        他{p.introducer_names.length - 5}名
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

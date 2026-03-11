@@ -44,10 +44,10 @@ async function getRecentQuestions() {
 async function getRecentPetitions() {
   const [shuRes, sanRes] = await Promise.all([
     supabase.from("petitions")
-      .select("id, session, number, title, committee_name, result, result_date, source_url")
+      .select("id, session, number, title, committee_name, result, result_date, source_url, introducer_names")
       .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
     supabase.from("sangiin_petitions")
-      .select("id, session, number, title, committee_name, result, result_date, source_url")
+      .select("id, session, number, title, committee_name, result, result_date, source_url, introducer_names")
       .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
   ]);
 
