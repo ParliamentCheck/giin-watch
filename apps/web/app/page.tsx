@@ -2,6 +2,7 @@ export const revalidate = 3600;
 import { supabase } from "../lib/supabase";
 import Link from "next/link";
 import ActivityTabs from "./components/ActivityTabs";
+import changelog from "../lib/changelog";
 
 /* ─── データ取得（サーバーサイド） ─────────────────────────────── */
 async function getStats() {
@@ -237,6 +238,24 @@ export default async function TopPage() {
             </div>
           </section>
         )}
+
+        {/* ── 更新履歴 ─────────────────────────────────────────── */}
+        <section className="mb-16">
+          <h2 className="text-base font-bold text-slate-100 mb-4">🕐 更新履歴</h2>
+          <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl divide-y divide-slate-800/60">
+            {changelog.map((entry, i) => (
+              <div key={i} className="flex items-start gap-4 px-5 py-4">
+                <span className="tabular-nums text-xs text-slate-500 shrink-0 mt-0.5">{entry.date}</span>
+                <div>
+                  <div className="text-sm font-medium text-slate-200">{entry.title}</div>
+                  {entry.description && (
+                    <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">{entry.description}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* ── 注記 ── */}
         <p style={{ textAlign: "center", fontSize: 12, color: "#475569", marginBottom: 8 }}>
