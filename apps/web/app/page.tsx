@@ -145,11 +145,8 @@ export default async function TopPage() {
   return (
     <div className="min-h-screen text-neutral-900">
       {/* ── ヒーロー ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent pointer-events-none" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-neutral-500/5 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative max-w-4xl mx-auto px-5 pt-20 pb-12 text-center">
+      <section>
+        <div className="max-w-4xl mx-auto px-5 pt-20 pb-12 text-center">
           <h1 className="mb-4">
             <img src="/logo-main.svg" alt="はたらく議員" className="h-32 sm:h-40 mx-auto" />
           </h1>
