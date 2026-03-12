@@ -16,11 +16,10 @@ interface Props {
 }
 
 const COLORS = [
-  "#f0f0f0", "#d0d0d0", "#b0b0b0",
-  "#909090", "#707070",
-  "#e8e8e8", "#c8c8c8",
-  "#a8a8a8", "#888888",
-  "#686868", "#505050",
+  "#60a5fa", "#34d399", "#f472b6",
+  "#fbbf24", "#a78bfa", "#38bdf8",
+  "#4ade80", "#fb923c", "#e879f9",
+  "#94a3b8", "#2dd4bf", "#f87171",
 ];
 
 export default function WordCloud({ keywords, width = 500, height = 300 }: Props) {

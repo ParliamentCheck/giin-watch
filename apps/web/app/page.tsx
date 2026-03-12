@@ -178,7 +178,7 @@ export default async function TopPage() {
             { label: "質問主意書", value: stats.questions, unit: "件", accent: "text-neutral-100" },
           ].map((item) => (
             <div key={item.label}
-              className="bg-neutral-950/60 border border-neutral-900 rounded-xl px-4 py-5 text-center hover:border-neutral-800 transition-colors">
+              className="bg-neutral-800/60 border border-neutral-900 rounded-xl px-4 py-5 text-center hover:border-neutral-800 transition-colors">
               <div className={`text-2xl font-extrabold tabular-nums ${item.accent}`}>
                 {item.value.toLocaleString()}
               </div>
@@ -195,7 +195,7 @@ export default async function TopPage() {
             { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数と構成。国会での勢力図が一目でわかる",       path: "/parties",    border: "hover:border-neutral-600" },
           ].map((item) => (
             <Link key={item.path} href={item.path}
-              className={`group block bg-neutral-950/60 border border-neutral-900 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 ${item.border}`}>
+              className={`group block bg-neutral-800/60 border border-neutral-900 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 ${item.border}`}>
               <div className="text-3xl mb-3">{item.icon}</div>
               <div className="text-lg font-bold text-neutral-50 mb-2 group-hover:text-white transition-colors">{item.title}</div>
               <div className="text-sm text-neutral-400 leading-relaxed">{item.desc}</div>
@@ -220,7 +220,7 @@ export default async function TopPage() {
               </Link>
             </div>
 
-            <div className="bg-neutral-950/40 border border-neutral-900/60 rounded-2xl p-6 space-y-4">
+            <div className="bg-neutral-800/40 border border-neutral-700/60 rounded-2xl p-6 space-y-4">
               {partyBreakdown.map((p) => (
                 <div key={p.party}>
                   <div className="flex items-center justify-between mb-1.5">
@@ -243,7 +243,7 @@ export default async function TopPage() {
         {/* ── 更新履歴 ─────────────────────────────────────────── */}
         <section className="mb-16">
           <h2 className="text-base font-bold text-neutral-50 mb-4">🕐 更新履歴</h2>
-          <div className="bg-neutral-950/40 border border-neutral-900/60 rounded-2xl divide-y divide-neutral-900/60">
+          <div className="bg-neutral-800/40 border border-neutral-700/60 rounded-2xl divide-y divide-neutral-700/60">
             {changelog.map((entry, i) => (
               <div key={i} className="flex items-start gap-4 px-5 py-4">
                 <span className="tabular-nums text-xs text-neutral-400 shrink-0 mt-0.5">{entry.date}</span>
