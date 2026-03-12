@@ -221,8 +221,12 @@ def collect_shugiin_petitions(full: bool = False) -> None:
             time.sleep(0.5)
 
         if records:
-            batch_upsert("petitions", records, on_conflict="id", label=f"petitions:shugi:{session}")
-            total_saved += len(records)
+            # 同一セッション内で同じIDが重複する場合は後勝ちで1件にまとめる
+            deduped = {r["id"]: r for r in records}
+            if len(deduped) < len(records):
+                logger.warning("衆院請願: 重複ID %d件を除去 (session=%d)", len(records) - len(deduped), session)
+            batch_upsert("petitions", list(deduped.values()), on_conflict="id", label=f"petitions:shugi:{session}")
+            total_saved += len(deduped)
         logger.info("衆院 第%d回: %d件保存", session, len(records))
 
     logger.info("衆院請願 収集完了: 合計%d件", total_saved)
@@ -405,7 +409,11 @@ def collect_sangiin_petitions(full: bool = False) -> None:
             time.sleep(0.5)
 
         if records:
-            batch_upsert("sangiin_petitions", records, on_conflict="id", label=f"petitions:sangi:{session}")
+            # 同一セッション内で同じIDが重複する場合は後勝ちで1件にまとめる
+            deduped = {r["id"]: r for r in records}
+            if len(deduped) < len(records):
+                logger.warning("参院請願: 重複ID %d件を除去 (session=%d)", len(records) - len(deduped), session)
+            batch_upsert("sangiin_petitions", list(deduped.values()), on_conflict="id", label=f"petitions:sangi:{session}")
             total_saved += len(records)
         logger.info("参院 第%d回: %d件保存", session, len(records))
 
