@@ -157,33 +157,33 @@ export default function CommitteeDetailPage() {
 
   // 院の色
   const houseColor = committeeName.includes("参議院") || committeeName.includes("参院")
-    ? "#0d9488" : "#0891b2";
+    ? "#d0d0d0" : "#888888";
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", display: "flex",
-      alignItems: "center", justifyContent: "center", color: "#6a9e9e" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex",
+      alignItems: "center", justifyContent: "center", color: "#777777" }}>
       データ読み込み中...
     </div>
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#e8e8e8",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
       <button onClick={() => router.push("/committees")}
-        style={{ background: "transparent", border: "1px solid #2d5c5c", color: "#90c8c8",
+        style={{ background: "transparent", border: "1px solid #383838", color: "#999999",
           padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24, fontSize: 14 }}>
         ← 委員会一覧に戻る
       </button>
 
       {/* ヘッダー */}
-      <div style={{ background: "#071a1a", border: `1px solid ${houseColor}44`,
+      <div style={{ background: "#141414", border: `1px solid ${houseColor}44`,
         borderRadius: 16, padding: 28, marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
           <div style={{ width: 14, height: 14, borderRadius: "50%", background: houseColor }} />
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#edfafa" }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#f0f0f0" }}>
             {committeeName}
           </h1>
         </div>
@@ -193,22 +193,22 @@ export default function CommitteeDetailPage() {
             { label: "委員長・会長", value: chairList.length,     unit: "名" },
             { label: "理事・副会長", value: execList.length,      unit: "名" },
           ].map((item) => (
-            <div key={item.label} style={{ background: "#0d2828", borderRadius: 12,
+            <div key={item.label} style={{ background: "#1e1e1e", borderRadius: 12,
               padding: 16, textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color: houseColor, marginBottom: 4 }}>
                 {item.value}
-                <span style={{ fontSize: 12, color: "#6a9e9e", marginLeft: 4 }}>{item.unit}</span>
+                <span style={{ fontSize: 12, color: "#777777", marginLeft: 4 }}>{item.unit}</span>
               </div>
-              <div style={{ fontSize: 11, color: "#6a9e9e" }}>{item.label}</div>
+              <div style={{ fontSize: 11, color: "#777777" }}>{item.label}</div>
             </div>
           ))}
         </div>
       </div>
 
       {/* 党別構成 */}
-      <div style={{ background: "#071a1a", border: "1px solid #0d2828",
+      <div style={{ background: "#141414", border: "1px solid #1e1e1e",
         borderRadius: 12, padding: 24, marginBottom: 16 }}>
-        <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#90c8c8",
+        <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#999999",
           textTransform: "uppercase", letterSpacing: 1 }}>
           🗳 党別構成
         </h3>
@@ -219,7 +219,7 @@ export default function CommitteeDetailPage() {
             return (
               <div key={party}>
                 <div style={{ display: "flex", justifyContent: "space-between",
-                  fontSize: 12, color: "#90c8c8", marginBottom: 4 }}>
+                  fontSize: 12, color: "#999999", marginBottom: 4 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%",
                       background: color, display: "inline-block" }} />
@@ -227,7 +227,7 @@ export default function CommitteeDetailPage() {
                   </span>
                   <span style={{ color, fontWeight: 700 }}>{count}名（{pct}%）</span>
                 </div>
-                <div style={{ height: 6, background: "#0d2828", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ height: 6, background: "#1e1e1e", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ width: `${count / maxPartyCount * 100}%`, height: "100%",
                     background: color, borderRadius: 3, transition: "width 0.6s ease" }} />
                 </div>
@@ -239,7 +239,7 @@ export default function CommitteeDetailPage() {
 
       {/* タブバー */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16,
-        background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 4 }}>
+        background: "#141414", border: "1px solid #1e1e1e", borderRadius: 12, padding: 4 }}>
         {([
           { id: "chairs"   as const, label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
           { id: "members"  as const, label: `👤 議員一覧 (${members.length})` },
@@ -248,7 +248,7 @@ export default function CommitteeDetailPage() {
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
               background: tab === t.id ? houseColor : "transparent",
-              color: tab === t.id ? "white" : "#6a9e9e",
+              color: tab === t.id ? "white" : "#777777",
               cursor: "pointer", fontWeight: tab === t.id ? 700 : 400,
               fontSize: 13, transition: "all 0.2s" }}>
             {t.label}
@@ -258,10 +258,10 @@ export default function CommitteeDetailPage() {
 
       {/* 委員長・理事タブ */}
       {tab === "chairs" && (
-        <div style={{ background: "#071a1a", border: "1px solid #0d2828",
+        <div style={{ background: "#141414", border: "1px solid #1e1e1e",
           borderRadius: 12, padding: 24 }}>
           {chairList.length === 0 && execList.length === 0 ? (
-            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>データがありません。</div>
+            <div style={{ color: "#555555", fontSize: 13, padding: "20px 0" }}>データがありません。</div>
           ) : (
             <>
               {chairList.length > 0 && (
@@ -272,18 +272,18 @@ export default function CommitteeDetailPage() {
                       <div key={i}
                         onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
                         style={{ display: "flex", alignItems: "center", gap: 12,
-                          padding: "12px 16px", borderRadius: 10, background: "#0d2828",
+                          padding: "12px 16px", borderRadius: 10, background: "#1e1e1e",
                           cursor: "pointer", transition: "background 0.15s" }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "#0d2828"; }}>
-                        <span style={{ background: "#f59e0b22", color: "#f59e0b",
-                          border: "1px solid #f59e0b44", padding: "2px 8px",
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "#1e1e1e"; }}>
+                        <span style={{ background: "#55555522", color: "#d0d0d0",
+                          border: "1px solid #55555544", padding: "2px 8px",
                           borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                           {c.role}
                         </span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: "#edfafa" }}>{c.name}</div>
-                          <div style={{ fontSize: 11, color: "#6a9e9e" }}>{c.house} · {c.district}</div>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: "#f0f0f0" }}>{c.name}</div>
+                          <div style={{ fontSize: 11, color: "#777777" }}>{c.house} · {c.district}</div>
                         </div>
                         <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
                           padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
@@ -302,18 +302,18 @@ export default function CommitteeDetailPage() {
                       <div key={i}
                         onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
                         style={{ display: "flex", alignItems: "center", gap: 12,
-                          padding: "12px 16px", borderRadius: 10, background: "#0d2828",
+                          padding: "12px 16px", borderRadius: 10, background: "#1e1e1e",
                           cursor: "pointer", transition: "background 0.15s" }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "#0d2828"; }}>
-                        <span style={{ background: "#0d948822", color: "#0d9488",
-                          border: "1px solid #0d948844", padding: "2px 8px",
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "#1e1e1e"; }}>
+                        <span style={{ background: "#55555522", color: "#d0d0d0",
+                          border: "1px solid #55555544", padding: "2px 8px",
                           borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                           {c.role}
                         </span>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: "#edfafa" }}>{c.name}</div>
-                          <div style={{ fontSize: 11, color: "#6a9e9e" }}>{c.house} · {c.district}</div>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: "#f0f0f0" }}>{c.name}</div>
+                          <div style={{ fontSize: 11, color: "#777777" }}>{c.house} · {c.district}</div>
                         </div>
                         <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
                           padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
@@ -331,7 +331,7 @@ export default function CommitteeDetailPage() {
 
       {/* 議員一覧タブ */}
       {tab === "members" && (
-        <div style={{ background: "#071a1a", border: "1px solid #0d2828",
+        <div style={{ background: "#141414", border: "1px solid #1e1e1e",
           borderRadius: 12, padding: 24 }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {[
@@ -339,9 +339,9 @@ export default function CommitteeDetailPage() {
               { value: "name", label: "名前順" },
             ].map((s) => (
               <button key={s.value} onClick={() => setSortBy(s.value)}
-                style={{ background: sortBy === s.value ? houseColor + "33" : "#0d2828",
-                  border: `1px solid ${sortBy === s.value ? houseColor : "#2d5c5c"}`,
-                  color: sortBy === s.value ? houseColor : "#6a9e9e",
+                style={{ background: sortBy === s.value ? houseColor + "33" : "#1e1e1e",
+                  border: `1px solid ${sortBy === s.value ? houseColor : "#383838"}`,
+                  color: sortBy === s.value ? houseColor : "#777777",
                   padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
                 {s.label}
               </button>
@@ -354,19 +354,19 @@ export default function CommitteeDetailPage() {
                 <div key={m.member_id}
                   onClick={() => router.push(`/members/${encodeURIComponent(m.member_id)}`)}
                   style={{ display: "flex", alignItems: "center", gap: 12,
-                    padding: "12px 16px", borderRadius: 10, background: "#0d2828",
+                    padding: "12px 16px", borderRadius: 10, background: "#1e1e1e",
                     cursor: "pointer", transition: "background 0.15s" }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "#0d2828"; }}>
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#1e1e1e"; }}>
                   {m.role && (
-                    <span style={{ fontSize: 10, color: "#6a9e9e", border: "1px solid #2d5c5c",
+                    <span style={{ fontSize: 10, color: "#777777", border: "1px solid #383838",
                       padding: "1px 6px", borderRadius: 3, flexShrink: 0 }}>
                       {m.role}
                     </span>
                   )}
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: "#edfafa" }}>{m.name}</div>
-                    <div style={{ fontSize: 11, color: "#6a9e9e" }}>{m.house} · {m.district}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "#f0f0f0" }}>{m.name}</div>
+                    <div style={{ fontSize: 11, color: "#777777" }}>{m.house} · {m.district}</div>
                   </div>
                   <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
                     padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
@@ -381,26 +381,26 @@ export default function CommitteeDetailPage() {
 
       {/* 請願タブ */}
       {tab === "petitions" && (
-        <div style={{ background: "#071a1a", border: "1px solid #0d2828",
+        <div style={{ background: "#141414", border: "1px solid #1e1e1e",
           borderRadius: 12, padding: 24 }}>
           {petitions.length === 0 ? (
-            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#555555", fontSize: 13, padding: "20px 0" }}>
               付託された請願データがありません。
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
               {petitions.map((p, i) => {
                 const resultColor = p.result === "採択" ? "#22c55e"
-                  : p.result === "不採択" ? "#ef4444" : "#6a9e9e";
+                  : p.result === "不採択" ? "#ef4444" : "#777777";
                 return (
                   <div key={p.id} style={{ padding: "14px 0",
-                    borderBottom: i < petitions.length - 1 ? "1px solid #0d2828" : "none" }}>
+                    borderBottom: i < petitions.length - 1 ? "1px solid #1e1e1e" : "none" }}>
                     <div style={{ display: "flex", justifyContent: "space-between",
                       alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#e8f5f5", flex: 1 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#e8e8e8", flex: 1 }}>
                         {p.title}
                       </span>
-                      <span style={{ fontSize: 11, color: "#4a7a7a", flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, color: "#555555", flexShrink: 0 }}>
                         第{p.session}回 #{p.number}
                       </span>
                     </div>
@@ -415,7 +415,7 @@ export default function CommitteeDetailPage() {
                       {p.source_url && (
                         <a href={p.source_url} target="_blank" rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          style={{ fontSize: 12, color: "#0d9488", textDecoration: "none" }}>
+                          style={{ fontSize: 12, color: "#d0d0d0", textDecoration: "none" }}>
                           📄 詳細 →
                         </a>
                       )}
@@ -423,8 +423,8 @@ export default function CommitteeDetailPage() {
                     {p.introducer_names && p.introducer_names.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                         {p.introducer_names.map((name) => (
-                          <span key={name} style={{ fontSize: 11, color: "#90c8c8",
-                            background: "#0d2828", border: "1px solid #2d5c5c",
+                          <span key={name} style={{ fontSize: 11, color: "#999999",
+                            background: "#1e1e1e", border: "1px solid #383838",
                             padding: "1px 6px", borderRadius: 3 }}>
                             {name}
                           </span>

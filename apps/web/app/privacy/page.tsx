@@ -2,18 +2,18 @@ export const metadata = { title: "プライバシーポリシー" };
 
 export default function PrivacyPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#e8e8e8",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "40px 24px" }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 32, color: "#edfafa" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 32, color: "#f0f0f0" }}>
           プライバシーポリシー
         </h1>
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#90c8c8", marginBottom: 12,
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#999999", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>アクセス解析ツールについて</h2>
-          <p style={{ lineHeight: 1.9, color: "#90c8c8" }}>
+          <p style={{ lineHeight: 1.9, color: "#999999" }}>
             当サイトでは、Googleによるアクセス解析ツール「Googleアナリティクス」を利用しています。
             Googleアナリティクスはトラフィックデータの収集のためにCookieを使用しております。
             トラフィックデータは匿名で収集されており、個人を特定するものではありません。
@@ -22,19 +22,19 @@ export default function PrivacyPage() {
         </section>
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#90c8c8", marginBottom: 12,
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#999999", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>広告の配信について</h2>
-          <p style={{ lineHeight: 1.9, color: "#90c8c8" }}>
+          <p style={{ lineHeight: 1.9, color: "#999999" }}>
             当サイトは、第三者配信の広告サービス（Google AdSense等）を利用する予定、または利用しています。
             広告配信事業者は、ユーザーの興味に応じた商品やサービスの広告を表示するため、
             当サイトや他サイトへのアクセスに関する情報であるCookie（氏名、住所、メールアドレス、
             電話番号は含まれません）を使用することがあります。
           </p>
-          <p style={{ lineHeight: 1.9, color: "#90c8c8", marginTop: 12 }}>
+          <p style={{ lineHeight: 1.9, color: "#999999", marginTop: 12 }}>
             Google AdSenseに関して、このプロセスの詳細やこのような情報が広告配信事業者に
             使用されないようにする方法については、
             <a href="https://policies.google.com/technologies/ads?hl=ja" target="_blank"
-              rel="noopener noreferrer" style={{ color: "#0d9488", textDecoration: "none" }}>
+              rel="noopener noreferrer" style={{ color: "#d0d0d0", textDecoration: "none" }}>
               Googleのポリシーと規約 ↗
             </a>
             をご覧ください。
@@ -42,9 +42,9 @@ export default function PrivacyPage() {
         </section>
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#90c8c8", marginBottom: 12,
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#999999", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>プライバシーポリシーの変更について</h2>
-          <p style={{ lineHeight: 1.9, color: "#90c8c8" }}>
+          <p style={{ lineHeight: 1.9, color: "#999999" }}>
             当サイトは、個人情報に関して適用される日本の法令を遵守するとともに、
             本ポリシーの内容を適宜見直しその改善に努めます。
             修正された最新のプライバシーポリシーは常に本ページにて開示されます。

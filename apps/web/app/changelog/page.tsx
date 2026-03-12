@@ -33,24 +33,24 @@ export default function ChangelogPage() {
   }, {});
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#e8e8e8",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
 
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>📋 変更履歴</h1>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>読み込み中...</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#777777" }}>読み込み中...</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {Object.entries(grouped).map(([date, descs]) => (
-              <div key={date} style={{ background: "#071a1a", border: "1px solid #0d2828",
+              <div key={date} style={{ background: "#141414", border: "1px solid #1e1e1e",
                 borderRadius: 12, padding: 20 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0d9488", marginBottom: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#d0d0d0", marginBottom: 10 }}>
                   {date}
                 </div>
                 {descs.map((d, i) => (
-                  <p key={i} style={{ fontSize: 13, color: "#90c8c8", lineHeight: 1.8, marginBottom: 4 }}>
+                  <p key={i} style={{ fontSize: 13, color: "#999999", lineHeight: 1.8, marginBottom: 4 }}>
                     ・{d}
                   </p>
                 ))}

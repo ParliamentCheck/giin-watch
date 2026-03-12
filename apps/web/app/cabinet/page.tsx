@@ -82,16 +82,16 @@ export default function CabinetPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#e8e8e8",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
 
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>内閣一覧</h1>
-      <p style={{ color: "#6a9e9e", marginBottom: 24 }}>現在 {members.length}名の内閣構成員を収録</p>
+      <p style={{ color: "#777777", marginBottom: 24 }}>現在 {members.length}名の内閣構成員を収録</p>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>データ読み込み中...</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#777777" }}>データ読み込み中...</div>
       ) : members.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>データがありません</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#777777" }}>データがありません</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {members.map((m) => {
@@ -99,19 +99,19 @@ export default function CabinetPage() {
             return (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 10,
+                style={{ background: "#141414", border: "1px solid #1e1e1e", borderRadius: 10,
                   padding: "12px 16px", cursor: "pointer", transition: "border-color 0.15s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#f59e0b"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#0d2828"; }}>
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#d0d0d0"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e1e1e"; }}>
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
                   {/* 大臣職バッジ */}
-                  <span style={{ background: "#f59e0b22", color: "#f59e0b",
-                    border: "1px solid #f59e0b44", padding: "2px 10px",
+                  <span style={{ background: "#55555522", color: "#d0d0d0",
+                    border: "1px solid #55555544", padding: "2px 10px",
                     borderRadius: 4, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
                     👑 {m.cabinet_post}
                   </span>
                   {/* 名前 */}
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "#edfafa", minWidth: 90 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: "#f0f0f0", minWidth: 90 }}>
                     {m.name}
                   </span>
                   {/* 政党バッジ */}
@@ -120,7 +120,7 @@ export default function CabinetPage() {
                     {m.party}
                   </span>
                   {/* 院・選挙区 */}
-                  <span style={{ color: "#6a9e9e", fontSize: 12, whiteSpace: "nowrap" }}>
+                  <span style={{ color: "#777777", fontSize: 12, whiteSpace: "nowrap" }}>
                     {m.house} · {m.district}
                   </span>
                 </div>

@@ -16,11 +16,11 @@ interface Props {
 }
 
 const COLORS = [
-  "#0d9488", "#2dd4bf", "#5eead4",
-  "#2dd4bf", "#6ee7b7",
-  "#f59e0b", "#fcd34d",
-  "#f87171", "#fca5a5",
-  "#a78bfa", "#c4b5fd",
+  "#f0f0f0", "#d0d0d0", "#b0b0b0",
+  "#909090", "#707070",
+  "#e8e8e8", "#c8c8c8",
+  "#a8a8a8", "#888888",
+  "#686868", "#505050",
 ];
 
 export default function WordCloud({ keywords, width = 500, height = 300 }: Props) {
@@ -74,7 +74,7 @@ export default function WordCloud({ keywords, width = 500, height = 300 }: Props
 
   if (keywords.length === 0) {
     return (
-      <div style={{ textAlign: "center", color: "#4a7a7a", padding: "40px 0", fontSize: 13 }}>
+      <div style={{ textAlign: "center", color: "#555555", padding: "40px 0", fontSize: 13 }}>
         発言データが少ないため、キーワードを抽出できませんでした。
       </div>
     );
@@ -85,7 +85,7 @@ export default function WordCloud({ keywords, width = 500, height = 300 }: Props
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
         <svg ref={svgRef} style={{ width: "100%", height: "auto", display: "block" }} />
       </div>
-      <p style={{ fontSize: 11, color: "#4a7a7a", textAlign: "center", marginTop: 12, lineHeight: 1.8 }}>
+      <p style={{ fontSize: 11, color: "#555555", textAlign: "center", marginTop: 12, lineHeight: 1.8 }}>
         国会会議録の発言テキストから名詞を抽出し、出現頻度の高い上位50語を表示しています。<br />
         文字が大きいほど発言頻度が高いキーワードです。国会一般用語（委員長・答弁・法律など）は除外しています。
       </p>
