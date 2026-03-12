@@ -18,6 +18,7 @@ interface Member {
   session_count: number | null;
   question_count: number | null;
   bill_count: number | null;
+  petition_count: number | null;
 }
 
 const PARTY_COLORS: Record<string, string> = {
@@ -38,13 +39,14 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
-type SortKey = "name" | "session_count" | "question_count" | "bill_count" | "terms";
+type SortKey = "name" | "session_count" | "question_count" | "bill_count" | "petition_count" | "terms";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "name",           label: "名前順" },
   { value: "session_count",  label: "発言セッション数順" },
   { value: "question_count", label: "質問主意書数順" },
   { value: "bill_count",     label: "議員立法数順" },
+  { value: "petition_count", label: "請願数順" },
   { value: "terms",          label: "当選回数順" },
 ];
 
@@ -84,7 +86,7 @@ function MembersContent() {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
-        .select("id, name, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count")
+        .select("id, name, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count, petition_count")
         .eq("is_active", true)
         .limit(2000)
         .order("name");
@@ -205,9 +207,10 @@ function MembersContent() {
                   {/* 活動指標 */}
                   <span style={{ marginLeft: "auto", display: "flex", alignItems: "center",
                     gap: 12, fontSize: 12, color: "#888888", whiteSpace: "nowrap" }}>
-                    <span className="hidden-mobile">発言セッション：{(m.session_count ?? 0).toLocaleString()}</span>
-                    <span className="hidden-mobile">質問主意書：{m.question_count ?? 0}</span>
-                    <span className="hidden-mobile">議員立法：{m.bill_count ?? 0}</span>
+                    <span className={sortKey === "session_count"  ? "" : "hidden-mobile"}>発言セッション：{(m.session_count ?? 0).toLocaleString()}</span>
+                    <span className={sortKey === "question_count" ? "" : "hidden-mobile"}>質問主意書：{m.question_count ?? 0}</span>
+                    <span className={sortKey === "bill_count"     ? "" : "hidden-mobile"}>議員立法：{m.bill_count ?? 0}</span>
+                    <span className={sortKey === "petition_count" ? "" : "hidden-mobile"}>請願：{m.petition_count ?? 0}</span>
                     <button
                       onClick={(e) => toggleFav(e, m.id)}
                       title={favIds.includes(m.id) ? "お気に入りから解除" : "お気に入りに追加"}
