@@ -66,10 +66,17 @@ function calcAlignment(
 }
 
 function alignColor(rate: number): string {
+  if (rate >= 0.9) return "#bbf7d0";
+  if (rate >= 0.7) return "#d1fae5";
+  if (rate >= 0.5) return "#fef9c3";
+  return "#fee2e2";
+}
+
+function alignTextColor(rate: number): string {
   if (rate >= 0.9) return "#166534";
-  if (rate >= 0.7) return "#15803d";
+  if (rate >= 0.7) return "#166534";
   if (rate >= 0.5) return "#854d0e";
-  return "#7f1d1d";
+  return "#991b1b";
 }
 
 export default function VotesPage() {
@@ -229,7 +236,7 @@ export default function VotesPage() {
                     <tr key={rowParty}>
                       <td style={{ padding: "6px 12px", whiteSpace: "nowrap",
                         color: "#444444", fontWeight: 600, fontSize: 12,
-                        borderBottom: "1px solid #111111",
+                        borderBottom: "1px solid #e0e0e0",
                         position: "sticky", left: 0, background: "#f4f4f4", zIndex: 1 }}>
                         {rowParty}
                       </td>
@@ -251,8 +258,8 @@ export default function VotesPage() {
                             title={`${rowParty} × ${colParty}: ${cell.agree}/${cell.total}件一致`}
                             style={{
                               padding: "6px 4px", textAlign: "center",
-                              background: isSelf ? "#e0e0e0" : alignColor(rate),
-                              color: isSelf ? "#888888" : "#1a1a1a",
+                              background: isSelf ? "#e8e8e8" : alignColor(rate),
+                              color: isSelf ? "#888888" : alignTextColor(rate),
                               borderBottom: "1px solid #f4f4f4",
                               fontWeight: isSelf ? 400 : 700,
                               cursor: "default",
@@ -270,10 +277,10 @@ export default function VotesPage() {
             {/* 凡例 */}
             <div style={{ display: "flex", gap: 16, marginTop: 20, fontSize: 11, color: "#555555", flexWrap: "wrap" }}>
               {[
-                { color: "#166534", label: "90%以上" },
-                { color: "#15803d", label: "70〜89%" },
-                { color: "#854d0e", label: "50〜69%" },
-                { color: "#7f1d1d", label: "50%未満" },
+                { color: "#bbf7d0", label: "90%以上" },
+                { color: "#d1fae5", label: "70〜89%" },
+                { color: "#fef9c3", label: "50〜69%" },
+                { color: "#fee2e2", label: "50%未満" },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 14, height: 14, background: item.color, borderRadius: 2 }} />
