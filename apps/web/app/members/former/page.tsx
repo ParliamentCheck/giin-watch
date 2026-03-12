@@ -35,7 +35,7 @@ const PARTY_COLORS: Record<string, string> = {
   "沖縄の風":       "#009688",
   "有志の会":       "#9c27b0",
   "無所属":         "#7f8c8d",
-  "不明（前議員）": "#555555",
+  "不明（前議員）": "#888888",
 };
 
 type SortKey = "name" | "session_count" | "question_count" | "bill_count" | "terms";
@@ -108,11 +108,11 @@ function FormerMembersContent() {
   });
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#e8e8e8",
+    <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
 
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>前議員一覧</h1>
-      <p style={{ color: "#777777", marginBottom: 24 }}>現在 {members.length}名の前議員データを収録</p>
+      <p style={{ color: "#555555", marginBottom: 24 }}>現在 {members.length}名の前議員データを収録</p>
 
       {/* フィルター・ソート */}
       <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
@@ -129,12 +129,12 @@ function FormerMembersContent() {
             isComposing.current = false;
             updateUrl((e.target as HTMLInputElement).value, selectedHouse, selectedParty, sortKey);
           }}
-          style={{ flex: 1, minWidth: 160, background: "#1e1e1e", border: "1px solid #383838",
-            color: "#e8e8e8", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
+          style={{ flex: 1, minWidth: 160, background: "#e0e0e0", border: "1px solid #c8c8c8",
+            color: "#1a1a1a", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
         />
         <select value={selectedHouse}
           onChange={(e) => updateUrl(search, e.target.value, selectedParty, sortKey)}
-          style={{ background: "#1e1e1e", border: "1px solid #383838", color: "#e8e8e8",
+          style={{ background: "#e0e0e0", border: "1px solid #c8c8c8", color: "#1a1a1a",
             padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
           <option value="">🏛 衆院・参院</option>
           <option value="衆議院">衆議院</option>
@@ -142,30 +142,30 @@ function FormerMembersContent() {
         </select>
         <select value={selectedParty}
           onChange={(e) => updateUrl(search, selectedHouse, e.target.value, sortKey)}
-          style={{ background: "#1e1e1e", border: "1px solid #383838", color: "#e8e8e8",
+          style={{ background: "#e0e0e0", border: "1px solid #c8c8c8", color: "#1a1a1a",
             padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
           <option value="">🗳 政党を選択</option>
           {parties.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <select value={sortKey}
           onChange={(e) => updateUrl(search, selectedHouse, selectedParty, e.target.value)}
-          style={{ background: "#1e1e1e", border: "1px solid #383838", color: "#e8e8e8",
+          style={{ background: "#e0e0e0", border: "1px solid #c8c8c8", color: "#1a1a1a",
             padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
           {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {(search || selectedHouse || selectedParty || sortKey !== "name") && (
           <button onClick={() => updateUrl("", "", "", "name")}
-            style={{ background: "#383838", border: "none", color: "#999999",
+            style={{ background: "#c8c8c8", border: "none", color: "#888888",
               padding: "10px 16px", borderRadius: 10, cursor: "pointer" }}>
             クリア
           </button>
         )}
       </div>
 
-      <p style={{ color: "#555555", marginBottom: 12, fontSize: 14 }}>{sorted.length}名表示中</p>
+      <p style={{ color: "#888888", marginBottom: 12, fontSize: 14 }}>{sorted.length}名表示中</p>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#777777" }}>データ読み込み中...</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>データ読み込み中...</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {sorted.map((m) => {
@@ -173,13 +173,13 @@ function FormerMembersContent() {
             return (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                style={{ background: "#141414", border: "1px solid #1e1e1e", borderRadius: 10,
+                style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 10,
                   padding: "12px 16px", cursor: "pointer", transition: "border-color 0.15s", opacity: 0.85 }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; e.currentTarget.style.opacity = "1"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e1e1e"; e.currentTarget.style.opacity = "0.85"; }}>
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e0e0e0"; e.currentTarget.style.opacity = "0.85"; }}>
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
                   {/* 名前 */}
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "#f0f0f0", minWidth: 90 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: "#111111", minWidth: 90 }}>
                     {m.name}
                   </span>
                   {/* 政党バッジ */}
@@ -188,12 +188,12 @@ function FormerMembersContent() {
                     {m.party}
                   </span>
                   {/* 院・選挙区・期数 */}
-                  <span style={{ color: "#777777", fontSize: 12, whiteSpace: "nowrap" }}>
+                  <span style={{ color: "#555555", fontSize: 12, whiteSpace: "nowrap" }}>
                     元{m.house} · {m.district}{m.terms ? ` · ${m.terms}期` : ""}
                   </span>
                   {/* 活動指標 */}
                   <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 12,
-                    color: "#999999", whiteSpace: "nowrap" }}>
+                    color: "#888888", whiteSpace: "nowrap" }}>
                     <span>発言セッション：{(m.session_count ?? 0).toLocaleString()}</span>
                     <span>質問主意書：{m.question_count ?? 0}</span>
                     <span>議員立法：{m.bill_count ?? 0}</span>
@@ -212,7 +212,7 @@ export default function FormerMembersPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#777777",
+        <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#555555",
           padding: "24px", textAlign: "center" }}>
           読み込み中...
         </div>

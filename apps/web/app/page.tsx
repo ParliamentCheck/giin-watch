@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import Link from "next/link";
 import ActivityTabs from "./components/ActivityTabs";
 import changelog from "../lib/changelog";
+import { partyColor } from "../lib/partyColors";
 
 /* ─── データ取得（サーバーサイド） ─────────────────────────────── */
 async function getStats() {
@@ -142,7 +143,7 @@ export default async function TopPage() {
   const maxPartyCount = partyBreakdown[0]?.total || 1;
 
   return (
-    <div className="min-h-screen text-neutral-100">
+    <div className="min-h-screen text-neutral-900">
       {/* ── ヒーロー ─────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent pointer-events-none" />
@@ -153,13 +154,13 @@ export default async function TopPage() {
             <img src="/logo-main.svg" alt="はたらく議員" className="h-32 sm:h-40 mx-auto" />
           </h1>
 
-          <p className="text-lg text-neutral-300 mb-2">
+          <p className="text-lg text-neutral-700 mb-2">
             国会議員の活動を、データで見える化
           </p>
-          <p className="text-sm text-neutral-400 mb-4">
+          <p className="text-sm text-neutral-500 mb-4">
             衆議院・参議院の全議員の発言・質問主意書・委員会活動を収集・公開
           </p>
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-neutral-800/60 bg-neutral-900/40 text-xs text-neutral-300">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-neutral-300/60 bg-neutral-100/40 text-xs text-neutral-700">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-neutral-400 animate-pulse" />
             収集期間: 2018年〜現在（毎日自動更新）
           </div>
@@ -170,19 +171,19 @@ export default async function TopPage() {
         {/* ── 統計カード ──────────────────────────────────────── */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-16">
           {[
-            { label: "現職議員",   value: stats.total,    unit: "名", accent: "text-neutral-400" },
-            { label: "衆議院",     value: stats.shugiin,  unit: "名", accent: "text-neutral-100" },
-            { label: "参議院",     value: stats.sangiin,  unit: "名", accent: "text-neutral-100" },
-            { label: "政党・会派", value: stats.parties,  unit: "党", accent: "text-neutral-100" },
-            { label: "発言記録",   value: stats.speeches, unit: "件", accent: "text-neutral-100" },
-            { label: "質問主意書", value: stats.questions, unit: "件", accent: "text-neutral-100" },
+            { label: "現職議員",   value: stats.total,    unit: "名", accent: "text-neutral-900" },
+            { label: "衆議院",     value: stats.shugiin,  unit: "名", accent: "text-neutral-900" },
+            { label: "参議院",     value: stats.sangiin,  unit: "名", accent: "text-neutral-900" },
+            { label: "政党・会派", value: stats.parties,  unit: "党", accent: "text-neutral-900" },
+            { label: "発言記録",   value: stats.speeches, unit: "件", accent: "text-neutral-900" },
+            { label: "質問主意書", value: stats.questions, unit: "件", accent: "text-neutral-900" },
           ].map((item) => (
             <div key={item.label}
-              className="bg-neutral-800/60 border border-neutral-900 rounded-xl px-4 py-5 text-center hover:border-neutral-800 transition-colors">
+              className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center hover:border-neutral-300 transition-colors">
               <div className={`text-2xl font-extrabold tabular-nums ${item.accent}`}>
                 {item.value.toLocaleString()}
               </div>
-              <div className="text-[11px] text-neutral-400 mt-1">{item.label}</div>
+              <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
             </div>
           ))}
         </section>
@@ -190,15 +191,15 @@ export default async function TopPage() {
         {/* ── メインナビゲーション ────────────────────────────── */}
         <section className="grid sm:grid-cols-2 gap-4 mb-16">
           {[
-            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。全議員のプロフィールと活動実績を検索", path: "/members",    border: "hover:border-neutral-600" },
-            { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",     path: "/committees", border: "hover:border-neutral-600" },
-            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数と構成。国会での勢力図が一目でわかる",       path: "/parties",    border: "hover:border-neutral-600" },
+            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。全議員のプロフィールと活動実績を検索", path: "/members",    border: "hover:border-neutral-400" },
+            { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",     path: "/committees", border: "hover:border-neutral-400" },
+            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数と構成。国会での勢力図が一目でわかる",       path: "/parties",    border: "hover:border-neutral-400" },
           ].map((item) => (
             <Link key={item.path} href={item.path}
-              className={`group block bg-neutral-800/60 border border-neutral-900 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 ${item.border}`}>
+              className={`group block bg-neutral-200/60 border border-neutral-200 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 ${item.border}`}>
               <div className="text-3xl mb-3">{item.icon}</div>
-              <div className="text-lg font-bold text-neutral-50 mb-2 group-hover:text-white transition-colors">{item.title}</div>
-              <div className="text-sm text-neutral-400 leading-relaxed">{item.desc}</div>
+              <div className="text-lg font-bold text-neutral-900 mb-2 group-hover:text-neutral-600 transition-colors">{item.title}</div>
+              <div className="text-sm text-neutral-500 leading-relaxed">{item.desc}</div>
             </Link>
           ))}
         </section>
@@ -214,25 +215,25 @@ export default async function TopPage() {
         {partyBreakdown.length > 0 && (
           <section className="mb-16">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-neutral-50">政党・会派別 議員数</h2>
-              <Link href="/parties" className="text-xs text-neutral-400 hover:text-neutral-400 transition-colors">
+              <h2 className="text-lg font-bold text-neutral-900">政党・会派別 議員数</h2>
+              <Link href="/parties" className="text-xs text-neutral-500 hover:text-neutral-500 transition-colors">
                 詳しく見る →
               </Link>
             </div>
 
-            <div className="bg-neutral-800/40 border border-neutral-700/60 rounded-2xl p-6 space-y-4">
+            <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl p-6 space-y-4">
               {partyBreakdown.map((p) => (
                 <div key={p.party}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm text-neutral-200 truncate mr-4">{p.party}</span>
-                    <span className="text-xs text-neutral-400 tabular-nums shrink-0">
+                    <span className="text-sm text-neutral-800 truncate mr-4">{p.party}</span>
+                    <span className="text-xs text-neutral-500 tabular-nums shrink-0">
                       {p.total}名
-                      <span className="text-neutral-500 ml-1">（衆{p.shugiin} / 参{p.sangiin}）</span>
+                      <span className="text-neutral-400 ml-1">（衆{p.shugiin} / 参{p.sangiin}）</span>
                     </span>
                   </div>
-                  <div className="h-2 bg-neutral-900 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-neutral-400 to-neutral-300"
-                      style={{ width: `${(p.total / maxPartyCount) * 100}%` }} />
+                  <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full"
+                      style={{ width: `${(p.total / maxPartyCount) * 100}%`, background: partyColor(p.party) }} />
                   </div>
                 </div>
               ))}
@@ -242,15 +243,15 @@ export default async function TopPage() {
 
         {/* ── 更新履歴 ─────────────────────────────────────────── */}
         <section className="mb-16">
-          <h2 className="text-base font-bold text-neutral-50 mb-4">🕐 更新履歴</h2>
-          <div className="bg-neutral-800/40 border border-neutral-700/60 rounded-2xl divide-y divide-neutral-700/60">
+          <h2 className="text-base font-bold text-neutral-900 mb-4">🕐 更新履歴</h2>
+          <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl divide-y divide-neutral-200">
             {changelog.map((entry, i) => (
               <div key={i} className="flex items-start gap-4 px-5 py-4">
-                <span className="tabular-nums text-xs text-neutral-400 shrink-0 mt-0.5">{entry.date}</span>
+                <span className="tabular-nums text-xs text-neutral-500 shrink-0 mt-0.5">{entry.date}</span>
                 <div>
-                  <div className="text-sm font-medium text-neutral-100">{entry.title}</div>
+                  <div className="text-sm font-medium text-neutral-900">{entry.title}</div>
                   {entry.description && (
-                    <div className="text-xs text-neutral-400 mt-0.5 leading-relaxed">{entry.description}</div>
+                    <div className="text-xs text-neutral-500 mt-0.5 leading-relaxed">{entry.description}</div>
                   )}
                 </div>
               </div>
@@ -259,9 +260,9 @@ export default async function TopPage() {
         </section>
 
         {/* ── 注記 ── */}
-        <p style={{ textAlign: "center", fontSize: 12, color: "#555555", marginBottom: 8 }}>
+        <p style={{ textAlign: "center", fontSize: 12, color: "#888888", marginBottom: 8 }}>
           データは公的機関の公開情報を自動収集しています。
-          詳しくは<a href="/disclaimer" style={{ color: "#d0d0d0" }}>免責事項</a>をご確認ください。
+          詳しくは<a href="/disclaimer" style={{ color: "#333333" }}>免責事項</a>をご確認ください。
         </p>
       </div>
     </div>

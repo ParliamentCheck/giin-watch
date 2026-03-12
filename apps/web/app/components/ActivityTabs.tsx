@@ -51,15 +51,15 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
   return (
     <section className="mb-16">
       {/* タブバー */}
-      <div className="flex gap-1 mb-4 bg-neutral-950/60 border border-neutral-900 rounded-xl p-1">
+      <div className="flex gap-1 mb-4 bg-white/60 border border-neutral-200 rounded-xl p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
               tab === t.id
-                ? "bg-white text-neutral-900"
-                : "text-neutral-400 hover:text-neutral-200"
+                ? "bg-neutral-900 text-white"
+                : "text-neutral-500 hover:text-neutral-800"
             }`}
           >
             {t.label}
@@ -71,26 +71,26 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
       {tab === "questions" && (
         <div className="space-y-2">
           {recentQuestions.length === 0 ? (
-            <p className="text-sm text-neutral-400 py-8 text-center">データがありません</p>
+            <p className="text-sm text-neutral-500 py-8 text-center">データがありません</p>
           ) : recentQuestions.map((q) => (
             <div key={q.id}
-              className="bg-neutral-950/40 border border-neutral-900/60 rounded-xl px-4 py-3">
+              className="bg-white/40 border border-neutral-200 rounded-xl px-4 py-3">
               <div className="flex items-start gap-2 mb-1.5">
                 <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${
-                  q.house === "衆" ? "bg-neutral-800/60 text-neutral-400" : "bg-neutral-800/60 text-neutral-400"
+                  q.house === "衆" ? "bg-neutral-200/60 text-neutral-500" : "bg-neutral-200/60 text-neutral-500"
                 }`}>{q.house}</span>
                 {q.source_url ? (
                   <a href={q.source_url} target="_blank" rel="noopener noreferrer"
-                    className="text-sm text-neutral-200 hover:text-white leading-snug transition-colors line-clamp-2">
+                    className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2">
                     {q.title}
                   </a>
                 ) : (
-                  <span className="text-sm text-neutral-200 leading-snug line-clamp-2">{q.title}</span>
+                  <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{q.title}</span>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-xs text-neutral-400 pl-6">
+              <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6">
                 <Link href={`/members/${encodeURIComponent(q.member_id)}`}
-                  className="hover:text-neutral-400 transition-colors">
+                  className="hover:text-neutral-500 transition-colors">
                   {q.members?.name}
                 </Link>
                 <span className="text-neutral-600">·</span>
@@ -107,29 +107,29 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
       {tab === "committee" && (
         <div className="space-y-2">
           {committeeActivities.length === 0 ? (
-            <p className="text-sm text-neutral-400 py-8 text-center">データがありません</p>
+            <p className="text-sm text-neutral-500 py-8 text-center">データがありません</p>
           ) : committeeActivities.map((c) => (
             <a key={`${c.date}-${c.committee}`} href={c.ndlUrl || undefined}
               target="_blank" rel="noopener noreferrer"
-              className="block bg-neutral-950/40 border border-neutral-900/60 rounded-xl px-4 py-3 hover:border-neutral-800 transition-colors">
+              className="block bg-white/40 border border-neutral-200 rounded-xl px-4 py-3 hover:border-neutral-300 transition-colors">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-semibold text-neutral-100">{c.committee}</div>
-                <span className="text-xs text-neutral-400 tabular-nums shrink-0 ml-2">{c.date}</span>
+                <div className="text-sm font-semibold text-neutral-900">{c.committee}</div>
+                <span className="text-xs text-neutral-500 tabular-nums shrink-0 ml-2">{c.date}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {c.members.slice(0, 8).map((m) => (
                   <span key={m.id}
-                    className="text-xs text-neutral-300 bg-neutral-900/60 px-2 py-0.5 rounded">
+                    className="text-xs text-neutral-700 bg-neutral-100/60 px-2 py-0.5 rounded">
                     {m.name}
                   </span>
                 ))}
                 {c.members.length > 8 && (
-                  <span className="text-xs text-neutral-500 px-2 py-0.5">他{c.members.length - 8}名</span>
+                  <span className="text-xs text-neutral-400 px-2 py-0.5">他{c.members.length - 8}名</span>
                 )}
               </div>
             </a>
           ))}
-          <p className="text-[11px] text-neutral-500 mt-2">
+          <p className="text-[11px] text-neutral-400 mt-2">
             ※ 国会会議録システムへの反映には1〜2週間かかる場合があります
           </p>
         </div>
@@ -139,27 +139,27 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
       {tab === "petitions" && (
         <div className="space-y-2">
           {recentPetitions.length === 0 ? (
-            <p className="text-sm text-neutral-400 py-8 text-center">データがありません</p>
+            <p className="text-sm text-neutral-500 py-8 text-center">データがありません</p>
           ) : recentPetitions.map((p) => {
             const resultColor = p.result === "採択" ? "#22c55e"
-              : p.result === "不採択" ? "#ef4444" : "#777777";
+              : p.result === "不採択" ? "#ef4444" : "#555555";
             return (
               <div key={p.id}
-                className="bg-neutral-950/40 border border-neutral-900/60 rounded-xl px-4 py-3">
+                className="bg-white/40 border border-neutral-200 rounded-xl px-4 py-3">
                 <div className="flex items-start gap-2 mb-1.5">
                   <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${
-                    p.house === "衆" ? "bg-neutral-800/60 text-neutral-400" : "bg-neutral-800/60 text-neutral-400"
+                    p.house === "衆" ? "bg-neutral-200/60 text-neutral-500" : "bg-neutral-200/60 text-neutral-500"
                   }`}>{p.house}</span>
                   {p.source_url ? (
                     <a href={p.source_url} target="_blank" rel="noopener noreferrer"
-                      className="text-sm text-neutral-200 hover:text-white leading-snug transition-colors line-clamp-2">
+                      className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2">
                       {p.title}
                     </a>
                   ) : (
-                    <span className="text-sm text-neutral-200 leading-snug line-clamp-2">{p.title}</span>
+                    <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{p.title}</span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-neutral-400 pl-6 flex-wrap">
+                <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6 flex-wrap">
                   <span>第{p.session}回 #{p.number}</span>
                   {p.committee_name && (
                     <>
@@ -184,7 +184,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                   <div className="flex flex-wrap gap-1 mt-1.5 pl-6">
                     {p.introducer_names.map((name) => (
                       <span key={name}
-                        className="text-[11px] text-neutral-300 bg-neutral-900/60 px-1.5 py-0.5 rounded">
+                        className="text-[11px] text-neutral-700 bg-neutral-100/60 px-1.5 py-0.5 rounded">
                         {name}
                       </span>
                     ))}
