@@ -121,6 +121,9 @@ export default function MemberDetailPage() {
   const [bills,      setBills]      = useState<Bill[]>([]);
   const [petitions,  setPetitions]  = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
+  useEffect(() => {
+    if (member?.name) document.title = `${member.name} | はたらく議員`;
+  }, [member]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState("committees");
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());

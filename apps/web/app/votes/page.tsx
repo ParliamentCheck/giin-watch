@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 
 interface VoteRow {
@@ -9,11 +9,6 @@ interface VoteRow {
   bill_title: string;
   vote_date: string;
   session_number: number;
-}
-
-interface Member {
-  id: string;
-  party: string;
 }
 
 // 政党ごとの採決での多数派: { billKey → { party → "賛成" | "反対" } }
@@ -26,7 +21,6 @@ function calcAlignment(
   votes: VoteRow[],
   memberParty: Record<string, string>,
 ): { matrix: AlignmentMatrix; parties: string[]; billCount: number } {
-  // bill ごとに party の投票をまとめる
   const billVotes: Record<string, Record<string, string[]>> = {};
   for (const v of votes) {
     if (!v.member_id || !memberParty[v.member_id]) continue;
@@ -38,7 +32,6 @@ function calcAlignment(
     billVotes[key][party].push(v.vote);
   }
 
-  // 各 bill の党ごと多数派ポジションを決定
   const positions: PartyPositions = {};
   for (const [bill, partyMap] of Object.entries(billVotes)) {
     positions[bill] = {};
@@ -50,12 +43,10 @@ function calcAlignment(
     }
   }
 
-  // 全政党一覧
   const partySet = new Set<string>();
   for (const p of Object.values(positions)) Object.keys(p).forEach((k) => partySet.add(k));
   const parties = Array.from(partySet).sort();
 
-  // ペアごとの一致率を計算
   const matrix: AlignmentMatrix = {};
   for (const p1 of parties) {
     matrix[p1] = {};
@@ -81,16 +72,13 @@ function alignColor(rate: number): string {
   return "#7f1d1d";
 }
 
-function alignTextColor(rate: number): string {
-  return "#e2e8f0";
-}
-
 export default function VotesPage() {
   const [loading, setLoading] = useState(true);
-  const [matrix, setMatrix] = useState<AlignmentMatrix>({});
-  const [parties, setParties] = useState<string[]>([]);
-  const [billCount, setBillCount] = useState(0);
-  const [sessionRange, setSessionRange] = useState("");
+  const [rawVotes, setRawVotes] = useState<VoteRow[]>([]);
+  const [memberPartyMap, setMemberPartyMap] = useState<Record<string, string>>({});
+  const [availableSessions, setAvailableSessions] = useState<number[]>([]);
+  const [selectedSession, setSelectedSession] = useState<number | null>(null);
+  useEffect(() => { document.title = "政党別採決一致率 | はたらく議員"; }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -109,36 +97,39 @@ export default function VotesPage() {
         from += PAGE;
       }
 
-      // 参加セッション範囲
-      const sessions = [...new Set(allVotes.map((v) => v.session_number))].filter(Boolean).sort();
-      if (sessions.length > 0) {
-        setSessionRange(
-          sessions.length === 1
-            ? `第${sessions[0]}回国会`
-            : `第${sessions[0]}〜${sessions[sessions.length - 1]}回国会`,
-        );
-      }
+      const sessions = [...new Set(allVotes.map((v) => v.session_number))].filter(Boolean).sort() as number[];
+      setAvailableSessions(sessions);
 
       // members の party 情報を取得
-      const membersRes = await supabase
-        .from("members")
-        .select("id,party")
-        .limit(2000);
+      const membersRes = await supabase.from("members").select("id,party").limit(2000);
       const memberParty: Record<string, string> = {};
       for (const m of membersRes.data || []) {
         memberParty[m.id] = m.party || "無所属";
       }
 
-      const result = calcAlignment(allVotes, memberParty);
-      setMatrix(result.matrix);
-      setParties(result.parties);
-      setBillCount(result.billCount);
+      setRawVotes(allVotes);
+      setMemberPartyMap(memberParty);
       setLoading(false);
     }
     fetchData();
   }, []);
 
-  // 自民党との一致率でソート（自民がなければアルファベット順）
+  // 絞り込み後の集計（selectedSession が null のとき全期間）
+  const { matrix, parties, billCount, sessionRange } = useMemo(() => {
+    const filtered = selectedSession
+      ? rawVotes.filter((v) => v.session_number === selectedSession)
+      : rawVotes;
+    const result = calcAlignment(filtered, memberPartyMap);
+    const range = selectedSession
+      ? `第${selectedSession}回国会`
+      : availableSessions.length === 0 ? ""
+      : availableSessions.length === 1
+        ? `第${availableSessions[0]}回国会`
+        : `第${availableSessions[0]}〜${availableSessions[availableSessions.length - 1]}回国会`;
+    return { ...result, sessionRange: range };
+  }, [rawVotes, memberPartyMap, selectedSession, availableSessions]);
+
+  // 自民党との一致率でソート
   const sortedParties = [...parties].sort((a, b) => {
     const ref = "自民党";
     if (!matrix[ref]) return 0;
@@ -158,9 +149,42 @@ export default function VotesPage() {
           参議院本会議の採決記録をもとに、政党間の投票行動の一致率を集計しています。
         </p>
         {!loading && (
-          <p style={{ color: "#475569", fontSize: 12, marginBottom: 24 }}>
+          <p style={{ color: "#475569", fontSize: 12, marginBottom: 16 }}>
             対象: {sessionRange}（採決 {billCount} 件）
           </p>
+        )}
+
+        {/* 国会回次フィルター */}
+        {!loading && availableSessions.length > 1 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+            <button
+              onClick={() => setSelectedSession(null)}
+              style={{
+                padding: "5px 12px", borderRadius: 6, fontSize: 12, cursor: "pointer",
+                border: "1px solid",
+                borderColor: selectedSession === null ? "#3b82f6" : "#1e293b",
+                background: selectedSession === null ? "#1e3a5f" : "transparent",
+                color: selectedSession === null ? "#93c5fd" : "#64748b",
+                fontWeight: selectedSession === null ? 700 : 400,
+              }}>
+              全期間
+            </button>
+            {availableSessions.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSelectedSession(s === selectedSession ? null : s)}
+                style={{
+                  padding: "5px 12px", borderRadius: 6, fontSize: 12, cursor: "pointer",
+                  border: "1px solid",
+                  borderColor: selectedSession === s ? "#3b82f6" : "#1e293b",
+                  background: selectedSession === s ? "#1e3a5f" : "transparent",
+                  color: selectedSession === s ? "#93c5fd" : "#64748b",
+                  fontWeight: selectedSession === s ? 700 : 400,
+                }}>
+                第{s}回
+              </button>
+            ))}
+          </div>
         )}
 
         {loading ? (
@@ -216,7 +240,7 @@ export default function VotesPage() {
                             style={{
                               padding: "6px 4px", textAlign: "center",
                               background: isSelf ? "#1e293b" : alignColor(rate),
-                              color: isSelf ? "#475569" : alignTextColor(rate),
+                              color: isSelf ? "#475569" : "#e2e8f0",
                               borderBottom: "1px solid #020817",
                               fontWeight: isSelf ? 400 : 700,
                               cursor: "default",

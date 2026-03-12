@@ -26,6 +26,7 @@ export default function BillsPage() {
   const [memberMap, setMemberMap] = useState<Record<string, MemberInfo>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  useEffect(() => { document.title = "議員立法 | はたらく議員"; }, []);
   const [isComposing, setIsComposing] = useState(false);
   const [filterHouse, setFilterHouse] = useState<string>("全て");
 

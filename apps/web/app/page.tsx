@@ -1,4 +1,5 @@
 export const revalidate = 3600;
+export const metadata = { title: { absolute: "はたらく議員 — 国会議員の活動を、データで見える化" } };
 import { supabase } from "../lib/supabase";
 import Link from "next/link";
 import ActivityTabs from "./components/ActivityTabs";

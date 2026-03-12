@@ -12,6 +12,7 @@ interface ChangelogEntry {
 export default function ChangelogPage() {
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  useEffect(() => { document.title = "更新履歴 | はたらく議員"; }, []);
 
   useEffect(() => {
     supabase

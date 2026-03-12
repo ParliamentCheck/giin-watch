@@ -1,3 +1,5 @@
+export const metadata = { title: "このサイトについて" };
+
 export default function AboutPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",

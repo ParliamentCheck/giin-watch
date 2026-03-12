@@ -16,6 +16,7 @@ export default function CommitteesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedHouse, setSelectedHouse] = useState("");
   const [search, setSearch] = useState("");
+  useEffect(() => { document.title = "委員会一覧 | はたらく議員"; }, []);
 
   useEffect(() => {
     async function fetchCommittees() {

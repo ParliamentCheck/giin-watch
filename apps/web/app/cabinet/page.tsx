@@ -65,6 +65,7 @@ export default function CabinetPage() {
   const router = useRouter();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  useEffect(() => { document.title = "内閣 | はたらく議員"; }, []);
 
   useEffect(() => {
     async function fetchCabinet() {

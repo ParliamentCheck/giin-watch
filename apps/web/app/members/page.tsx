@@ -56,6 +56,7 @@ function MembersContent() {
   const [inputValue, setInputValue] = useState("");
   const [favIds, setFavIds] = useState<string[]>([]);
   const isComposing = useRef(false);
+  useEffect(() => { document.title = "議員一覧 | はたらく議員"; }, []);
 
   const search        = searchParams.get("q")      || "";
   const selectedHouse = searchParams.get("house")  || "";

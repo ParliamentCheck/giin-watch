@@ -40,6 +40,7 @@ export default function PartiesPage() {
   const [parties, setParties] = useState<PartyStats[]>([]);
   const [sortBy,  setSortBy]  = useState("total");
   const [loading, setLoading] = useState(true);
+  useEffect(() => { document.title = "政党・会派 | はたらく議員"; }, []);
 
   useEffect(() => {
     async function fetchStats() {

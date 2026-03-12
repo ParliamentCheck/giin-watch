@@ -55,6 +55,7 @@ function FormerMembersContent() {
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const isComposing = useRef(false);
+  useEffect(() => { document.title = "前議員一覧 | はたらく議員"; }, []);
 
   const search        = searchParams.get("q")     || "";
   const selectedHouse = searchParams.get("house") || "";

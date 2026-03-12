@@ -52,6 +52,7 @@ export default function CommitteeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const committeeName = decodeURIComponent(params.name as string);
+  useEffect(() => { document.title = `${committeeName} | はたらく議員`; }, [committeeName]);
 
   const [members,   setMembers]   = useState<CommitteeMember[]>([]);
   const [petitions, setPetitions] = useState<Petition[]>([]);

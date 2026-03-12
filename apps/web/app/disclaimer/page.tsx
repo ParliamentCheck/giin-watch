@@ -1,3 +1,5 @@
+export const metadata = { title: "免責事項" };
+
 export default function DisclaimerPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",

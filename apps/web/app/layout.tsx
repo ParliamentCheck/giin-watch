@@ -8,7 +8,7 @@ import GlobalFooter from "./components/GlobalFooter";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.hataraku-giin.com"),
-  title: "はたらく議員",
+  title: { default: "はたらく議員", template: "%s | はたらく議員" },
   description: "国会議員の活動を、データで見える化",
   openGraph: {
     title: "はたらく議員",

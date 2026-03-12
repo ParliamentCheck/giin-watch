@@ -96,8 +96,11 @@ def main() -> None:
         backfill_procedural.main()
 
     elif task == "votes-collect":
-        from sources.votes import main as collect_votes
-        collect_votes()
+        from sources.votes import collect_sessions, get_member_ids
+        from config import SESSION_MAX
+        sessions = list(range(208, max(SESSION_MAX) + 1))
+        member_ids = get_member_ids()
+        collect_sessions(sessions, member_ids)
 
     elif task == "bills-collect":
         from sources.bills import collect_bills

@@ -1,6 +1,6 @@
 # はたらく議員 — プロジェクト現状ドキュメント
 
-> 最終更新: 2026-03-08（session 2）
+> 最終更新: 2026-03-12
 
 ---
 
@@ -83,9 +83,10 @@ scripts/
 4. 内閣役職（`sources/cabinet_scraper.py`）
 5. 質問主意書（`sources/questions.py`）※衆院+参院
 6. 請願（`sources/petitions.py`）※衆院+参院（日次は直近2セッションのみ）
-7. 委員会所属（`sources/committees.py`）※衆院+参院
-8. キーワード更新（`sources/keywords.py --mode daily`）
-9. speeches 上限チェック（`processors/cleanup.py --task truncate-speeches`）
+7. 採決記録（`sources/votes.py --mode daily`）※参院・現会期のみ（timeout 10分）
+8. 委員会所属（`sources/committees.py`）※衆院+参院
+9. キーワード更新（`sources/keywords.py --mode daily`）
+10. speeches 上限チェック（`processors/cleanup.py --task truncate-speeches`）
 
 各ステップは `continue-on-error: true` で独立。
 
@@ -103,6 +104,24 @@ scripts/
 | `bills-collect` | 議員立法収集 |
 | `sangiin-questions` | 参院質問主意書収集 |
 | `petitions-collect` | 衆院・参院請願収集（全セッション） |
+
+---
+
+## フロントページ構成
+
+| パス | 内容 |
+|---|---|
+| `/` | トップ（統計・最新活動タブ・政党バーチャート・更新履歴） |
+| `/members` | 現職議員一覧（ソート・フィルター・お気に入り★） |
+| `/members/[id]` | 議員詳細（委員会・発言・質問・採決・議員立法・請願・キーワード） |
+| `/members/former` | 前議員一覧 |
+| `/cabinet` | 内閣一覧 |
+| `/parties` | 政党・会派別データ |
+| `/parties/[name]` | 政党詳細 |
+| `/committees` | 委員会一覧 |
+| `/committees/[name]` | 委員会詳細（党別構成・委員長/理事/委員・請願タブ） |
+| `/bills` | 議員立法一覧（院フィルター・タイトル検索・提出者リンク） |
+| `/favorites` | お気に入り議員（マイダッシュボード・URLシェア） |
 
 ---
 
@@ -178,12 +197,10 @@ scripts/
   → `petitions` / `sangiin_petitions` テーブルにデータを一括投入
   → 完了後、scoring-only を実行して `petition_count` を更新
 
-### 未実装・未着手
-- [ ] **議員写真** — プロフィール画像の取得なし
-- [ ] **衆院採決記録** — 個人別データが公開されていないため収集不可
-- [ ] **旧議員のデータ管理ポリシー** — `is_active=False` 議員の過去データ保持方針未整備
-- [ ] **bills スコアリング** — scoring.py に bill_count 集計を追加（bills.submitter_ids は配列型のため Python 側で集計）
-- [ ] **/bills 一覧ページ** — フロントエンド未作成
+### 対応しない・保留
+- **議員写真** — 著作権・肖像権リスクがあるため、安全な方法が確認できない限り実装しない
+- **衆院採決記録** — 個人別データの収集コストが高すぎるため、良い案が見つかるまで保留
+- **旧議員データ管理ポリシー** — 現状 `/members/former` で問題なく動作中。方針が必要になったタイミングで検討
 
 ### Phase 3: GitHub Actions 整理
 - collect.yml / backfill.yml のさらなる整理（必要に応じて）
@@ -221,6 +238,28 @@ def full_rebuild(years: int = 4):
 ```
 
 ---
+
+## データ品質監査（audit.py）
+
+`apps/collector/processors/audit.py` — 日次ジョブの最後に自動実行。
+
+### チェック内容
+| チェック | 対象 | 方法 |
+|---|---|---|
+| 発言数 | ランダム5名 | NDL APIで直近90日の件数とDBを比較。DBが0件なのにNDLに10件超あれば不整合 |
+| 大臣職 | DB登録の閣僚全員 | 官邸サイトをスクレイピングし、DBのcabinet_postと照合。官邸に名前がなければ退任の可能性 |
+
+### 不整合時の動作
+- `audit.py` が exit 1 で終了
+- `collect.yml` の「監査エラーをIssueに報告」ステップが GitHub Issue を自動作成
+- Issue にはレポート（議員名・問題の種類・詳細）が記載される
+- GitHub の通知設定によりメールで通知が届く
+- 調査・修正が完了したら Issue を Close する
+
+### 設計方針
+- 全員チェックはコストが高すぎるためランダムサンプリング（5名）を採用
+- 同種のエラーが検出されたら「他の議員にも同じ問題がある可能性」として全件調査のきっかけにする
+- タイムアウト: 10分
 
 ## バックフィル設計原則
 

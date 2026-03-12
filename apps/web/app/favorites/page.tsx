@@ -41,6 +41,7 @@ const TYPE_LABELS: Record<string, string> = {
 function FavoritesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  useEffect(() => { document.title = "お気に入り | はたらく議員"; }, []);
 
   const [memberIds, setMemberIds]   = useState<string[]>([]);
   const [members,   setMembers]     = useState<Member[]>([]);

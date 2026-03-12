@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import time
 import logging
@@ -23,8 +24,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
 SANGIIN_BASE = "https://www.sangiin.go.jp"
 
-# 208回〜最新セッションを対象（404は graceful skip）
-TARGET_SESSIONS = list(range(208, max(SESSION_MAX) + 1))
+# バックフィル: 208回〜最新セッション（404は graceful skip）
+BACKFILL_START_SESSION = 208
 
 
 def normalize_name(name: str) -> str:
@@ -152,19 +153,20 @@ def parse_vote_page(url: str, session: int, member_ids: set[str]) -> list[dict]:
     return records
 
 
-def main():
+def get_member_ids() -> set[str]:
     client = get_client()
-
-    members_result = execute_with_retry(
+    result = execute_with_retry(
         lambda: client.table("members").select("id").eq("house", "参議院").limit(2000),
         label="fetch_sangiin_members",
     )
-    member_ids = {m["id"] for m in (members_result.data or [])}
-    logger.info(f"Found {len(member_ids)} Sangiin members in DB")
+    ids = {m["id"] for m in (result.data or [])}
+    logger.info(f"Found {len(ids)} Sangiin members in DB")
+    return ids
 
+
+def collect_sessions(sessions: list[int], member_ids: set[str]) -> int:
     total_saved = 0
-
-    for session in TARGET_SESSIONS:
+    for session in sessions:
         vote_pages = fetch_vote_index(session)
         if not vote_pages:
             continue
@@ -178,6 +180,27 @@ def main():
 
         time.sleep(2.0)
 
+    return total_saved
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["daily", "backfill"], default="backfill",
+                        help="daily=現会期のみ / backfill=全会期（デフォルト）")
+    args = parser.parse_args()
+
+    current_session = max(SESSION_MAX)
+
+    if args.mode == "daily":
+        sessions = [current_session]
+        logger.info(f"Daily mode: collecting session {current_session} only")
+    else:
+        sessions = list(range(BACKFILL_START_SESSION, current_session + 1))
+        logger.info(f"Backfill mode: collecting sessions {BACKFILL_START_SESSION}–{current_session}")
+
+    member_ids = get_member_ids()
+
+    total_saved = collect_sessions(sessions, member_ids)
     logger.info(f"Vote collection complete. Saved {total_saved} records.")
 
 

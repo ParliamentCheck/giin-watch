@@ -87,6 +87,7 @@ export default function PartyDetailPage() {
   const router  = useRouter();
   const party   = decodeURIComponent(params.party as string);
   const color   = PARTY_COLORS[party] || "#7f8c8d";
+  useEffect(() => { document.title = `${party} | はたらく議員`; }, [party]);
 
   const [members,    setMembers]    = useState<Member[]>([]);
   const [chairs,     setChairs]     = useState<CommitteeRole[]>([]);
