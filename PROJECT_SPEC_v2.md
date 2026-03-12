@@ -602,7 +602,84 @@ Actions → 「過去データ一括取得」→ Run workflow → 年を選択
 
 ---
 
-## 13. 未決定事項（次のチャットで決める）
+## 13. フロントエンド設計方針
+
+### デザインコンセプト
+- **モノクロベース**: UIは明るいグレー（`#f4f4f4`）ベースのモノクロ
+- 色がつくのは**政党カラー**と**データ可視化**のみ（採決の赤/緑など）
+- 「人の手を介さず、粛々とデータを見せるだけ」というスタンスを表現する
+
+### CSSアーキテクチャ
+
+#### 基本原則
+インラインstyleの直書きは禁止。スタイルは `globals.css` で定義したクラスを使う。
+これにより：
+- テーマ変更が `globals.css` 1ファイルの変更で全ページに反映される
+- `onMouseEnter/Leave` でJSがスタイルを書き換えない（CSS `:hover` に統一）
+- 新しいページを追加した際に自動的に統一感が保たれる
+
+#### デザイントークン（CSS変数）
+`globals.css` の `:root` で定義。色を直書きしてはいけない。
+
+```css
+--bg-page / --bg-card / --bg-subtle / --bg-muted   /* 背景 */
+--text-primary / --text-body / --text-secondary / --text-muted  /* テキスト */
+--border / --border-subtle                          /* ボーダー */
+--radius-sm / --radius-md / --radius-lg / --radius-xl  /* 角丸 */
+```
+
+#### 共通クラス一覧
+| クラス | 用途 |
+|--------|------|
+| `.card` | 白背景カード（border + radius） |
+| `.card-xl` | ヘッダーカード（padding + margin込み） |
+| `.card-hover` | ホバーでボーダー色変化（`--hover-color`変数で色指定） |
+| `.card-hover-lift` | 同上 + 浮き上がり（一覧ページのカード） |
+| `.filter-btn` / `.active` | フィルター・ソートボタン |
+| `.tab-bar-container` | タブバー外枠 |
+| `.tab-pill` / `.active` | タブボタン |
+| `.member-row` | 議員行（クリッカブルリスト） |
+| `.badge` + `.badge-party` | 政党バッジ（`--party-color`変数で色指定） |
+| `.badge-role` | 役職バッジ（グレー） |
+| `.badge-result` | 結果バッジ（`--result-color`変数で色指定） |
+| `.input-field` | フォーム入力欄 |
+| `.empty-state` | ローディング・空データ表示 |
+| `.btn-back` / `.btn-cta` / `.btn-sub` / `.btn-danger` | 各種ボタン |
+| `.fav-btn` / `.active` | お気に入りボタン |
+| `.footer-link` | フッターリンク |
+| `.section-title` | セクション見出し（大文字・muted） |
+| `.progress-bar` / `.progress-fill` | プログレスバー |
+
+#### 動的カラーの扱い
+政党カラーなどランタイムで決まる色は、CSSカスタムプロパティで渡す：
+
+```tsx
+// 政党バッジ
+<span className="badge badge-party" style={{"--party-color": color} as React.CSSProperties}>
+  {party}
+</span>
+
+// ホバーで政党カラーのボーダーに変わるカード
+<div className="card card-hover" style={{"--hover-color": color} as React.CSSProperties}>
+```
+
+CSSクラス側で `color-mix()` を使ってバリアントを生成する。
+
+#### インラインstyleを残してよい場合
+- `width: ${pct}%`（プログレスバーの幅など、計算値）
+- `padding: 20px`（カードごとに異なるpadding）
+- `border: \`1px solid ${color}44\``（政党カラーの透過ボーダー）
+
+これ以外は原則クラスを使う。
+
+### 今後の発展
+現状はCSSクラスによるスタイル統一。チームが拡大したり機能が増えた場合は、
+**コンポーネント抽象化**（`<MemberRow>`、`<Badge party={...}>`）が次のステップ。
+コンポーネント化すれば見た目だけでなく構造も保証できる。
+
+---
+
+## 14. 未決定事項（次のチャットで決める）
 
 ### フロントの表示方針
 - 採決記録をどう表示するか（議員詳細ページ？独立ページ？）
