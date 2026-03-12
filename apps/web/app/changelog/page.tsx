@@ -44,7 +44,7 @@ export default function ChangelogPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {Object.entries(grouped).map(([date, descs]) => (
-              <div key={date} style={{ background: "#111111", border: "1px solid #e0e0e0",
+              <div key={date} style={{ background: "#ffffff", border: "1px solid #e0e0e0",
                 borderRadius: 12, padding: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#333333", marginBottom: 10 }}>
                   {date}

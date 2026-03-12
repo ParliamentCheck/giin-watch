@@ -79,7 +79,7 @@ export default function BillsPage() {
           {["全て", "衆議院", "参議院"].map((h) => (
             <button key={h} onClick={() => setFilterHouse(h)}
               style={{
-                background: filterHouse === h ? "#111111" : "#111111",
+                background: filterHouse === h ? "#111111" : "#ffffff",
                 border: `1px solid ${filterHouse === h ? "#111111" : "#e0e0e0"}`,
                 color: filterHouse === h ? "#f4f4f4" : "#555555",
                 padding: "8px 14px", borderRadius: 8, cursor: "pointer",
@@ -96,7 +96,7 @@ export default function BillsPage() {
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={(e) => { setIsComposing(false); setSearch((e.target as HTMLInputElement).value); }}
             style={{
-              background: "#111111", border: "1px solid #e0e0e0",
+              background: "#ffffff", border: "1px solid #e0e0e0",
               color: "#1a1a1a", padding: "8px 14px", borderRadius: 8,
               fontSize: 13, flex: 1, minWidth: 200, outline: "none",
             }}
@@ -112,7 +112,7 @@ export default function BillsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filtered.map((b) => (
               <div key={b.id} style={{
-                background: "#111111", border: "1px solid #e0e0e0",
+                background: "#ffffff", border: "1px solid #e0e0e0",
                 borderRadius: 12, padding: "16px 20px",
               }}>
                 {/* タイトル */}
@@ -136,8 +136,8 @@ export default function BillsPage() {
                   {b.session_number && <span>第{b.session_number}回国会</span>}
                   {b.house && (
                     <span style={{
-                      background: b.house === "衆議院" ? "#111111" : "#111111",
-                      color: b.house === "衆議院" ? "#aaaaaa" : "#aaaaaa",
+                      background: b.house === "衆議院" ? "#e8e8e8" : "#e8e8e8",
+                      color: b.house === "衆議院" ? "#555555" : "#555555",
                       padding: "1px 8px", borderRadius: 4,
                     }}>
                       {b.house}

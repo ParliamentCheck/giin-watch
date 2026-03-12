@@ -170,7 +170,7 @@ export default function PartyDetailPage() {
       </button>
 
       {/* ヘッダー */}
-      <div style={{ background: "#111111", border: `1px solid ${color}44`,
+      <div style={{ background: "#ffffff", border: `1px solid ${color}44`,
         borderRadius: 16, padding: 28, marginBottom: 20 }}>
         <div className="party-header" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
           <div style={{ width: 16, height: 16, borderRadius: "50%", background: color }} />
@@ -213,7 +213,7 @@ export default function PartyDetailPage() {
       </div>
 
       {/* タブ */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#111111",
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f0f0f0",
         border: "1px solid #e0e0e0", borderRadius: 12, padding: 4, flexWrap: "wrap" }}>
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -228,7 +228,7 @@ export default function PartyDetailPage() {
 
       {/* 議員一覧タブ */}
       {tab === "members" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             {[
               { value: "speech_count",   label: "発言数順" },
@@ -270,7 +270,7 @@ export default function PartyDetailPage() {
 
       {/* 委員長・理事タブ */}
       {tab === "committees" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
           {chairList.length > 0 && (
             <>
               <h3 style={{ margin: "0 0 12px", fontSize: 13, color: "#333333",
@@ -331,7 +331,7 @@ export default function PartyDetailPage() {
 
       {/* ワードクラウドタブ */}
       {tab === "wordcloud" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
           <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#888888",
             textTransform: "uppercase", letterSpacing: 1 }}>
             ☁️ {party} の発言キーワード
@@ -351,7 +351,7 @@ export default function PartyDetailPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* 衆参比率 */}
-          <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
+          <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
             <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#888888",
               textTransform: "uppercase", letterSpacing: 1 }}>
               🏠 衆議院 / 参議院
@@ -383,7 +383,7 @@ export default function PartyDetailPage() {
           </div>
 
           {/* 当選回数分布 */}
-          <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
+          <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
             <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#888888",
               textTransform: "uppercase", letterSpacing: 1 }}>
               🗳 当選回数分布

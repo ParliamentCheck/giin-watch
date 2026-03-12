@@ -269,7 +269,7 @@ export default function MemberDetailPage() {
       </div>
 
       {/* ヘッダー */}
-      <div style={{ background: "#111111", border: "1px solid #e0e0e0",
+      <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
         borderRadius: 16, padding: 28, marginBottom: 20 }}>
         <div className="resp-stack" style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", flexShrink: 0,
@@ -333,7 +333,7 @@ export default function MemberDetailPage() {
           { label: "質問主意書",     value: member.question_count,    unit: "件" },
           { label: "当選回数",       value: member.terms,             unit: "期" },
         ].map((item) => (
-          <div key={item.label} style={{ background: "#111111", border: "1px solid #e0e0e0",
+          <div key={item.label} style={{ background: "#ffffff", border: "1px solid #e0e0e0",
             borderRadius: 12, padding: "16px", textAlign: "center" }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: "#333333", marginBottom: 4 }}>
               {item.value ?? "—"}
@@ -350,7 +350,7 @@ export default function MemberDetailPage() {
       </div>
 
       {/* タブ */}
-      <div className="tab-bar" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#111111",
+      <div className="tab-bar" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f0f0f0",
         border: "1px solid #e0e0e0", borderRadius: 12, padding: 4 }}>
         {[
           { id: "committees", label: "🏛 委員会" },
@@ -373,7 +373,7 @@ export default function MemberDetailPage() {
 
       {/* 委員会所属タブ */}
       {tab === "committees" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
             textTransform: "uppercase", letterSpacing: 1 }}>
             委員会所属（現在）
@@ -404,7 +404,7 @@ export default function MemberDetailPage() {
 
       {/* 発言履歴タブ */}
       {tab === "speeches" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
             textTransform: "uppercase", letterSpacing: 1 }}>
             発言履歴（セッション単位・最新順）
@@ -462,7 +462,7 @@ export default function MemberDetailPage() {
 
       {/* 請願タブ */}
       {tab === "petitions" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
             textTransform: "uppercase", letterSpacing: 1 }}>
             紹介議員を務めた請願
@@ -521,7 +521,7 @@ export default function MemberDetailPage() {
 
       {/* 質問主意書タブ */}
       {tab === "questions" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
             textTransform: "uppercase", letterSpacing: 1 }}>
             質問主意書（最新20件）
@@ -565,7 +565,7 @@ export default function MemberDetailPage() {
 
       {/* 採決記録タブ（参議院のみ） */}
       {tab === "votes" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
             textTransform: "uppercase", letterSpacing: 1 }}>
             本会議採決記録（参議院・最新100件）
@@ -606,7 +606,7 @@ export default function MemberDetailPage() {
 
       {/* 議員立法タブ */}
       {tab === "bills" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
             textTransform: "uppercase", letterSpacing: 1 }}>
             議員提出法案

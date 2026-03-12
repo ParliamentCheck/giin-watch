@@ -238,8 +238,8 @@ export default function VotesPage() {
                         if (!cell || cell.total === 0) {
                           return (
                             <td key={colParty} style={{ padding: "6px 4px", textAlign: "center",
-                              background: "#111111", borderBottom: "1px solid #f4f4f4",
-                              color: "#e0e0e0" }}>
+                              background: "#f0f0f0", borderBottom: "1px solid #f4f4f4",
+                              color: "#aaaaaa" }}>
                               —
                             </td>
                           );

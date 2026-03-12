@@ -215,7 +215,7 @@ function FavoritesContent() {
       )}
 
       {/* 注意書き */}
-      <div style={{ background: "#111111", border: "1px solid #e0e0e0",
+      <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
         borderRadius: 10, padding: "12px 16px", marginBottom: 24, fontSize: 12, color: "#888888",
         lineHeight: 1.8 }}>
         ⚠️ お気に入りはこの端末・ブラウザにのみ保存されます。ブラウザのデータ消去・プライベートモードでは保存されません。他の端末・ブラウザとは同期されません。運営者にはデータは送信されません。
@@ -240,7 +240,7 @@ function FavoritesContent() {
       ) : (
         <>
           {/* 混合タイムライン */}
-          <div style={{ background: "#111111", border: "1px solid #e0e0e0",
+          <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
             borderRadius: 12, padding: 20, marginBottom: 24 }}>
             <h2 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
               textTransform: "uppercase", letterSpacing: 1 }}>
@@ -304,7 +304,7 @@ function FavoritesContent() {
             {members.map((m) => {
               const color = PARTY_COLORS[m.party] || "#7f8c8d";
               return (
-                <div key={m.id} style={{ background: "#111111", border: "1px solid #e0e0e0",
+                <div key={m.id} style={{ background: "#ffffff", border: "1px solid #e0e0e0",
                   borderRadius: 12, padding: "14px 16px",
                   display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>

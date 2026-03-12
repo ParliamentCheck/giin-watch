@@ -19,7 +19,7 @@ export default function ContactPage() {
             <a href="https://docs.google.com/forms/d/e/1FAIpQLSezkzLqHaSg4nXtKfU2ANb3wUkb9IFcN45Lv3DRoZTReYqafA/viewform"
               target="_blank" rel="noopener noreferrer"
               style={{
-                display: "inline-block", background: "#333333", color: "#111111",
+                display: "inline-block", background: "#111111", color: "#f4f4f4",
                 padding: "14px 32px", borderRadius: 10, fontSize: 15,
                 fontWeight: 700, textDecoration: "none", transition: "all 0.2s",
               }}>

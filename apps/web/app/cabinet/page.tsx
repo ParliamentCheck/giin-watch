@@ -99,7 +99,7 @@ export default function CabinetPage() {
             return (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                style={{ background: "#111111", border: "1px solid #e0e0e0", borderRadius: 10,
+                style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 10,
                   padding: "12px 16px", cursor: "pointer", transition: "border-color 0.15s" }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#333333"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e0e0e0"; }}>

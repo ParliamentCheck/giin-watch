@@ -48,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <MaintenanceBanner />
         <ElectionSafeBanner />
         <div style={{
-          background: "#111111",
+          background: "#f4f4f4",
           borderBottom: "1px solid #e0e0e0",
           padding: "10px 16px",
           fontSize: 11,

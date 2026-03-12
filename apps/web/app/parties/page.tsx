@@ -126,7 +126,7 @@ export default function PartiesPage() {
               return (
                 <div key={p.party}
                   onClick={() => router.push(`/parties/${encodeURIComponent(p.party)}`)}
-                  style={{ background: "#111111", border: "1px solid #e0e0e0",
+                  style={{ background: "#ffffff", border: "1px solid #e0e0e0",
                     borderRadius: 16, padding: 24, cursor: "pointer", transition: "all 0.2s" }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = color;

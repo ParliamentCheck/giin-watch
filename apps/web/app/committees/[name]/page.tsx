@@ -179,7 +179,7 @@ export default function CommitteeDetailPage() {
       </button>
 
       {/* ヘッダー */}
-      <div style={{ background: "#111111", border: `1px solid ${houseColor}44`,
+      <div style={{ background: "#ffffff", border: `1px solid ${houseColor}44`,
         borderRadius: 16, padding: 28, marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
           <div style={{ width: 14, height: 14, borderRadius: "50%", background: houseColor }} />
@@ -206,7 +206,7 @@ export default function CommitteeDetailPage() {
       </div>
 
       {/* 党別構成 */}
-      <div style={{ background: "#111111", border: "1px solid #e0e0e0",
+      <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
         borderRadius: 12, padding: 24, marginBottom: 16 }}>
         <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
           textTransform: "uppercase", letterSpacing: 1 }}>
@@ -239,7 +239,7 @@ export default function CommitteeDetailPage() {
 
       {/* タブバー */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16,
-        background: "#111111", border: "1px solid #e0e0e0", borderRadius: 12, padding: 4 }}>
+        background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 4 }}>
         {([
           { id: "chairs"   as const, label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
           { id: "members"  as const, label: `👤 議員一覧 (${members.length})` },
@@ -258,7 +258,7 @@ export default function CommitteeDetailPage() {
 
       {/* 委員長・理事タブ */}
       {tab === "chairs" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0",
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
           borderRadius: 12, padding: 24 }}>
           {chairList.length === 0 && execList.length === 0 ? (
             <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>データがありません。</div>
@@ -331,7 +331,7 @@ export default function CommitteeDetailPage() {
 
       {/* 議員一覧タブ */}
       {tab === "members" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0",
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
           borderRadius: 12, padding: 24 }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {[
@@ -381,7 +381,7 @@ export default function CommitteeDetailPage() {
 
       {/* 請願タブ */}
       {tab === "petitions" && (
-        <div style={{ background: "#111111", border: "1px solid #e0e0e0",
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
           borderRadius: 12, padding: 24 }}>
           {petitions.length === 0 ? (
             <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>

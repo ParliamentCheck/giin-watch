@@ -128,7 +128,7 @@ export default function CommitteesPage() {
               return (
                 <div key={c.committee}
                   onClick={() => router.push(`/committees/${encodeURIComponent(c.committee)}`)}
-                  style={{ background: "#111111", border: "1px solid #e0e0e0",
+                  style={{ background: "#ffffff", border: "1px solid #e0e0e0",
                     borderRadius: 12, padding: "16px 20px", cursor: "pointer",
                     transition: "border-color 0.2s" }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = houseColor; }}
