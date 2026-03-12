@@ -453,8 +453,9 @@ function MemberDetailContent() {
             </div>
           ) : (
             petitions.map((p, i) => {
-              const resultColor = p.result === "採択" ? "#22c55e"
-                : p.result === "不採択" ? "#ef4444" : "#555555";
+              const resultClean = p.result?.split("\n")[0].trim() ?? null;
+              const resultColor = resultClean?.startsWith("採択") ? "#22c55e"
+                : resultClean === "不採択" ? "#ef4444" : "#555555";
               return (
                 <div key={p.id} style={{ padding: "14px 0",
                   borderBottom: i < petitions.length - 1 ? "1px solid #e0e0e0" : "none" }}>
@@ -471,9 +472,9 @@ function MemberDetailContent() {
                     {p.committee_name && (
                       <span style={{ fontSize: 12, color: "#555555" }}>🏛 {p.committee_name}</span>
                     )}
-                    {p.result && (
+                    {resultClean && (
                       <span className="badge badge-result" style={{ "--result-color": resultColor } as React.CSSProperties}>
-                        {p.result}
+                        {resultClean}
                       </span>
                     )}
                     {p.source_url && (
