@@ -97,6 +97,21 @@ jobs:
         continue-on-error: true
         run: python apps/collector/processors/cleanup.py --task truncate-speeches
 
+      - name: データ品質監査
+        id: audit
+        continue-on-error: true
+        timeout-minutes: 10
+        run: python apps/collector/processors/audit.py --output /tmp/audit_report.md
+
+      - name: 監査エラーをIssueに報告
+        if: steps.audit.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "データ品質監査: 不整合を検出 $(date +%Y-%m-%d)" \
+            --body "$(cat /tmp/audit_report.md)"
+
       - name: 失敗チェック
         if: always()
         run: |
