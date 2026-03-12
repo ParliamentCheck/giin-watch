@@ -33,14 +33,14 @@ export default function ChangelogPage() {
   }, {});
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
 
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>📋 変更履歴</h1>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>読み込み中...</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>読み込み中...</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {Object.entries(grouped).map(([date, descs]) => (
@@ -50,7 +50,7 @@ export default function ChangelogPage() {
                   {date}
                 </div>
                 {descs.map((d, i) => (
-                  <p key={i} style={{ fontSize: 13, color: "#7ab8b8", lineHeight: 1.8, marginBottom: 4 }}>
+                  <p key={i} style={{ fontSize: 13, color: "#90c8c8", lineHeight: 1.8, marginBottom: 4 }}>
                     ・{d}
                   </p>
                 ))}

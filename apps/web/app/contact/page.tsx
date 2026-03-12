@@ -2,7 +2,7 @@ export const metadata = { title: "お問い合わせ" };
 
 export default function ContactPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "40px 24px" }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
 
@@ -11,7 +11,7 @@ export default function ContactPage() {
         </h1>
 
         <section style={{ marginBottom: 32 }}>
-          <p style={{ lineHeight: 1.9, color: "#7ab8b8" }}>
+          <p style={{ lineHeight: 1.9, color: "#90c8c8" }}>
             当サイトに関するご質問・ご要望・データの誤りに関するご指摘等がございましたら、
             以下のGoogleフォームよりお問い合わせください。
           </p>

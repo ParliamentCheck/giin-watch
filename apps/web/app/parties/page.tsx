@@ -89,7 +89,7 @@ export default function PartiesPage() {
   const maxVal  = Math.max(...sorted.map((p: any) => p[sortBy]), 1);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
@@ -106,7 +106,7 @@ export default function PartiesPage() {
             <button key={s.value} onClick={() => setSortBy(s.value)}
               style={{ background: sortBy === s.value ? "#0d9488" : "#071a1a",
                 border: `1px solid ${sortBy === s.value ? "#0d9488" : "#0d2828"}`,
-                color: sortBy === s.value ? "white" : "#4d7878",
+                color: sortBy === s.value ? "white" : "#6a9e9e",
                 padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12,
                 fontWeight: sortBy === s.value ? 700 : 400 }}>
               {s.label}
@@ -115,7 +115,7 @@ export default function PartiesPage() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>データ読み込み中...</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>データ読み込み中...</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {sorted.map((p, rank) => {
@@ -139,14 +139,14 @@ export default function PartiesPage() {
 
                   {/* ヘッダー */}
                   <div className="resp-stack resp-gap-sm" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                    <span style={{ fontSize: 13, color: "#264848", fontWeight: 700, width: 20 }}>
+                    <span style={{ fontSize: 13, color: "#4a7a7a", fontWeight: 700, width: 20 }}>
                       {rank + 1}
                     </span>
                     <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
                     <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#edfafa", flex: 1 }}>
                       {p.party}
                     </h2>
-                    <span style={{ fontSize: 12, color: "#4d7878" }}>{p.total}名</span>
+                    <span style={{ fontSize: 12, color: "#6a9e9e" }}>{p.total}名</span>
 
                   </div>
 
@@ -166,9 +166,9 @@ export default function PartiesPage() {
                       <div key={item.label} style={{ background: "#0d2828", borderRadius: 10, padding: 12 }}>
                         <div style={{ fontSize: 15, fontWeight: 700, color: "#edfafa", marginBottom: 2 }}>
                           {item.value}
-                          <span style={{ fontSize: 10, color: "#4d7878", marginLeft: 3 }}>{item.unit}</span>
+                          <span style={{ fontSize: 10, color: "#6a9e9e", marginLeft: 3 }}>{item.unit}</span>
                         </div>
-                        <div style={{ fontSize: 10, color: "#4d7878" }}>{item.label}</div>
+                        <div style={{ fontSize: 10, color: "#6a9e9e" }}>{item.label}</div>
                       </div>
                     ))}
                   </div>

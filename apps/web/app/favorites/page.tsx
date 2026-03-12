@@ -185,7 +185,7 @@ function FavoritesContent() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
@@ -197,8 +197,8 @@ function FavoritesContent() {
           {members.length > 0 && (
             <button onClick={handleShare}
               style={{ background: copied ? "#22c55e22" : "#071a1a",
-                border: `1px solid ${copied ? "#22c55e" : "#163838"}`,
-                color: copied ? "#22c55e" : "#4d7878",
+                border: `1px solid ${copied ? "#22c55e" : "#2d5c5c"}`,
+                color: copied ? "#22c55e" : "#6a9e9e",
                 padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
               {copied ? "✓ コピーしました" : "🔗 URLシェア"}
             </button>
@@ -216,25 +216,25 @@ function FavoritesContent() {
 
       {/* 注意書き */}
       <div style={{ background: "#071a1a", border: "1px solid #0d2828",
-        borderRadius: 10, padding: "12px 16px", marginBottom: 24, fontSize: 12, color: "#264848",
+        borderRadius: 10, padding: "12px 16px", marginBottom: 24, fontSize: 12, color: "#4a7a7a",
         lineHeight: 1.8 }}>
         ⚠️ お気に入りはこの端末・ブラウザにのみ保存されます。ブラウザのデータ消去・プライベートモードでは保存されません。他の端末・ブラウザとは同期されません。運営者にはデータは送信されません。
       </div>
 
       {memberIds.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 0", color: "#264848" }}>
+        <div style={{ textAlign: "center", padding: "60px 0", color: "#4a7a7a" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>⭐</div>
           <div style={{ fontSize: 15, marginBottom: 8 }}>お気に入り議員が登録されていません</div>
           <div style={{ fontSize: 13 }}>議員一覧・詳細ページの ⭐ ボタンから登録できます</div>
           <button onClick={() => router.push("/members")}
-            style={{ marginTop: 24, background: "#0d2828", border: "1px solid #163838",
-              color: "#7ab8b8", padding: "10px 24px", borderRadius: 8,
+            style={{ marginTop: 24, background: "#0d2828", border: "1px solid #2d5c5c",
+              color: "#90c8c8", padding: "10px 24px", borderRadius: 8,
               cursor: "pointer", fontSize: 13 }}>
             議員一覧へ
           </button>
         </div>
       ) : loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>
+        <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>
           データ読み込み中...
         </div>
       ) : (
@@ -242,12 +242,12 @@ function FavoritesContent() {
           {/* 混合タイムライン */}
           <div style={{ background: "#071a1a", border: "1px solid #0d2828",
             borderRadius: 12, padding: 20, marginBottom: 24 }}>
-            <h2 style={{ margin: "0 0 16px", fontSize: 13, color: "#7ab8b8",
+            <h2 style={{ margin: "0 0 16px", fontSize: 13, color: "#90c8c8",
               textTransform: "uppercase", letterSpacing: 1 }}>
               最近の活動
             </h2>
             {activities.length === 0 ? (
-              <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+              <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
                 活動データがありません
               </div>
             ) : (
@@ -256,7 +256,7 @@ function FavoritesContent() {
                   <div key={i} style={{ padding: "12px 0",
                     borderBottom: i < activities.length - 1 ? "1px solid #0d2828" : "none" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: "#4d7878", background: "#0d2828",
+                      <span style={{ fontSize: 11, color: "#6a9e9e", background: "#0d2828",
                         padding: "2px 7px", borderRadius: 4, flexShrink: 0, marginTop: 1 }}>
                         {TYPE_LABELS[a.type]}
                       </span>
@@ -264,28 +264,28 @@ function FavoritesContent() {
                         <div style={{ display: "flex", alignItems: "center",
                           gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
                           <span style={{ fontSize: 12, fontWeight: 700,
-                            color: PARTY_COLORS[members.find(m => m.id === a.memberId)?.party || ""] || "#7ab8b8" }}>
+                            color: PARTY_COLORS[members.find(m => m.id === a.memberId)?.party || ""] || "#90c8c8" }}>
                             {a.memberName}
                           </span>
-                          <span style={{ fontSize: 11, color: "#264848" }}>{a.date}</span>
+                          <span style={{ fontSize: 11, color: "#4a7a7a" }}>{a.date}</span>
                         </div>
                         {a.url ? (
                           <a href={a.url} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 13, color: "#dff0f0", textDecoration: "none",
+                            style={{ fontSize: 13, color: "#e8f5f5", textDecoration: "none",
                               display: "block", overflow: "hidden", textOverflow: "ellipsis",
                               whiteSpace: "nowrap" }}
                             title={a.label}>
                             {a.label}
                           </a>
                         ) : (
-                          <span style={{ fontSize: 13, color: "#dff0f0",
+                          <span style={{ fontSize: 13, color: "#e8f5f5",
                             display: "block", overflow: "hidden", textOverflow: "ellipsis",
                             whiteSpace: "nowrap" }} title={a.label}>
                             {a.label}
                           </span>
                         )}
                         {a.note && (
-                          <span style={{ fontSize: 11, color: "#264848" }}>{a.note}</span>
+                          <span style={{ fontSize: 11, color: "#4a7a7a" }}>{a.note}</span>
                         )}
                       </div>
                     </div>
@@ -296,7 +296,7 @@ function FavoritesContent() {
           </div>
 
           {/* 議員カード一覧 */}
-          <h2 style={{ margin: "0 0 12px", fontSize: 13, color: "#7ab8b8",
+          <h2 style={{ margin: "0 0 12px", fontSize: 13, color: "#90c8c8",
             textTransform: "uppercase", letterSpacing: 1 }}>
             登録済み議員（{members.length}/{MAX_FAVORITES}）
           </h2>
@@ -320,15 +320,15 @@ function FavoritesContent() {
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 12, color: "#4d7878", marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: "#6a9e9e", marginTop: 2 }}>
                       <span style={{ color }}>{m.party}</span>
                       <span style={{ marginLeft: 8 }}>{m.house}</span>
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                     <button onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                      style={{ background: "#0d2828", border: "1px solid #163838",
-                        color: "#7ab8b8", padding: "6px 12px", borderRadius: 7,
+                      style={{ background: "#0d2828", border: "1px solid #2d5c5c",
+                        color: "#90c8c8", padding: "6px 12px", borderRadius: 7,
                         cursor: "pointer", fontSize: 12 }}>
                       詳細
                     </button>
@@ -352,7 +352,7 @@ function FavoritesContent() {
 export default function FavoritesPage() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#030d0d", color: "#4d7878",
+      <div style={{ minHeight: "100vh", background: "#030d0d", color: "#6a9e9e",
         padding: "24px", textAlign: "center" }}>読み込み中...</div>
     }>
       <FavoritesContent />

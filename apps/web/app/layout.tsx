@@ -52,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           borderBottom: "1px solid #0d2828",
           padding: "10px 16px",
           fontSize: 11,
-          color: "#4d7878",
+          color: "#6a9e9e",
           lineHeight: 1.6,
           textAlign: "center",
         }}>

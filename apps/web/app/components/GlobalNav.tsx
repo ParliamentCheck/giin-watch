@@ -51,7 +51,7 @@ export default function GlobalNav() {
               <button key={item.path} onClick={() => navigate(item.path)}
                 style={{
                   background: isActive ? "#0d2828" : "transparent",
-                  border: "none", color: isActive ? "#edfafa" : "#4d7878",
+                  border: "none", color: isActive ? "#edfafa" : "#6a9e9e",
                   padding: "8px 14px", borderRadius: 8, cursor: "pointer",
                   fontSize: 14, fontWeight: isActive ? 700 : 400, transition: "all 0.15s",
                 }}>
@@ -66,7 +66,7 @@ export default function GlobalNav() {
           className="show-mobile"
           style={{
             display: "none", background: "none", border: "none",
-            color: "#7ab8b8", fontSize: 24, cursor: "pointer", padding: 8,
+            color: "#90c8c8", fontSize: 24, cursor: "pointer", padding: 8,
           }}>
           {open ? "✕" : "☰"}
         </button>
@@ -86,7 +86,7 @@ export default function GlobalNav() {
                 style={{
                   display: "block", width: "100%", textAlign: "left",
                   background: isActive ? "#0d2828" : "transparent",
-                  border: "none", color: isActive ? "#edfafa" : "#7ab8b8",
+                  border: "none", color: isActive ? "#edfafa" : "#90c8c8",
                   padding: "12px 24px", cursor: "pointer",
                   fontSize: 15, fontWeight: isActive ? 700 : 400,
                 }}>

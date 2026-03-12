@@ -103,7 +103,7 @@ const PARTY_COLORS: Record<string, string> = {
 const ROLE_COLORS: Record<string, string> = {
   "委員長": "#f59e0b",
   "理事":   "#0d9488",
-  "委員":   "#4d7878",
+  "委員":   "#6a9e9e",
   "会長":   "#f59e0b",
   "副会長": "#0d9488",
 };
@@ -218,7 +218,7 @@ export default function MemberDetailPage() {
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#030d0d", display: "flex",
-      alignItems: "center", justifyContent: "center", color: "#4d7878" }}>
+      alignItems: "center", justifyContent: "center", color: "#6a9e9e" }}>
       データ読み込み中...
     </div>
   );
@@ -234,14 +234,14 @@ export default function MemberDetailPage() {
   const showFaction = member.faction && member.faction !== member.party;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
       {/* 戻るボタン + お気に入り */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <button onClick={() => router.back()}
-          style={{ background: "transparent", border: "1px solid #163838", color: "#7ab8b8",
+          style={{ background: "transparent", border: "1px solid #2d5c5c", color: "#90c8c8",
             padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 14 }}>
           ← 一覧に戻る
         </button>
@@ -259,8 +259,8 @@ export default function MemberDetailPage() {
             }
           }}
             style={{ background: fav ? "#f59e0b22" : "#071a1a",
-              border: `1px solid ${fav ? "#f59e0b" : "#163838"}`,
-              color: fav ? "#f59e0b" : "#4d7878",
+              border: `1px solid ${fav ? "#f59e0b" : "#2d5c5c"}`,
+              color: fav ? "#f59e0b" : "#6a9e9e",
               padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13,
               fontWeight: fav ? 700 : 400 }}>
             {fav ? "⭐ 登録済み" : "☆ お気に入り登録"}
@@ -281,7 +281,7 @@ export default function MemberDetailPage() {
             <h1 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: "#edfafa" }}>
               {member.name}
             </h1>
-            <div style={{ fontSize: 13, color: "#4d7878", marginBottom: 10 }}>
+            <div style={{ fontSize: 13, color: "#6a9e9e", marginBottom: 10 }}>
 {!member.is_active && (
                 <span style={{
                   display: "inline-block", background: "#f59e0b22",
@@ -301,8 +301,8 @@ export default function MemberDetailPage() {
                 🗳 {member.party}
               </span>
               {showFaction && (
-                <span style={{ background: "#0d2828", color: "#7ab8b8",
-                  border: "1px solid #163838", padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
+                <span style={{ background: "#0d2828", color: "#90c8c8",
+                  border: "1px solid #2d5c5c", padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
                   🏛 会派: {member.faction}
                 </span>
               )}
@@ -314,8 +314,8 @@ export default function MemberDetailPage() {
               )}
               {member.source_url && (
                 <a href={member.source_url} target="_blank" rel="noopener noreferrer"
-                  style={{ background: "#0d2828", color: "#4d7878",
-                    border: "1px solid #163838", padding: "3px 10px", borderRadius: 6,
+                  style={{ background: "#0d2828", color: "#6a9e9e",
+                    border: "1px solid #2d5c5c", padding: "3px 10px", borderRadius: 6,
                     fontSize: 12, textDecoration: "none" }}>
                   📄 公式プロフィール
                 </a>
@@ -337,15 +337,15 @@ export default function MemberDetailPage() {
             borderRadius: 12, padding: "16px", textAlign: "center" }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: "#0d9488", marginBottom: 4 }}>
               {item.value ?? "—"}
-              <span style={{ fontSize: 12, color: "#4d7878", marginLeft: 4 }}>{item.unit}</span>
+              <span style={{ fontSize: 12, color: "#6a9e9e", marginLeft: 4 }}>{item.unit}</span>
             </div>
-            <div style={{ fontSize: 11, color: "#4d7878" }}>{item.label}</div>
+            <div style={{ fontSize: 11, color: "#6a9e9e" }}>{item.label}</div>
           </div>
         ))}
       </div>
 
       {/* カード注釈 */}
-      <div style={{ fontSize: 11, color: "#264848", marginBottom: 16, padding: "0 4px" }}>
+      <div style={{ fontSize: 11, color: "#4a7a7a", marginBottom: 16, padding: "0 4px" }}>
         ※ 発言セッションは同日・同委員会の発言を1回として集計（第210回〜第221回国会の記録に基づく）。当選回数は現在の所属院におけるものです。
       </div>
 
@@ -364,7 +364,7 @@ export default function MemberDetailPage() {
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
               background: tab === t.id ? "#0d9488" : "transparent",
-              color: tab === t.id ? "white" : "#4d7878", cursor: "pointer",
+              color: tab === t.id ? "white" : "#6a9e9e", cursor: "pointer",
               fontWeight: tab === t.id ? 700 : 400, fontSize: 13, transition: "all 0.2s" }}>
             {t.label}
           </button>
@@ -374,17 +374,17 @@ export default function MemberDetailPage() {
       {/* 委員会所属タブ */}
       {tab === "committees" && (
         <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#7ab8b8",
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#90c8c8",
             textTransform: "uppercase", letterSpacing: 1 }}>
             委員会所属（現在）
           </h3>
           {committees.length === 0 ? (
-            <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
               委員会所属データがありません。
             </div>
           ) : (
             committees.map((c, i) => {
-              const roleColor = ROLE_COLORS[c.role] || "#4d7878";
+              const roleColor = ROLE_COLORS[c.role] || "#6a9e9e";
               return (
                 <div key={c.id} style={{ padding: "14px 0",
                   borderBottom: i < committees.length - 1 ? "1px solid #0d2828" : "none",
@@ -394,7 +394,7 @@ export default function MemberDetailPage() {
                     borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
                     {c.role}
                   </span>
-                  <span style={{ fontSize: 14, color: "#dff0f0" }}>{c.committee}</span>
+                  <span style={{ fontSize: 14, color: "#e8f5f5" }}>{c.committee}</span>
                 </div>
               );
             })
@@ -405,12 +405,12 @@ export default function MemberDetailPage() {
       {/* 発言履歴タブ */}
       {tab === "speeches" && (
         <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#7ab8b8",
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#90c8c8",
             textTransform: "uppercase", letterSpacing: 1 }}>
             発言履歴（セッション単位・最新順）
           </h3>
           {sessionGroups.length === 0 ? (
-            <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
               発言データがまだありません。
             </div>
           ) : (
@@ -424,19 +424,19 @@ export default function MemberDetailPage() {
                     style={{ display: "flex", justifyContent: "space-between",
                       alignItems: "center", cursor: "pointer", padding: "6px 0" }}>
                     <div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#dff0f0" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#e8f5f5" }}>
                         {sg.committee}
                       </span>
-                      <span style={{ fontSize: 12, color: "#264848", marginLeft: 12 }}>
+                      <span style={{ fontSize: 12, color: "#4a7a7a", marginLeft: 12 }}>
                         {sg.spoken_at}
                       </span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: "#4d7878",
+                      <span style={{ fontSize: 11, color: "#6a9e9e",
                         background: "#0d2828", padding: "2px 8px", borderRadius: 4 }}>
                         {sg.speeches.length}件の発言
                       </span>
-                      <span style={{ color: "#4d7878", fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
+                      <span style={{ color: "#6a9e9e", fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
                     </div>
                   </div>
                   {isOpen && (
@@ -463,33 +463,33 @@ export default function MemberDetailPage() {
       {/* 請願タブ */}
       {tab === "petitions" && (
         <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#7ab8b8",
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#90c8c8",
             textTransform: "uppercase", letterSpacing: 1 }}>
             紹介議員を務めた請願
           </h3>
           {petitions.length === 0 ? (
-            <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
               請願の紹介議員記録がありません。
             </div>
           ) : (
             petitions.map((p, i) => {
               const resultColor = p.result === "採択" ? "#22c55e"
-                : p.result === "不採択" ? "#ef4444" : "#4d7878";
+                : p.result === "不採択" ? "#ef4444" : "#6a9e9e";
               return (
                 <div key={p.id} style={{ padding: "14px 0",
                   borderBottom: i < petitions.length - 1 ? "1px solid #0d2828" : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between",
                     alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#dff0f0", flex: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#e8f5f5", flex: 1 }}>
                       {p.title}
                     </span>
-                    <span style={{ fontSize: 11, color: "#264848", flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, color: "#4a7a7a", flexShrink: 0 }}>
                       第{p.session}回 #{p.number}
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                     {p.committee_name && (
-                      <span style={{ fontSize: 12, color: "#4d7878" }}>🏛 {p.committee_name}</span>
+                      <span style={{ fontSize: 12, color: "#6a9e9e" }}>🏛 {p.committee_name}</span>
                     )}
                     {p.result && (
                       <span style={{ fontSize: 11, color: resultColor, fontWeight: 700,
@@ -522,12 +522,12 @@ export default function MemberDetailPage() {
       {/* 質問主意書タブ */}
       {tab === "questions" && (
         <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#7ab8b8",
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#90c8c8",
             textTransform: "uppercase", letterSpacing: 1 }}>
             質問主意書（最新20件）
           </h3>
           {questions.length === 0 ? (
-            <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
               質問主意書の提出記録がありません。
             </div>
           ) : (
@@ -536,19 +536,19 @@ export default function MemberDetailPage() {
                 borderBottom: i < questions.length - 1 ? "1px solid #0d2828" : "none" }}>
                 <div style={{ display: "flex", justifyContent: "space-between",
                   alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#dff0f0", flex: 1 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#e8f5f5", flex: 1 }}>
                     {q.title}
                   </span>
-                  <span style={{ fontSize: 11, color: "#264848", flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, color: "#4a7a7a", flexShrink: 0 }}>
                     第{q.session}回 #{q.number}
                   </span>
                 </div>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  <span style={{ fontSize: 12, color: "#4d7878" }}>
+                  <span style={{ fontSize: 12, color: "#6a9e9e" }}>
                     提出: {q.submitted_at || "不明"}
                   </span>
                   {q.answered_at && (
-                    <span style={{ fontSize: 12, color: "#4d7878" }}>
+                    <span style={{ fontSize: 12, color: "#6a9e9e" }}>
                       答弁: {q.answered_at}
                     </span>
                   )}
@@ -566,26 +566,26 @@ export default function MemberDetailPage() {
       {/* 採決記録タブ（参議院のみ） */}
       {tab === "votes" && (
         <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#7ab8b8",
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#90c8c8",
             textTransform: "uppercase", letterSpacing: 1 }}>
             本会議採決記録（参議院・最新100件）
           </h3>
           {member.house !== "参議院" ? (
-            <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
               衆議院は個人別の投票記録が公開されていないため、採決データは参議院議員のみ表示されます。
             </div>
           ) : votes.length === 0 ? (
-            <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
               採決記録がありません。
             </div>
           ) : (
             votes.map((v, i) => {
-              const voteColor = v.vote === "賛成" ? "#22c55e" : v.vote === "反対" ? "#ef4444" : "#4d7878";
+              const voteColor = v.vote === "賛成" ? "#22c55e" : v.vote === "反対" ? "#ef4444" : "#6a9e9e";
               return (
                 <div key={v.id} style={{ padding: "12px 0",
                   borderBottom: i < votes.length - 1 ? "1px solid #0d2828" : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                    <span style={{ fontSize: 13, color: "#dff0f0", flex: 1 }}>
+                    <span style={{ fontSize: 13, color: "#e8f5f5", flex: 1 }}>
                       {v.bill_title}
                     </span>
                     <span style={{ fontSize: 11, color: voteColor, fontWeight: 700, flexShrink: 0,
@@ -594,7 +594,7 @@ export default function MemberDetailPage() {
                       {v.vote}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: "#4d7878", marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: "#6a9e9e", marginTop: 4 }}>
                     {v.vote_date || "日付不明"} · 第{v.session_number}回国会
                   </div>
                 </div>
@@ -607,25 +607,25 @@ export default function MemberDetailPage() {
       {/* 議員立法タブ */}
       {tab === "bills" && (
         <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#7ab8b8",
+          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#90c8c8",
             textTransform: "uppercase", letterSpacing: 1 }}>
             議員提出法案
           </h3>
           {bills.length === 0 ? (
-            <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
               議員提出法案の記録がありません。
             </div>
           ) : (
             bills.map((b, i) => (
               <div key={b.id} style={{ padding: "12px 0",
                 borderBottom: i < bills.length - 1 ? "1px solid #0d2828" : "none" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#dff0f0", marginBottom: 4 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#e8f5f5", marginBottom: 4 }}>
                   {b.title}
                 </div>
-                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#4d7878", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#6a9e9e", alignItems: "center" }}>
                   <span>{b.submitted_at || "日付不明"}</span>
                   <span>第{b.session_number}回国会</span>
-                  {b.status && <span style={{ color: "#7ab8b8" }}>{b.status}</span>}
+                  {b.status && <span style={{ color: "#90c8c8" }}>{b.status}</span>}
                   {b.source_url && (
                     <a href={b.source_url} target="_blank" rel="noopener noreferrer"
                       style={{ color: "#0d9488", textDecoration: "none" }}

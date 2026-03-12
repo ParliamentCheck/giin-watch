@@ -64,20 +64,20 @@ export default function CommitteesPage() {
   const maxCount = filtered[0]?.count || 1;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         <button onClick={() => router.push("/")}
-          style={{ background: "transparent", border: "1px solid #163838", color: "#7ab8b8",
+          style={{ background: "transparent", border: "1px solid #2d5c5c", color: "#90c8c8",
             padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24,
             fontSize: 14 }}>
           ← トップに戻る
         </button>
 
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🏛 委員会一覧</h1>
-        <p style={{ color: "#4d7878", marginBottom: 24, fontSize: 14 }}>
+        <p style={{ color: "#6a9e9e", marginBottom: 24, fontSize: 14 }}>
           現在の委員会・調査会ごとの所属議員数
         </p>
 
@@ -88,11 +88,11 @@ export default function CommitteesPage() {
             placeholder="委員会名で検索"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: 200, background: "#0d2828", border: "1px solid #163838",
-              color: "#dff0f0", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
+            style={{ flex: 1, minWidth: 200, background: "#0d2828", border: "1px solid #2d5c5c",
+              color: "#e8f5f5", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
           />
           <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
-            style={{ background: "#0d2828", border: "1px solid #163838", color: "#dff0f0",
+            style={{ background: "#0d2828", border: "1px solid #2d5c5c", color: "#e8f5f5",
               padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
             <option value="">衆院・参院すべて</option>
             <option value="衆議院">衆議院</option>
@@ -100,23 +100,23 @@ export default function CommitteesPage() {
           </select>
           {(search || selectedHouse) && (
             <button onClick={() => { setSearch(""); setSelectedHouse(""); }}
-              style={{ background: "#163838", border: "none", color: "#7ab8b8",
+              style={{ background: "#2d5c5c", border: "none", color: "#90c8c8",
                 padding: "10px 16px", borderRadius: 10, cursor: "pointer" }}>
               クリア
             </button>
           )}
         </div>
 
-        <p style={{ color: "#264848", marginBottom: 16, fontSize: 14 }}>
+        <p style={{ color: "#4a7a7a", marginBottom: 16, fontSize: 14 }}>
           {filtered.length}件の委員会・調査会
         </p>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>
+          <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>
             データ読み込み中...
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>
+          <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>
             該当する委員会がありません。
           </div>
         ) : (
@@ -150,7 +150,7 @@ export default function CommitteesPage() {
                       <span style={{ fontSize: 18, fontWeight: 800, color: "#edfafa" }}>
                         {c.count}
                       </span>
-                      <span style={{ fontSize: 12, color: "#4d7878", marginLeft: 4 }}>名</span>
+                      <span style={{ fontSize: 12, color: "#6a9e9e", marginLeft: 4 }}>名</span>
                     </div>
                   </div>
 

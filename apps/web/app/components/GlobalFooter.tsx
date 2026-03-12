@@ -20,7 +20,7 @@ export default function GlobalFooter() {
       background: "#051414",
       borderTop: "1px solid #0d2828",
       padding: "24px",
-      color: "#264848",
+      color: "#4a7a7a",
       fontSize: 13,
     }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
@@ -32,28 +32,28 @@ export default function GlobalFooter() {
             <span key={link.path} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {link.path.startsWith("http") ? (
                 <a href={link.path} target="_blank" rel="noopener noreferrer"
-                  style={{ color: "#4d7878", textDecoration: "none" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#7ab8b8"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "#4d7878"; }}
+                  style={{ color: "#6a9e9e", textDecoration: "none" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#90c8c8"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "#6a9e9e"; }}
                 >{link.label}</a>
               ) : (
                 <span
                   onClick={() => router.push(link.path)}
-                  style={{ color: "#4d7878", cursor: "pointer" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#7ab8b8"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "#4d7878"; }}
+                  style={{ color: "#6a9e9e", cursor: "pointer" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#90c8c8"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "#6a9e9e"; }}
                 >{link.label}</span>
               )}
               {i < FOOTER_LINKS.length - 1 && (
-                <span style={{ color: "#163838" }}>|</span>
+                <span style={{ color: "#2d5c5c" }}>|</span>
               )}
             </span>
           ))}
         </div>
-        <div style={{ textAlign: "center", color: "#264848", fontSize: 12 }}>
+        <div style={{ textAlign: "center", color: "#4a7a7a", fontSize: 12 }}>
           データソース: 国立国会図書館 / 衆議院 / 参議院 ｜ 収集期間: 2018年〜現在 ｜ 毎日午前3時に自動更新
         </div>
-        <div style={{ textAlign: "center", color: "#163838", fontSize: 11, marginTop: 8 }}>
+        <div style={{ textAlign: "center", color: "#2d5c5c", fontSize: 11, marginTop: 8 }}>
           © 2025 はたらく議員
         </div>
       </div>

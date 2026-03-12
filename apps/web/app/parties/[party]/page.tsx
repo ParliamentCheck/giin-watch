@@ -161,7 +161,7 @@ export default function PartyDetailPage() {
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "#030d0d", display: "flex",
-      alignItems: "center", justifyContent: "center", color: "#4d7878" }}>
+      alignItems: "center", justifyContent: "center", color: "#6a9e9e" }}>
       データ読み込み中...
     </div>
   );
@@ -174,13 +174,13 @@ export default function PartyDetailPage() {
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
       <button onClick={() => router.push("/parties")}
-        style={{ background: "transparent", border: "1px solid #163838", color: "#7ab8b8",
+        style={{ background: "transparent", border: "1px solid #2d5c5c", color: "#90c8c8",
           padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24, fontSize: 14 }}>
         ← 政党一覧に戻る
       </button>
@@ -195,7 +195,7 @@ export default function PartyDetailPage() {
             <a href={PARTY_URLS[party]} target="_blank" rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="party-header-link"
-              style={{ fontSize: 12, color: "#4d7878", border: "1px solid #163838",
+              style={{ fontSize: 12, color: "#6a9e9e", border: "1px solid #2d5c5c",
                 padding: "4px 10px", borderRadius: 6, textDecoration: "none",
                 flexShrink: 0, transition: "color 0.2s, border-color 0.2s" }}
               onMouseEnter={(e) => {
@@ -203,8 +203,8 @@ export default function PartyDetailPage() {
                 (e.currentTarget as HTMLAnchorElement).style.borderColor = color;
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.color = "#4d7878";
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = "#163838";
+                (e.currentTarget as HTMLAnchorElement).style.color = "#6a9e9e";
+                (e.currentTarget as HTMLAnchorElement).style.borderColor = "#2d5c5c";
               }}>
               公式サイト →
             </a>
@@ -220,9 +220,9 @@ export default function PartyDetailPage() {
             <div key={item.label} style={{ background: "#0d2828", borderRadius: 12, padding: 16, textAlign: "center" }}>
               <div style={{ fontSize: 22, fontWeight: 800, color, marginBottom: 4 }}>
                 {item.value}
-                <span style={{ fontSize: 12, color: "#4d7878", marginLeft: 4 }}>{item.unit}</span>
+                <span style={{ fontSize: 12, color: "#6a9e9e", marginLeft: 4 }}>{item.unit}</span>
               </div>
-              <div style={{ fontSize: 11, color: "#4d7878" }}>{item.label}</div>
+              <div style={{ fontSize: 11, color: "#6a9e9e" }}>{item.label}</div>
             </div>
           ))}
         </div>
@@ -235,7 +235,7 @@ export default function PartyDetailPage() {
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{ flex: 1, minWidth: 120, padding: "10px 0", borderRadius: 9, border: "none",
               background: tab === t.id ? color : "transparent",
-              color: tab === t.id ? "white" : "#4d7878", cursor: "pointer",
+              color: tab === t.id ? "white" : "#6a9e9e", cursor: "pointer",
               fontWeight: tab === t.id ? 700 : 400, fontSize: 12, transition: "all 0.2s" }}>
             {t.label}
           </button>
@@ -253,8 +253,8 @@ export default function PartyDetailPage() {
             ].map((s) => (
               <button key={s.value} onClick={() => setSortBy(s.value)}
                 style={{ background: sortBy === s.value ? color + "33" : "#0d2828",
-                  border: `1px solid ${sortBy === s.value ? color : "#163838"}`,
-                  color: sortBy === s.value ? color : "#4d7878",
+                  border: `1px solid ${sortBy === s.value ? color : "#2d5c5c"}`,
+                  color: sortBy === s.value ? color : "#6a9e9e",
                   padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
                 {s.label}
               </button>
@@ -272,9 +272,9 @@ export default function PartyDetailPage() {
                 onMouseLeave={(e) => { e.currentTarget.style.background = "#0d2828"; }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "#edfafa" }}>{m.name}</div>
-                  <div style={{ fontSize: 12, color: "#4d7878" }}>{m.house} · {m.district}</div>
+                  <div style={{ fontSize: 12, color: "#6a9e9e" }}>{m.house} · {m.district}</div>
                 </div>
-                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#4d7878" }}>
+                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#6a9e9e" }}>
                   <span>💬 {m.speech_count   || 0}件</span>
                   <span>📝 {m.question_count || 0}件</span>
                 </div>
@@ -304,7 +304,7 @@ export default function PartyDetailPage() {
                     </span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 14, color: "#edfafa" }}>{c.name}</div>
-                      <div style={{ fontSize: 12, color: "#4d7878" }}>{c.committee}</div>
+                      <div style={{ fontSize: 12, color: "#6a9e9e" }}>{c.committee}</div>
                     </div>
                   </div>
                 ))}
@@ -329,7 +329,7 @@ export default function PartyDetailPage() {
                     </span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 14, color: "#edfafa" }}>{c.name}</div>
-                      <div style={{ fontSize: 12, color: "#4d7878" }}>{c.committee}</div>
+                      <div style={{ fontSize: 12, color: "#6a9e9e" }}>{c.committee}</div>
                     </div>
                   </div>
                 ))}
@@ -338,7 +338,7 @@ export default function PartyDetailPage() {
           )}
 
           {chairList.length === 0 && execList.length === 0 && (
-            <div style={{ color: "#264848", fontSize: 13, padding: "20px 0" }}>
+            <div style={{ color: "#4a7a7a", fontSize: 13, padding: "20px 0" }}>
               委員長・理事のデータがありません。
             </div>
           )}
@@ -348,12 +348,12 @@ export default function PartyDetailPage() {
       {/* ワードクラウドタブ */}
       {tab === "wordcloud" && (
         <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 24 }}>
-          <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#7ab8b8",
+          <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#90c8c8",
             textTransform: "uppercase", letterSpacing: 1 }}>
             ☁️ {party} の発言キーワード
           </h3>
           {kwLoading ? (
-            <div style={{ textAlign: "center", padding: "60px 0", color: "#4d7878" }}>
+            <div style={{ textAlign: "center", padding: "60px 0", color: "#6a9e9e" }}>
               キーワードを集計中...
             </div>
           ) : (
@@ -368,7 +368,7 @@ export default function PartyDetailPage() {
 
           {/* 衆参比率 */}
           <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 24 }}>
-            <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#7ab8b8",
+            <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#90c8c8",
               textTransform: "uppercase", letterSpacing: 1 }}>
               🏠 衆議院 / 参議院
             </h3>
@@ -380,10 +380,10 @@ export default function PartyDetailPage() {
                 <div key={h.label} style={{ background: "#0d2828", borderRadius: 10, padding: 16, textAlign: "center" }}>
                   <div style={{ fontSize: 28, fontWeight: 800, color: h.bg, marginBottom: 4 }}>
                     {h.count}
-                    <span style={{ fontSize: 13, color: "#4d7878", marginLeft: 4 }}>名</span>
+                    <span style={{ fontSize: 13, color: "#6a9e9e", marginLeft: 4 }}>名</span>
                   </div>
-                  <div style={{ fontSize: 12, color: "#4d7878" }}>{h.label}</div>
-                  <div style={{ fontSize: 11, color: "#264848", marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: "#6a9e9e" }}>{h.label}</div>
+                  <div style={{ fontSize: 11, color: "#4a7a7a", marginTop: 4 }}>
                     {members.length > 0 ? Math.round(h.count / members.length * 100) : 0}%
                   </div>
                 </div>
@@ -400,7 +400,7 @@ export default function PartyDetailPage() {
 
           {/* 当選回数分布 */}
           <div style={{ background: "#071a1a", border: "1px solid #0d2828", borderRadius: 12, padding: 24 }}>
-            <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#7ab8b8",
+            <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#90c8c8",
               textTransform: "uppercase", letterSpacing: 1 }}>
               🗳 当選回数分布
             </h3>
@@ -410,7 +410,7 @@ export default function PartyDetailPage() {
                 return (
                   <div key={b.label}>
                     <div style={{ display: "flex", justifyContent: "space-between",
-                      fontSize: 12, color: "#7ab8b8", marginBottom: 4 }}>
+                      fontSize: 12, color: "#90c8c8", marginBottom: 4 }}>
                       <span>{b.label}</span>
                       <span style={{ color: color, fontWeight: 700 }}>{b.count}名（{Math.round(pct)}%）</span>
                     </div>

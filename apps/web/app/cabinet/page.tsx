@@ -82,16 +82,16 @@ export default function CabinetPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#e8f5f5",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
 
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>内閣一覧</h1>
-      <p style={{ color: "#4d7878", marginBottom: 24 }}>現在 {members.length}名の内閣構成員を収録</p>
+      <p style={{ color: "#6a9e9e", marginBottom: 24 }}>現在 {members.length}名の内閣構成員を収録</p>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>データ読み込み中...</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>データ読み込み中...</div>
       ) : members.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>データがありません</div>
+        <div style={{ textAlign: "center", padding: 60, color: "#6a9e9e" }}>データがありません</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {members.map((m) => {
@@ -120,7 +120,7 @@ export default function CabinetPage() {
                     {m.party}
                   </span>
                   {/* 院・選挙区 */}
-                  <span style={{ color: "#4d7878", fontSize: 12, whiteSpace: "nowrap" }}>
+                  <span style={{ color: "#6a9e9e", fontSize: 12, whiteSpace: "nowrap" }}>
                     {m.house} · {m.district}
                   </span>
                 </div>

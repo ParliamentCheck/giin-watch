@@ -142,24 +142,24 @@ export default async function TopPage() {
   const maxPartyCount = partyBreakdown[0]?.total || 1;
 
   return (
-    <div className="min-h-screen text-slate-200">
+    <div className="min-h-screen text-teal-100">
       {/* ── ヒーロー ─────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-blue-950/40 via-transparent to-transparent pointer-events-none" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-4xl mx-auto px-5 pt-20 pb-12 text-center">
           <h1 className="mb-4">
             <img src="/logo-main.svg" alt="はたらく議員" className="h-32 sm:h-40 mx-auto" />
           </h1>
 
-          <p className="text-lg text-slate-400 mb-2">
+          <p className="text-lg text-teal-300 mb-2">
             国会議員の活動を、データで見える化
           </p>
-          <p className="text-sm text-slate-500 mb-4">
+          <p className="text-sm text-teal-400 mb-4">
             衆議院・参議院の全議員の発言・質問主意書・委員会活動を収集・公開
           </p>
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-700/60 bg-slate-800/40 text-xs text-slate-400">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-teal-800/60 bg-teal-900/40 text-xs text-teal-300">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             収集期間: 2018年〜現在（毎日自動更新）
           </div>
@@ -170,7 +170,7 @@ export default async function TopPage() {
         {/* ── 統計カード ──────────────────────────────────────── */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-16">
           {[
-            { label: "現職議員",   value: stats.total,    unit: "名", accent: "text-blue-400" },
+            { label: "現職議員",   value: stats.total,    unit: "名", accent: "text-teal-400" },
             { label: "衆議院",     value: stats.shugiin,  unit: "名", accent: "text-sky-400" },
             { label: "参議院",     value: stats.sangiin,  unit: "名", accent: "text-cyan-400" },
             { label: "政党・会派", value: stats.parties,  unit: "党", accent: "text-violet-400" },
@@ -178,11 +178,11 @@ export default async function TopPage() {
             { label: "質問主意書", value: stats.questions, unit: "件", accent: "text-emerald-400" },
           ].map((item) => (
             <div key={item.label}
-              className="bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-5 text-center hover:border-slate-700 transition-colors">
+              className="bg-teal-950/60 border border-teal-900 rounded-xl px-4 py-5 text-center hover:border-teal-800 transition-colors">
               <div className={`text-2xl font-extrabold tabular-nums ${item.accent}`}>
                 {item.value.toLocaleString()}
               </div>
-              <div className="text-[11px] text-slate-500 mt-1">{item.label}</div>
+              <div className="text-[11px] text-teal-400 mt-1">{item.label}</div>
             </div>
           ))}
         </section>
@@ -190,15 +190,15 @@ export default async function TopPage() {
         {/* ── メインナビゲーション ────────────────────────────── */}
         <section className="grid sm:grid-cols-2 gap-4 mb-16">
           {[
-            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。全議員のプロフィールと活動実績を検索", path: "/members",    border: "hover:border-blue-500/50" },
+            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。全議員のプロフィールと活動実績を検索", path: "/members",    border: "hover:border-teal-500/50" },
             { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",     path: "/committees", border: "hover:border-cyan-500/50" },
             { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数と構成。国会での勢力図が一目でわかる",       path: "/parties",    border: "hover:border-amber-500/50" },
           ].map((item) => (
             <Link key={item.path} href={item.path}
-              className={`group block bg-slate-900/60 border border-slate-800 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 ${item.border}`}>
+              className={`group block bg-teal-950/60 border border-teal-900 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 ${item.border}`}>
               <div className="text-3xl mb-3">{item.icon}</div>
-              <div className="text-lg font-bold text-slate-100 mb-2 group-hover:text-white transition-colors">{item.title}</div>
-              <div className="text-sm text-slate-500 leading-relaxed">{item.desc}</div>
+              <div className="text-lg font-bold text-teal-50 mb-2 group-hover:text-white transition-colors">{item.title}</div>
+              <div className="text-sm text-teal-400 leading-relaxed">{item.desc}</div>
             </Link>
           ))}
         </section>
@@ -214,24 +214,24 @@ export default async function TopPage() {
         {partyBreakdown.length > 0 && (
           <section className="mb-16">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-slate-100">政党・会派別 議員数</h2>
-              <Link href="/parties" className="text-xs text-slate-500 hover:text-blue-400 transition-colors">
+              <h2 className="text-lg font-bold text-teal-50">政党・会派別 議員数</h2>
+              <Link href="/parties" className="text-xs text-teal-400 hover:text-teal-400 transition-colors">
                 詳しく見る →
               </Link>
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-6 space-y-4">
+            <div className="bg-teal-950/40 border border-teal-900/60 rounded-2xl p-6 space-y-4">
               {partyBreakdown.map((p) => (
                 <div key={p.party}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm text-slate-300 truncate mr-4">{p.party}</span>
-                    <span className="text-xs text-slate-500 tabular-nums shrink-0">
+                    <span className="text-sm text-teal-200 truncate mr-4">{p.party}</span>
+                    <span className="text-xs text-teal-400 tabular-nums shrink-0">
                       {p.total}名
-                      <span className="text-slate-600 ml-1">（衆{p.shugiin} / 参{p.sangiin}）</span>
+                      <span className="text-teal-500 ml-1">（衆{p.shugiin} / 参{p.sangiin}）</span>
                     </span>
                   </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400"
+                  <div className="h-2 bg-teal-900 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-teal-400"
                       style={{ width: `${(p.total / maxPartyCount) * 100}%` }} />
                   </div>
                 </div>
@@ -242,15 +242,15 @@ export default async function TopPage() {
 
         {/* ── 更新履歴 ─────────────────────────────────────────── */}
         <section className="mb-16">
-          <h2 className="text-base font-bold text-slate-100 mb-4">🕐 更新履歴</h2>
-          <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl divide-y divide-slate-800/60">
+          <h2 className="text-base font-bold text-teal-50 mb-4">🕐 更新履歴</h2>
+          <div className="bg-teal-950/40 border border-teal-900/60 rounded-2xl divide-y divide-teal-900/60">
             {changelog.map((entry, i) => (
               <div key={i} className="flex items-start gap-4 px-5 py-4">
-                <span className="tabular-nums text-xs text-slate-500 shrink-0 mt-0.5">{entry.date}</span>
+                <span className="tabular-nums text-xs text-teal-400 shrink-0 mt-0.5">{entry.date}</span>
                 <div>
-                  <div className="text-sm font-medium text-slate-200">{entry.title}</div>
+                  <div className="text-sm font-medium text-teal-100">{entry.title}</div>
                   {entry.description && (
-                    <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">{entry.description}</div>
+                    <div className="text-xs text-teal-400 mt-0.5 leading-relaxed">{entry.description}</div>
                   )}
                 </div>
               </div>
@@ -259,7 +259,7 @@ export default async function TopPage() {
         </section>
 
         {/* ── 注記 ── */}
-        <p style={{ textAlign: "center", fontSize: 12, color: "#264848", marginBottom: 8 }}>
+        <p style={{ textAlign: "center", fontSize: 12, color: "#4a7a7a", marginBottom: 8 }}>
           データは公的機関の公開情報を自動収集しています。
           詳しくは<a href="/disclaimer" style={{ color: "#0d9488" }}>免責事項</a>をご確認ください。
         </p>
