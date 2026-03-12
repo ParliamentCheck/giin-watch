@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body style={{ margin: 0, padding: 0, background: "#020817" }}>
+      <body style={{ margin: 0, padding: 0, background: "#030d0d" }}>
         <Script
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1728847761086799"
           strategy="beforeInteractive"
@@ -48,11 +48,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <MaintenanceBanner />
         <ElectionSafeBanner />
         <div style={{
-          background: "#0f172a",
-          borderBottom: "1px solid #1e293b",
+          background: "#071a1a",
+          borderBottom: "1px solid #0d2828",
           padding: "10px 16px",
           fontSize: 11,
-          color: "#64748b",
+          color: "#4d7878",
           lineHeight: 1.6,
           textAlign: "center",
         }}>

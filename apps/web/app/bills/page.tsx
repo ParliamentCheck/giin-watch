@@ -65,12 +65,12 @@ export default function BillsPage() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#020817", color: "#e2e8f0",
+      minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px",
     }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>📋 議員立法</h1>
-        <p style={{ color: "#64748b", fontSize: 13, marginBottom: 20 }}>
+        <p style={{ color: "#4d7878", fontSize: 13, marginBottom: 20 }}>
           {loading ? "読み込み中..." : `${filtered.length} 件`}
         </p>
 
@@ -79,9 +79,9 @@ export default function BillsPage() {
           {["全て", "衆議院", "参議院"].map((h) => (
             <button key={h} onClick={() => setFilterHouse(h)}
               style={{
-                background: filterHouse === h ? "#3b82f6" : "#0f172a",
-                border: `1px solid ${filterHouse === h ? "#3b82f6" : "#1e293b"}`,
-                color: filterHouse === h ? "white" : "#64748b",
+                background: filterHouse === h ? "#0d9488" : "#071a1a",
+                border: `1px solid ${filterHouse === h ? "#0d9488" : "#0d2828"}`,
+                color: filterHouse === h ? "white" : "#4d7878",
                 padding: "8px 14px", borderRadius: 8, cursor: "pointer",
                 fontSize: 12, fontWeight: filterHouse === h ? 700 : 400,
               }}>
@@ -96,8 +96,8 @@ export default function BillsPage() {
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={(e) => { setIsComposing(false); setSearch((e.target as HTMLInputElement).value); }}
             style={{
-              background: "#0f172a", border: "1px solid #1e293b",
-              color: "#e2e8f0", padding: "8px 14px", borderRadius: 8,
+              background: "#071a1a", border: "1px solid #0d2828",
+              color: "#dff0f0", padding: "8px 14px", borderRadius: 8,
               fontSize: 13, flex: 1, minWidth: 200, outline: "none",
             }}
           />
@@ -105,58 +105,58 @@ export default function BillsPage() {
 
         {/* 一覧 */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>データ読み込み中...</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>データ読み込み中...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>該当する法案がありません。</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>該当する法案がありません。</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filtered.map((b) => (
               <div key={b.id} style={{
-                background: "#0f172a", border: "1px solid #1e293b",
+                background: "#071a1a", border: "1px solid #0d2828",
                 borderRadius: 12, padding: "16px 20px",
               }}>
                 {/* タイトル */}
                 <div style={{ marginBottom: 8 }}>
                   {b.source_url ? (
                     <a href={b.source_url} target="_blank" rel="noopener noreferrer"
-                      style={{ color: "#e2e8f0", fontWeight: 600, fontSize: 14,
+                      style={{ color: "#dff0f0", fontWeight: 600, fontSize: 14,
                         textDecoration: "none" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "#3b82f6")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = "#e2e8f0")}>
+                      onMouseEnter={(e) => (e.currentTarget.style.color = "#0d9488")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "#dff0f0")}>
                       {b.title}
                     </a>
                   ) : (
-                    <span style={{ color: "#e2e8f0", fontWeight: 600, fontSize: 14 }}>{b.title}</span>
+                    <span style={{ color: "#dff0f0", fontWeight: 600, fontSize: 14 }}>{b.title}</span>
                   )}
                 </div>
 
                 {/* メタ情報 */}
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#64748b", marginBottom: 8 }}>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#4d7878", marginBottom: 8 }}>
                   {b.submitted_at && <span>{b.submitted_at}</span>}
                   {b.session_number && <span>第{b.session_number}回国会</span>}
                   {b.house && (
                     <span style={{
-                      background: b.house === "衆議院" ? "#1e3a5f" : "#1a3a2f",
-                      color: b.house === "衆議院" ? "#60a5fa" : "#34d399",
+                      background: b.house === "衆議院" ? "#0a2828" : "#0a2828",
+                      color: b.house === "衆議院" ? "#2dd4bf" : "#2dd4bf",
                       padding: "1px 8px", borderRadius: 4,
                     }}>
                       {b.house}
                     </span>
                   )}
-                  {b.status && <span style={{ color: "#94a3b8" }}>{b.status}</span>}
+                  {b.status && <span style={{ color: "#7ab8b8" }}>{b.status}</span>}
                 </div>
 
                 {/* 提出者 */}
                 {b.submitter_ids && b.submitter_ids.length > 0 && (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
-                    <span style={{ color: "#475569" }}>提出者:</span>
+                    <span style={{ color: "#264848" }}>提出者:</span>
                     {b.submitter_ids.map((id) => {
                       const m = memberMap[id];
                       return m ? (
                         <span
                           key={id}
                           onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
-                          style={{ color: "#3b82f6", cursor: "pointer" }}
+                          style={{ color: "#0d9488", cursor: "pointer" }}
                           onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
                           onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}>
                           {m.name}

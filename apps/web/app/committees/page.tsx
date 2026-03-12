@@ -64,20 +64,20 @@ export default function CommitteesPage() {
   const maxCount = filtered[0]?.count || 1;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         <button onClick={() => router.push("/")}
-          style={{ background: "transparent", border: "1px solid #334155", color: "#94a3b8",
+          style={{ background: "transparent", border: "1px solid #163838", color: "#7ab8b8",
             padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24,
             fontSize: 14 }}>
           ← トップに戻る
         </button>
 
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🏛 委員会一覧</h1>
-        <p style={{ color: "#64748b", marginBottom: 24, fontSize: 14 }}>
+        <p style={{ color: "#4d7878", marginBottom: 24, fontSize: 14 }}>
           現在の委員会・調査会ごとの所属議員数
         </p>
 
@@ -88,11 +88,11 @@ export default function CommitteesPage() {
             placeholder="委員会名で検索"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: 200, background: "#1e293b", border: "1px solid #334155",
-              color: "#e2e8f0", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
+            style={{ flex: 1, minWidth: 200, background: "#0d2828", border: "1px solid #163838",
+              color: "#dff0f0", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
           />
           <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
-            style={{ background: "#1e293b", border: "1px solid #334155", color: "#e2e8f0",
+            style={{ background: "#0d2828", border: "1px solid #163838", color: "#dff0f0",
               padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
             <option value="">衆院・参院すべて</option>
             <option value="衆議院">衆議院</option>
@@ -100,43 +100,43 @@ export default function CommitteesPage() {
           </select>
           {(search || selectedHouse) && (
             <button onClick={() => { setSearch(""); setSelectedHouse(""); }}
-              style={{ background: "#334155", border: "none", color: "#94a3b8",
+              style={{ background: "#163838", border: "none", color: "#7ab8b8",
                 padding: "10px 16px", borderRadius: 10, cursor: "pointer" }}>
               クリア
             </button>
           )}
         </div>
 
-        <p style={{ color: "#475569", marginBottom: 16, fontSize: 14 }}>
+        <p style={{ color: "#264848", marginBottom: 16, fontSize: 14 }}>
           {filtered.length}件の委員会・調査会
         </p>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
+          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>
             データ読み込み中...
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>
+          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>
             該当する委員会がありません。
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filtered.map((c) => {
               const barWidth = (c.count / maxCount) * 100;
-              const houseColor = c.house === "衆議院" ? "#3b82f6" : "#8b5cf6";
+              const houseColor = c.house === "衆議院" ? "#0d9488" : "#0891b2";
 
               return (
                 <div key={c.committee}
                   onClick={() => router.push(`/committees/${encodeURIComponent(c.committee)}`)}
-                  style={{ background: "#0f172a", border: "1px solid #1e293b",
+                  style={{ background: "#071a1a", border: "1px solid #0d2828",
                     borderRadius: 12, padding: "16px 20px", cursor: "pointer",
                     transition: "border-color 0.2s" }}
                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = houseColor; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1e293b"; }}>
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#0d2828"; }}>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#f1f5f9", marginBottom: 4 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: "#edfafa", marginBottom: 4 }}>
                         {c.committee}
                       </div>
                       <span style={{ background: houseColor + "22", color: houseColor,
@@ -147,14 +147,14 @@ export default function CommitteesPage() {
                     </div>
 
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: "#f1f5f9" }}>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: "#edfafa" }}>
                         {c.count}
                       </span>
-                      <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>名</span>
+                      <span style={{ fontSize: 12, color: "#4d7878", marginLeft: 4 }}>名</span>
                     </div>
                   </div>
 
-                  <div style={{ background: "#1e293b", borderRadius: 4, height: 4, overflow: "hidden" }}>
+                  <div style={{ background: "#0d2828", borderRadius: 4, height: 4, overflow: "hidden" }}>
                     <div style={{ width: `${barWidth}%`, height: "100%",
                       background: houseColor, borderRadius: 4, transition: "width 0.8s ease" }} />
                   </div>

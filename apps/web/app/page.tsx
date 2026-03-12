@@ -259,9 +259,9 @@ export default async function TopPage() {
         </section>
 
         {/* ── 注記 ── */}
-        <p style={{ textAlign: "center", fontSize: 12, color: "#475569", marginBottom: 8 }}>
+        <p style={{ textAlign: "center", fontSize: 12, color: "#264848", marginBottom: 8 }}>
           データは公的機関の公開情報を自動収集しています。
-          詳しくは<a href="/disclaimer" style={{ color: "#3b82f6" }}>免責事項</a>をご確認ください。
+          詳しくは<a href="/disclaimer" style={{ color: "#0d9488" }}>免責事項</a>をご確認ください。
         </p>
       </div>
     </div>

@@ -152,16 +152,16 @@ export default function VotesPage() {
 
   return (
     <div style={{
-      minHeight: "100vh", background: "#020817", color: "#e2e8f0",
+      minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px",
     }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🗳 政党別採決一致率</h1>
-        <p style={{ color: "#64748b", fontSize: 13, marginBottom: 4 }}>
+        <p style={{ color: "#4d7878", fontSize: 13, marginBottom: 4 }}>
           参議院本会議の採決記録をもとに、政党間の投票行動の一致率を集計しています。
         </p>
         {!loading && (
-          <p style={{ color: "#475569", fontSize: 12, marginBottom: 16 }}>
+          <p style={{ color: "#264848", fontSize: 12, marginBottom: 16 }}>
             対象: {sessionRange}（採決 {billCount} 件）
           </p>
         )}
@@ -174,9 +174,9 @@ export default function VotesPage() {
               style={{
                 padding: "5px 12px", borderRadius: 6, fontSize: 12, cursor: "pointer",
                 border: "1px solid",
-                borderColor: selectedSession === null ? "#3b82f6" : "#1e293b",
-                background: selectedSession === null ? "#1e3a5f" : "transparent",
-                color: selectedSession === null ? "#93c5fd" : "#64748b",
+                borderColor: selectedSession === null ? "#0d9488" : "#0d2828",
+                background: selectedSession === null ? "#0a2828" : "transparent",
+                color: selectedSession === null ? "#5eead4" : "#4d7878",
                 fontWeight: selectedSession === null ? 700 : 400,
               }}>
               全期間
@@ -188,9 +188,9 @@ export default function VotesPage() {
                 style={{
                   padding: "5px 12px", borderRadius: 6, fontSize: 12, cursor: "pointer",
                   border: "1px solid",
-                  borderColor: selectedSession === s ? "#3b82f6" : "#1e293b",
-                  background: selectedSession === s ? "#1e3a5f" : "transparent",
-                  color: selectedSession === s ? "#93c5fd" : "#64748b",
+                  borderColor: selectedSession === s ? "#0d9488" : "#0d2828",
+                  background: selectedSession === s ? "#0a2828" : "transparent",
+                  color: selectedSession === s ? "#5eead4" : "#4d7878",
                   fontWeight: selectedSession === s ? 700 : 400,
                 }}>
                 第{s}回
@@ -200,9 +200,9 @@ export default function VotesPage() {
         )}
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>データ計算中...</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>データ計算中...</div>
         ) : parties.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>データがありません。</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>データがありません。</div>
         ) : (
           <>
             {/* マトリックス */}
@@ -210,14 +210,14 @@ export default function VotesPage() {
               <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
                 <thead>
                   <tr>
-                    <th style={{ padding: "8px 12px", textAlign: "left", color: "#475569",
-                      borderBottom: "1px solid #1e293b", whiteSpace: "nowrap",
-                      position: "sticky", left: 0, background: "#020817", zIndex: 2 }}>
+                    <th style={{ padding: "8px 12px", textAlign: "left", color: "#264848",
+                      borderBottom: "1px solid #0d2828", whiteSpace: "nowrap",
+                      position: "sticky", left: 0, background: "#030d0d", zIndex: 2 }}>
                       政党
                     </th>
                     {sortedParties.map((p) => (
-                      <th key={p} style={{ padding: "8px 6px", color: "#475569",
-                        borderBottom: "1px solid #1e293b", whiteSpace: "nowrap",
+                      <th key={p} style={{ padding: "8px 6px", color: "#264848",
+                        borderBottom: "1px solid #0d2828", whiteSpace: "nowrap",
                         writingMode: "vertical-rl", maxWidth: 28 }}>
                         {p}
                       </th>
@@ -228,9 +228,9 @@ export default function VotesPage() {
                   {sortedParties.map((rowParty) => (
                     <tr key={rowParty}>
                       <td style={{ padding: "6px 12px", whiteSpace: "nowrap",
-                        color: "#cbd5e1", fontWeight: 600, fontSize: 12,
-                        borderBottom: "1px solid #0f172a",
-                        position: "sticky", left: 0, background: "#020817", zIndex: 1 }}>
+                        color: "#a8d4d4", fontWeight: 600, fontSize: 12,
+                        borderBottom: "1px solid #071a1a",
+                        position: "sticky", left: 0, background: "#030d0d", zIndex: 1 }}>
                         {rowParty}
                       </td>
                       {sortedParties.map((colParty) => {
@@ -238,8 +238,8 @@ export default function VotesPage() {
                         if (!cell || cell.total === 0) {
                           return (
                             <td key={colParty} style={{ padding: "6px 4px", textAlign: "center",
-                              background: "#0f172a", borderBottom: "1px solid #020817",
-                              color: "#1e293b" }}>
+                              background: "#071a1a", borderBottom: "1px solid #030d0d",
+                              color: "#0d2828" }}>
                               —
                             </td>
                           );
@@ -251,9 +251,9 @@ export default function VotesPage() {
                             title={`${rowParty} × ${colParty}: ${cell.agree}/${cell.total}件一致`}
                             style={{
                               padding: "6px 4px", textAlign: "center",
-                              background: isSelf ? "#1e293b" : alignColor(rate),
-                              color: isSelf ? "#475569" : "#e2e8f0",
-                              borderBottom: "1px solid #020817",
+                              background: isSelf ? "#0d2828" : alignColor(rate),
+                              color: isSelf ? "#264848" : "#dff0f0",
+                              borderBottom: "1px solid #030d0d",
                               fontWeight: isSelf ? 400 : 700,
                               cursor: "default",
                             }}>
@@ -268,7 +268,7 @@ export default function VotesPage() {
             </div>
 
             {/* 凡例 */}
-            <div style={{ display: "flex", gap: 16, marginTop: 20, fontSize: 11, color: "#64748b", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 16, marginTop: 20, fontSize: 11, color: "#4d7878", flexWrap: "wrap" }}>
               {[
                 { color: "#166534", label: "90%以上" },
                 { color: "#15803d", label: "70〜89%" },
@@ -281,7 +281,7 @@ export default function VotesPage() {
                 </div>
               ))}
             </div>
-            <p style={{ fontSize: 11, color: "#334155", marginTop: 12 }}>
+            <p style={{ fontSize: 11, color: "#163838", marginTop: 12 }}>
               ※ 各党の多数派（賛成または反対）が一致した採決の割合。欠席は集計対象外。参議院のみ。
             </p>
           </>

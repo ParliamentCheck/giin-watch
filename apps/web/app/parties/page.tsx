@@ -89,7 +89,7 @@ export default function PartiesPage() {
   const maxVal  = Math.max(...sorted.map((p: any) => p[sortBy]), 1);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#020817", color: "#e2e8f0",
+    <div style={{ minHeight: "100vh", background: "#030d0d", color: "#dff0f0",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
@@ -104,9 +104,9 @@ export default function PartiesPage() {
             { value: "questions",        label: "📝 質問主意書" },
           ].map((s) => (
             <button key={s.value} onClick={() => setSortBy(s.value)}
-              style={{ background: sortBy === s.value ? "#3b82f6" : "#0f172a",
-                border: `1px solid ${sortBy === s.value ? "#3b82f6" : "#1e293b"}`,
-                color: sortBy === s.value ? "white" : "#64748b",
+              style={{ background: sortBy === s.value ? "#0d9488" : "#071a1a",
+                border: `1px solid ${sortBy === s.value ? "#0d9488" : "#0d2828"}`,
+                color: sortBy === s.value ? "white" : "#4d7878",
                 padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12,
                 fontWeight: sortBy === s.value ? 700 : 400 }}>
               {s.label}
@@ -115,7 +115,7 @@ export default function PartiesPage() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#64748b" }}>データ読み込み中...</div>
+          <div style={{ textAlign: "center", padding: 60, color: "#4d7878" }}>データ読み込み中...</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {sorted.map((p, rank) => {
@@ -126,32 +126,32 @@ export default function PartiesPage() {
               return (
                 <div key={p.party}
                   onClick={() => router.push(`/parties/${encodeURIComponent(p.party)}`)}
-                  style={{ background: "#0f172a", border: "1px solid #1e293b",
+                  style={{ background: "#071a1a", border: "1px solid #0d2828",
                     borderRadius: 16, padding: 24, cursor: "pointer", transition: "all 0.2s" }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = color;
                     e.currentTarget.style.transform = "translateY(-2px)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#1e293b";
+                    e.currentTarget.style.borderColor = "#0d2828";
                     e.currentTarget.style.transform = "translateY(0)";
                   }}>
 
                   {/* ヘッダー */}
                   <div className="resp-stack resp-gap-sm" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                    <span style={{ fontSize: 13, color: "#475569", fontWeight: 700, width: 20 }}>
+                    <span style={{ fontSize: 13, color: "#264848", fontWeight: 700, width: 20 }}>
                       {rank + 1}
                     </span>
                     <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                    <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#f1f5f9", flex: 1 }}>
+                    <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#edfafa", flex: 1 }}>
                       {p.party}
                     </h2>
-                    <span style={{ fontSize: 12, color: "#64748b" }}>{p.total}名</span>
+                    <span style={{ fontSize: 12, color: "#4d7878" }}>{p.total}名</span>
 
                   </div>
 
                   {/* バー */}
-                  <div style={{ marginBottom: 14, background: "#1e293b", borderRadius: 4, height: 5 }}>
+                  <div style={{ marginBottom: 14, background: "#0d2828", borderRadius: 4, height: 5 }}>
                     <div style={{ width: `${barRatio}%`, height: "100%",
                       background: color, borderRadius: 4, transition: "width 0.6s ease" }} />
                   </div>
@@ -163,12 +163,12 @@ export default function PartiesPage() {
                       { label: "質問主意書",    value: p.questions,                   unit: "件" },
                       { label: "議員数",        value: p.total,                       unit: "名" },
                     ].map((item) => (
-                      <div key={item.label} style={{ background: "#1e293b", borderRadius: 10, padding: 12 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginBottom: 2 }}>
+                      <div key={item.label} style={{ background: "#0d2828", borderRadius: 10, padding: 12 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "#edfafa", marginBottom: 2 }}>
                           {item.value}
-                          <span style={{ fontSize: 10, color: "#64748b", marginLeft: 3 }}>{item.unit}</span>
+                          <span style={{ fontSize: 10, color: "#4d7878", marginLeft: 3 }}>{item.unit}</span>
                         </div>
-                        <div style={{ fontSize: 10, color: "#64748b" }}>{item.label}</div>
+                        <div style={{ fontSize: 10, color: "#4d7878" }}>{item.label}</div>
                       </div>
                     ))}
                   </div>

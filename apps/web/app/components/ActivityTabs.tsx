@@ -142,7 +142,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
             <p className="text-sm text-slate-500 py-8 text-center">データがありません</p>
           ) : recentPetitions.map((p) => {
             const resultColor = p.result === "採択" ? "#22c55e"
-              : p.result === "不採択" ? "#ef4444" : "#64748b";
+              : p.result === "不採択" ? "#ef4444" : "#4d7878";
             return (
               <div key={p.id}
                 className="bg-slate-900/40 border border-slate-800/60 rounded-xl px-4 py-3">

@@ -28,8 +28,8 @@ export default function GlobalNav() {
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 100,
-      background: "#0a0f1e",
-      borderBottom: "1px solid #1e293b",
+      background: "#051414",
+      borderBottom: "1px solid #0d2828",
     }}>
       <div style={{
         height: 60, display: "flex", alignItems: "center",
@@ -50,8 +50,8 @@ export default function GlobalNav() {
             return (
               <button key={item.path} onClick={() => navigate(item.path)}
                 style={{
-                  background: isActive ? "#1e293b" : "transparent",
-                  border: "none", color: isActive ? "#f1f5f9" : "#64748b",
+                  background: isActive ? "#0d2828" : "transparent",
+                  border: "none", color: isActive ? "#edfafa" : "#4d7878",
                   padding: "8px 14px", borderRadius: 8, cursor: "pointer",
                   fontSize: 14, fontWeight: isActive ? 700 : 400, transition: "all 0.15s",
                 }}>
@@ -66,7 +66,7 @@ export default function GlobalNav() {
           className="show-mobile"
           style={{
             display: "none", background: "none", border: "none",
-            color: "#94a3b8", fontSize: 24, cursor: "pointer", padding: 8,
+            color: "#7ab8b8", fontSize: 24, cursor: "pointer", padding: 8,
           }}>
           {open ? "✕" : "☰"}
         </button>
@@ -75,7 +75,7 @@ export default function GlobalNav() {
       {/* SP: ドロワーメニュー */}
       {open && (
         <div style={{
-          background: "#0a0f1e", borderTop: "1px solid #1e293b",
+          background: "#051414", borderTop: "1px solid #0d2828",
           padding: "8px 0",
         }}>
           {NAV_ITEMS.map((item) => {
@@ -85,8 +85,8 @@ export default function GlobalNav() {
               <button key={item.path} onClick={() => navigate(item.path)}
                 style={{
                   display: "block", width: "100%", textAlign: "left",
-                  background: isActive ? "#1e293b" : "transparent",
-                  border: "none", color: isActive ? "#f1f5f9" : "#94a3b8",
+                  background: isActive ? "#0d2828" : "transparent",
+                  border: "none", color: isActive ? "#edfafa" : "#7ab8b8",
                   padding: "12px 24px", cursor: "pointer",
                   fontSize: 15, fontWeight: isActive ? 700 : 400,
                 }}>

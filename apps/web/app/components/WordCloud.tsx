@@ -16,8 +16,8 @@ interface Props {
 }
 
 const COLORS = [
-  "#3b82f6", "#60a5fa", "#93c5fd",
-  "#34d399", "#6ee7b7",
+  "#0d9488", "#2dd4bf", "#5eead4",
+  "#2dd4bf", "#6ee7b7",
   "#f59e0b", "#fcd34d",
   "#f87171", "#fca5a5",
   "#a78bfa", "#c4b5fd",
@@ -74,7 +74,7 @@ export default function WordCloud({ keywords, width = 500, height = 300 }: Props
 
   if (keywords.length === 0) {
     return (
-      <div style={{ textAlign: "center", color: "#475569", padding: "40px 0", fontSize: 13 }}>
+      <div style={{ textAlign: "center", color: "#264848", padding: "40px 0", fontSize: 13 }}>
         発言データが少ないため、キーワードを抽出できませんでした。
       </div>
     );
@@ -85,7 +85,7 @@ export default function WordCloud({ keywords, width = 500, height = 300 }: Props
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
         <svg ref={svgRef} style={{ width: "100%", height: "auto", display: "block" }} />
       </div>
-      <p style={{ fontSize: 11, color: "#475569", textAlign: "center", marginTop: 12, lineHeight: 1.8 }}>
+      <p style={{ fontSize: 11, color: "#264848", textAlign: "center", marginTop: 12, lineHeight: 1.8 }}>
         国会会議録の発言テキストから名詞を抽出し、出現頻度の高い上位50語を表示しています。<br />
         文字が大きいほど発言頻度が高いキーワードです。国会一般用語（委員長・答弁・法律など）は除外しています。
       </p>
