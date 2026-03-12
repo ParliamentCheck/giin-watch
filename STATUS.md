@@ -95,9 +95,10 @@ scripts/
 |---|---|
 | `migrate-member-ids` | DB内の旧形式IDを一括変換 |
 | `scoring-only` | スコアのみ再計算 |
-| `speeches-all` | 2021〜2024年の発言を全件バックフィル |
+| `speeches-all` | 2021年〜現在年の発言を年単位で順次バックフィル（動的） |
 | `speeches-YYYY` | 特定年の発言バックフィル |
-| `keyword-full-rebuild` | キーワード全件再構築（4年分） |
+| `keyword-all` | キーワード全件再構築（2022年〜現在年・何度実行しても同じ結果） |
+| `keyword-full-rebuild` | キーワード全件再構築（遡及年数を `--years` で指定） |
 | `votes-collect` | 参院採決記録収集 |
 | `bills-collect` | 議員立法収集 |
 | `sangiin-questions` | 参院質問主意書収集 |
@@ -158,8 +159,8 @@ scripts/
 ## 残タスク
 
 ### 要実行（データ補完）
-- [ ] **`keyword-full-rebuild`** を Actions で実行
-  → 725名分のキーワードが未構築。`daily_update()` は直近7日間のみ対象のため、全件再構築が必要
+- [ ] **`keyword-all`** を Actions で実行
+  → 725名分のキーワードが未構築。2022年〜現在年を全件再構築。何度実行しても正しい結果になる
 
 ### 要実行（bills 再収集）
 - [ ] **`bills-collect`** を Actions で再実行
@@ -206,4 +207,23 @@ def make_member_id(house, name):
 
 def is_procedural_speech(speech_text):
     """議事進行発言判定: 30文字以下 or 委員長/議長役職を含む"""
+
+def build_member_name_set(member_names: list[str]) -> frozenset[str]:
+    """全議員名から除外用 frozenset を構築。ループ前に1回だけ呼ぶ。"""
+
+def should_exclude_word(word, member_name="", all_member_names=None):
+    """キーワード除外判定。自身の名前＋全議員名（部分一致）を除外。"""
+
+# apps/collector/sources/keywords.py
+def full_rebuild(years: int = 4):
+    """全議員キーワードを years 年分ゼロから再構築（冪等）。
+    keyword-all は KEYWORD_START_YEAR(2022)〜現在年で呼ぶ。"""
 ```
+
+---
+
+## バックフィル設計原則
+
+- `speeches-all` / `keyword-all` は **`SPEECHES_START_YEAR` / `KEYWORD_START_YEAR` 〜現在年** を動的に計算（ハードコードなし）
+- `keyword-all` は `full_rebuild` を使うため **何度実行しても冪等**（メンバーごとにDBを削除→ゼロ積み上げ→保存）
+- `keyword-YYYY` 個別タスクは存在しない（マージ方式は二重カウントになるため廃止）

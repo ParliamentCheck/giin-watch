@@ -5,6 +5,7 @@
   python apps/collector/run_backfill.py --task scoring-only
   python apps/collector/run_backfill.py --task speeches-all
   python apps/collector/run_backfill.py --task speeches-2024
+  python apps/collector/run_backfill.py --task keyword-all
   python apps/collector/run_backfill.py --task keyword-full-rebuild --years 4
   python apps/collector/run_backfill.py --task votes-collect
   python apps/collector/run_backfill.py --task bills-collect
@@ -17,8 +18,12 @@ import argparse
 import logging
 import os
 import sys
+from datetime import date
 
 logger = logging.getLogger("run_backfill")
+
+KEYWORD_START_YEAR = 2022
+SPEECHES_START_YEAR = 2021
 
 
 def main() -> None:
@@ -29,6 +34,7 @@ def main() -> None:
         "speeches-all",
         "speeches-2024", "speeches-2023", "speeches-2022", "speeches-2021",
         "speeches-2018-2020",
+        "keyword-all",
         "keyword-full-rebuild",
         "backfill-procedural",
         "votes-collect",
@@ -40,6 +46,7 @@ def main() -> None:
     args = parser.parse_args()
 
     task = args.task
+    current_year = date.today().year
 
     if task == "migrate-member-ids":
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "scripts"))
@@ -57,24 +64,30 @@ def main() -> None:
         from processors.scoring import recalculate_scores
         from processors.cleanup import truncate_speeches
 
-        year_ranges = {
-            "speeches-all":      [("2021-01-01", "2021-12-31"), ("2022-01-01", "2022-12-31"),
-                                   ("2023-01-01", "2023-12-31"), ("2024-01-01", "2024-12-31")],
-            "speeches-2024":     [("2024-01-01", "2024-12-31")],
-            "speeches-2023":     [("2023-01-01", "2023-12-31")],
-            "speeches-2022":     [("2022-01-01", "2022-12-31")],
-            "speeches-2021":     [("2021-01-01", "2021-12-31")],
-            "speeches-2018-2020": [("2018-01-01", "2020-12-31")],
-        }
-        for date_from, date_until in year_ranges[task]:
+        if task == "speeches-all":
+            ranges = [
+                (f"{y}-01-01", f"{y}-12-31" if y < current_year else date.today().isoformat())
+                for y in range(SPEECHES_START_YEAR, current_year + 1)
+            ]
+        elif task == "speeches-2018-2020":
+            ranges = [("2018-01-01", "2020-12-31")]
+        else:
+            y = int(task.split("-")[1])
+            ranges = [(f"{y}-01-01", f"{y}-12-31" if y < current_year else date.today().isoformat())]
+
+        for date_from, date_until in ranges:
             logger.info("=== %s 〜 %s ===", date_from, date_until)
             collect_speeches(date_from, date_until)
             recalculate_scores()
             truncate_speeches()
 
-    elif task == "keyword-full-rebuild":
+    elif task in ("keyword-all", "keyword-full-rebuild"):
         from sources.keywords import full_rebuild
-        full_rebuild(years=args.years)
+        if task == "keyword-all":
+            years = current_year - KEYWORD_START_YEAR + 1
+        else:
+            years = args.years
+        full_rebuild(years=years)
 
     elif task == "backfill-procedural":
         scripts_dir = os.path.join(os.path.dirname(__file__), "..", "..", "scripts")

@@ -16,6 +16,7 @@ on:
           - "speeches-2022"
           - "speeches-2021"
           - "speeches-2018-2020"
+          - "keyword-all"
           - "keyword-full-rebuild"
           - "backfill-procedural"
           - "votes-collect"

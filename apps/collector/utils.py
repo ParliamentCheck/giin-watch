@@ -97,7 +97,24 @@ def parse_terms(terms_raw: str) -> int | None:
 # ============================================================
 # ワードクラウド — フィルタリング
 # ============================================================
-def should_exclude_word(word: str, member_name: str = "") -> bool:
+def build_member_name_set(member_names: list[str]) -> frozenset[str]:
+    """
+    全議員名から部分文字列検索用のセットを事前構築する。
+    「田中太郎」→ 「田中太郎」をセットに追加（部分一致で姓・名もヒットする）。
+    """
+    result: set[str] = set()
+    for name in member_names:
+        clean = re.sub(r"\s+", "", name.strip())
+        if clean:
+            result.add(clean)
+    return frozenset(result)
+
+
+def should_exclude_word(
+    word: str,
+    member_name: str = "",
+    all_member_names: frozenset[str] | None = None,
+) -> bool:
     """
     ワードクラウドから除外すべきか判定する。
     """
@@ -113,6 +130,11 @@ def should_exclude_word(word: str, member_name: str = "") -> bool:
         clean = re.sub(r"\s+", "", member_name.strip())
         if len(word) >= 2 and word in clean:
             return True
+    # 他の議員名（部分文字列も除外）
+    if all_member_names:
+        for name in all_member_names:
+            if word in name:
+                return True
     return False
 
 

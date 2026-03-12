@@ -40,7 +40,7 @@ from config import (
     MIN_SPEECH_LENGTH,
 )
 from db import get_client, batch_upsert, execute_with_retry, delete_rows
-from utils import should_exclude_word, is_stale_keyword
+from utils import should_exclude_word, is_stale_keyword, build_member_name_set
 
 logger = logging.getLogger("keyword_builder")
 
@@ -146,6 +146,7 @@ def build_keywords_from_texts(
     member_name: str,
     texts_with_dates: list[tuple[str, str]],
     existing_keywords: dict[str, dict] | None = None,
+    all_member_names: frozenset[str] | None = None,
 ) -> list[dict[str, Any]]:
     """
     テキストリストからキーワードを抽出し、既存キーワードとマージして上位100語を返す。
@@ -159,7 +160,7 @@ def build_keywords_from_texts(
     for text, spoken_date in texts_with_dates:
         nouns = extract_nouns(text)
         for noun in nouns:
-            if should_exclude_word(noun, member_name):
+            if should_exclude_word(noun, member_name, all_member_names):
                 continue
             period_counter[noun] += 1
             if noun not in latest_date_per_word or spoken_date > latest_date_per_word[noun]:
@@ -208,13 +209,14 @@ def build_keywords_for_member(
     date_from: str,
     date_until: str,
     existing_keywords: dict[str, dict] | None = None,
+    all_member_names: frozenset[str] | None = None,
 ) -> list[dict[str, Any]]:
     """NDL API から発言を取得してキーワードを構築する（daily/full rebuild 用）。"""
     speeches = fetch_speech_texts_for_member(member_name, house, date_from, date_until)
     if not speeches:
         logger.debug("No speeches for %s in %s~%s", member_name, date_from, date_until)
         return []
-    return build_keywords_from_texts(member_id, member_name, speeches, existing_keywords)
+    return build_keywords_from_texts(member_id, member_name, speeches, existing_keywords, all_member_names)
 
 
 def save_member_keywords_from_texts(
@@ -395,6 +397,8 @@ def daily_update() -> None:
         label="fetch_members_for_keywords",
     ).data or []
 
+    all_member_names = build_member_name_set([m["name"] for m in members])
+
     # 直近に発言がある議員のみに絞る
     members = [m for m in members if m["id"] in recent_speaker_ids]
     logger.info("キーワード更新対象: %d 名", len(members))
@@ -426,6 +430,7 @@ def daily_update() -> None:
             date_from=yesterday,
             date_until=today,
             existing_keywords=existing,
+            all_member_names=all_member_names,
         )
 
         if new_rows:
@@ -476,6 +481,7 @@ def full_rebuild(years: int = 4) -> None:
     today = date.today()
     start_year = today.year - years
 
+    all_member_names = build_member_name_set([m["name"] for m in members])
     logger.info("Full rebuild: %d members, years %d-%d", len(members), start_year, today.year)
 
     for m in members:
@@ -494,6 +500,7 @@ def full_rebuild(years: int = 4) -> None:
                 date_from=date_from,
                 date_until=date_until,
                 existing_keywords=accumulated,
+                all_member_names=all_member_names,
             )
 
             # 結果を accumulated に反映
@@ -541,13 +548,6 @@ def full_rebuild(years: int = 4) -> None:
     rebuild_party_keywords()
 
 
-# ============================================================
-# 単年再構築
-# ============================================================
-def year_rebuild(year: int) -> None:
-    """特定年のデータだけを再処理する。"""
-    logger.info("Year rebuild for %d", year)
-    full_rebuild(years=date.today().year - year + 1)
 
 
 # ============================================================
@@ -562,12 +562,8 @@ def main() -> None:
 
     if args.mode == "daily":
         daily_update()
-    elif args.mode == "full":
+    elif args.mode in ("full", "year"):
         full_rebuild(years=args.years)
-    elif args.mode == "year":
-        if not args.year:
-            parser.error("--mode year requires --year")
-        year_rebuild(args.year)
 
 
 if __name__ == "__main__":
