@@ -224,9 +224,9 @@ function MemberDetailContent() {
   };
 
   if (loading) return (
-    <div className="empty-state" style={{ minHeight: "100vh", background: "#f4f4f4",
-      display: "flex", alignItems: "center", justifyContent: "center" }}>
-      データ読み込み中...
+    <div className="loading-block" style={{ minHeight: "100vh" }}>
+      <div className="loading-spinner" />
+      <span>データを読み込んでいます...</span>
     </div>
   );
 

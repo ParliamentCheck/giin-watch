@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 interface PartyStats {
@@ -34,10 +34,17 @@ const PARTY_COLORS: Record<string, string> = {
 
 
 
-export default function PartiesPage() {
+function PartiesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname     = usePathname();
   const [parties, setParties] = useState<PartyStats[]>([]);
-  const [sortBy,  setSortBy]  = useState("total");
+  const sortBy       = searchParams.get("sort") ?? "total";
+  const setSortBy = (s: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("sort", s);
+    router.replace(`${pathname}?${p.toString()}`);
+  };
   const [loading, setLoading] = useState(true);
   useEffect(() => { document.title = "政党・会派 | はたらく議員"; }, []);
 
@@ -107,7 +114,10 @@ export default function PartiesPage() {
         </div>
 
         {loading ? (
-          <div className="empty-state">データ読み込み中...</div>
+          <div className="loading-block">
+            <div className="loading-spinner" />
+            <span>データを読み込んでいます...</span>
+          </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {sorted.map((p, rank) => {
@@ -162,5 +172,13 @@ export default function PartiesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PartiesPage() {
+  return (
+    <Suspense fallback={<div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>}>
+      <PartiesContent />
+    </Suspense>
   );
 }

@@ -89,7 +89,10 @@ export default function CabinetPage() {
       <p style={{ color: "#555555", marginBottom: 24 }}>現在 {members.length}名の内閣構成員を収録</p>
 
       {loading ? (
-        <div className="empty-state">データ読み込み中...</div>
+        <div className="loading-block">
+          <div className="loading-spinner" />
+          <span>データを読み込んでいます...</span>
+        </div>
       ) : members.length === 0 ? (
         <div className="empty-state">データがありません</div>
       ) : (

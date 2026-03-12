@@ -176,7 +176,10 @@ function MembersContent() {
       <p style={{ color: "#888888", marginBottom: 12, fontSize: 14 }}>{sorted.length}名表示中</p>
 
       {loading ? (
-        <div className="empty-state">データ読み込み中...</div>
+        <div className="loading-block">
+          <div className="loading-spinner" />
+          <span>データを読み込んでいます...</span>
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {sorted.map((m) => {
@@ -226,10 +229,7 @@ export default function MembersPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#555555",
-          padding: "24px", textAlign: "center" }}>
-          読み込み中...
-        </div>
+        <div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>
       }
     >
       <MembersContent />

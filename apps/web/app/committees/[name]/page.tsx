@@ -54,16 +54,21 @@ function CommitteeDetailContent() {
   const committeeName = decodeURIComponent(params.name as string);
   useEffect(() => { document.title = `${committeeName} | はたらく議員`; }, [committeeName]);
 
+  const searchParams = useSearchParams();
+  const pathname     = usePathname();
   const [members,   setMembers]   = useState<CommitteeMember[]>([]);
   const [petitions, setPetitions] = useState<Petition[]>([]);
   const [loading,   setLoading]   = useState(true);
-  const [sortBy,    setSortBy]    = useState("role");
-  const searchParams = useSearchParams();
-  const pathname     = usePathname();
-  const tab          = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
+  const tab = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
+    router.replace(`${pathname}?${p.toString()}`);
+  };
+  const sortBy = searchParams.get("sort") ?? "role";
+  const setSortBy = (s: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("sort", s);
     router.replace(`${pathname}?${p.toString()}`);
   };
 
@@ -167,9 +172,9 @@ function CommitteeDetailContent() {
     ? "#333333" : "#888888";
 
   if (loading) return (
-    <div className="empty-state" style={{ minHeight: "100vh", background: "#f4f4f4",
-      display: "flex", alignItems: "center", justifyContent: "center" }}>
-      データ読み込み中...
+    <div className="loading-block" style={{ minHeight: "100vh" }}>
+      <div className="loading-spinner" />
+      <span>データを読み込んでいます...</span>
     </div>
   );
 

@@ -107,8 +107,9 @@ export default function CommitteesPage() {
         </p>
 
         {loading ? (
-          <div className="empty-state">
-            データ読み込み中...
+          <div className="loading-block">
+            <div className="loading-spinner" />
+            <span>データを読み込んでいます...</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="empty-state">

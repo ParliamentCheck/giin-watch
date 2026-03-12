@@ -234,9 +234,7 @@ function FavoritesContent() {
           </button>
         </div>
       ) : loading ? (
-        <div className="empty-state">
-          データ読み込み中...
-        </div>
+        <div className="loading-block"><div className="loading-spinner" /></div>
       ) : (
         <>
           {/* 混合タイムライン */}
@@ -341,8 +339,7 @@ function FavoritesContent() {
 export default function FavoritesPage() {
   return (
     <Suspense fallback={
-      <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#555555",
-        padding: "24px", textAlign: "center" }}>読み込み中...</div>
+      <div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>
     }>
       <FavoritesContent />
     </Suspense>

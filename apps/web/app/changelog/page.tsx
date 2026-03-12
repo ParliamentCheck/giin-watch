@@ -40,7 +40,7 @@ export default function ChangelogPage() {
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>📋 変更履歴</h1>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>読み込み中...</div>
+          <div className="loading-block" style={{ minHeight: 200 }}><div className="loading-spinner" /><span>データを読み込んでいます...</span></div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {Object.entries(grouped).map(([date, descs]) => (

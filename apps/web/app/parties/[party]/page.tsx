@@ -86,7 +86,12 @@ function PartyDetailContent() {
     p.set("tab", t);
     router.replace(`${pathname}?${p.toString()}`);
   };
-  const [sortBy,     setSortBy]     = useState("speech_count");
+  const sortBy = searchParams.get("sort") ?? "speech_count";
+  const setSortBy = (s: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("sort", s);
+    router.replace(`${pathname}?${p.toString()}`);
+  };
 
   useEffect(() => {
     async function fetchAll() {
@@ -151,9 +156,9 @@ function PartyDetailContent() {
   ].filter((b) => b.count > 0);
 
   if (loading) return (
-    <div className="empty-state" style={{ minHeight: "100vh", background: "#f4f4f4",
-      display: "flex", alignItems: "center", justifyContent: "center" }}>
-      データ読み込み中...
+    <div className="loading-block" style={{ minHeight: "100vh" }}>
+      <div className="loading-spinner" />
+      <span>データを読み込んでいます...</span>
     </div>
   );
 
