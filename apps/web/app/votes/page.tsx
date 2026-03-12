@@ -114,6 +114,23 @@ export default function VotesPage() {
     fetchData();
   }, []);
 
+  // 全期間の集計（並び順の基準として常に固定）
+  const fullResult = useMemo(
+    () => calcAlignment(rawVotes, memberPartyMap),
+    [rawVotes, memberPartyMap],
+  );
+
+  // 全期間の自民党一致率で決めた固定順
+  const fixedOrder = useMemo(() => {
+    const ref = "自民党";
+    return [...fullResult.parties].sort((a, b) => {
+      if (!fullResult.matrix[ref]) return 0;
+      const ra = fullResult.matrix[ref][a]?.total > 0 ? fullResult.matrix[ref][a].agree / fullResult.matrix[ref][a].total : 0;
+      const rb = fullResult.matrix[ref][b]?.total > 0 ? fullResult.matrix[ref][b].agree / fullResult.matrix[ref][b].total : 0;
+      return rb - ra;
+    });
+  }, [fullResult]);
+
   // 絞り込み後の集計（selectedSession が null のとき全期間）
   const { matrix, parties, billCount, sessionRange } = useMemo(() => {
     const filtered = selectedSession
@@ -129,14 +146,9 @@ export default function VotesPage() {
     return { ...result, sessionRange: range };
   }, [rawVotes, memberPartyMap, selectedSession, availableSessions]);
 
-  // 自民党との一致率でソート
-  const sortedParties = [...parties].sort((a, b) => {
-    const ref = "自民党";
-    if (!matrix[ref]) return 0;
-    const ra = matrix[ref][a]?.total > 0 ? matrix[ref][a].agree / matrix[ref][a].total : 0;
-    const rb = matrix[ref][b]?.total > 0 ? matrix[ref][b].agree / matrix[ref][b].total : 0;
-    return rb - ra;
-  });
+  // 固定順を維持しつつ、当該回次にデータのない政党は末尾に
+  const sortedParties = fixedOrder.filter((p) => parties.includes(p))
+    .concat(parties.filter((p) => !fixedOrder.includes(p)));
 
   return (
     <div style={{
