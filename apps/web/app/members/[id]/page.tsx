@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
 import { isFavorite, addFavorite, removeFavorite } from "../../../lib/favorites";
@@ -108,7 +108,7 @@ const ROLE_COLORS: Record<string, string> = {
   "副会長": "#333333",
 };
 
-export default function MemberDetailPage() {
+function MemberDetailContent() {
   const params   = useParams();
   const router   = useRouter();
   const memberId = decodeURIComponent(params.id as string);
@@ -125,7 +125,14 @@ export default function MemberDetailPage() {
     if (member?.name) document.title = `${member.name} | はたらく議員`;
   }, [member]);
   const [loading,    setLoading]    = useState(true);
-  const [tab,        setTab]        = useState("committees");
+  const searchParams = useSearchParams();
+  const pathname     = usePathname();
+  const tab          = searchParams.get("tab") ?? "committees";
+  const setTab = (t: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", t);
+    router.replace(`${pathname}?${p.toString()}`);
+  };
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
   const [fav,        setFav]        = useState(false);
   const [favMsg,     setFavMsg]     = useState("");
@@ -606,5 +613,13 @@ export default function MemberDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MemberDetailPage() {
+  return (
+    <Suspense fallback={<div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>}>
+      <MemberDetailContent />
+    </Suspense>
   );
 }

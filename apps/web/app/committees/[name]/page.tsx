@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
 interface CommitteeMember {
@@ -48,7 +48,7 @@ function roleRank(role: string) {
   return i === -1 ? ROLE_ORDER.length : i;
 }
 
-export default function CommitteeDetailPage() {
+function CommitteeDetailContent() {
   const params = useParams();
   const router = useRouter();
   const committeeName = decodeURIComponent(params.name as string);
@@ -58,7 +58,14 @@ export default function CommitteeDetailPage() {
   const [petitions, setPetitions] = useState<Petition[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [sortBy,    setSortBy]    = useState("role");
-  const [tab,       setTab]       = useState<"chairs" | "members" | "petitions">("chairs");
+  const searchParams = useSearchParams();
+  const pathname     = usePathname();
+  const tab          = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
+  const setTab = (t: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", t);
+    router.replace(`${pathname}?${p.toString()}`);
+  };
 
   useEffect(() => {
     async function fetchAll() {
@@ -402,5 +409,13 @@ export default function CommitteeDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CommitteeDetailPage() {
+  return (
+    <Suspense fallback={<div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>}>
+      <CommitteeDetailContent />
+    </Suspense>
   );
 }

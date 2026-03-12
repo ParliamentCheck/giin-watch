@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
 import { PARTY_COLORS } from "../../../lib/partyColors";
@@ -66,7 +66,7 @@ async function fetchKeywordsBatched(memberIds: string[]): Promise<KeywordData[]>
     .slice(0, 50);
 }
 
-export default function PartyDetailPage() {
+function PartyDetailContent() {
   const params  = useParams();
   const router  = useRouter();
   const party   = decodeURIComponent(params.party as string);
@@ -78,7 +78,14 @@ export default function PartyDetailPage() {
   const [keywords,   setKeywords]   = useState<KeywordData[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [kwLoading,  setKwLoading]  = useState(false);
-  const [tab,        setTab]        = useState("members");
+  const searchParams = useSearchParams();
+  const pathname     = usePathname();
+  const tab          = searchParams.get("tab") ?? "members";
+  const setTab = (t: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", t);
+    router.replace(`${pathname}?${p.toString()}`);
+  };
   const [sortBy,     setSortBy]     = useState("speech_count");
 
   useEffect(() => {
@@ -378,5 +385,13 @@ export default function PartyDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PartyDetailPage() {
+  return (
+    <Suspense fallback={<div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>}>
+      <PartyDetailContent />
+    </Suspense>
   );
 }

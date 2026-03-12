@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 interface VoteRow {
@@ -11,11 +12,27 @@ interface VoteRow {
   session_number: number;
 }
 
-// 政党ごとの採決での多数派: { billKey → { party → "賛成" | "反対" } }
 type PartyPositions = Record<string, Record<string, string>>;
-
-// 一致率マトリックス: { party → { party → { agree: number, total: number } } }
 type AlignmentMatrix = Record<string, Record<string, { agree: number; total: number }>>;
+
+// スマホで読める短縮名（列ヘッダー用）
+const PARTY_SHORT: Record<string, string> = {
+  "自民党":       "自民",
+  "立憲民主党":   "立憲",
+  "中道改革連合": "中道改革",
+  "公明党":       "公明",
+  "日本維新の会": "維新",
+  "国民民主党":   "国民",
+  "共産党":       "共産",
+  "れいわ新選組": "れいわ",
+  "社民党":       "社民",
+  "参政党":       "参政",
+  "チームみらい": "みらい",
+  "日本保守党":   "保守",
+  "沖縄の風":     "沖縄風",
+  "有志の会":     "有志",
+  "無所属":       "無所属",
+};
 
 function calcAlignment(
   votes: VoteRow[],
@@ -37,7 +54,7 @@ function calcAlignment(
     positions[bill] = {};
     for (const [party, pvotes] of Object.entries(partyMap)) {
       const yes = pvotes.filter((v) => v === "賛成").length;
-      const no = pvotes.filter((v) => v === "反対").length;
+      const no  = pvotes.filter((v) => v === "反対").length;
       if (yes + no === 0) continue;
       positions[bill][party] = yes >= no ? "賛成" : "反対";
     }
@@ -79,17 +96,34 @@ function alignTextColor(rate: number): string {
   return "#991b1b";
 }
 
-export default function VotesPage() {
-  const [loading, setLoading] = useState(true);
-  const [rawVotes, setRawVotes] = useState<VoteRow[]>([]);
+function VotesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => { document.title = "政党別採決一致率 | はたらく議員"; }, []);
+
+  const [loading, setLoading]               = useState(true);
+  const [rawVotes, setRawVotes]             = useState<VoteRow[]>([]);
   const [memberPartyMap, setMemberPartyMap] = useState<Record<string, string>>({});
   const [availableSessions, setAvailableSessions] = useState<number[]>([]);
-  const [selectedSession, setSelectedSession] = useState<number | null>(null);
-  useEffect(() => { document.title = "政党別採決一致率 | はたらく議員"; }, []);
+
+  // URLの ?session= を読み取り
+  const selectedSession = useMemo(() => {
+    const v = searchParams.get("session");
+    return v ? Number(v) : null;
+  }, [searchParams]);
+
+  const setSelectedSession = (s: number | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (s === null) {
+      params.delete("session");
+    } else {
+      params.set("session", String(s));
+    }
+    router.replace(`/votes?${params.toString()}`);
+  };
 
   useEffect(() => {
     async function fetchData() {
-      // 全 votes を取得（ページネーション）
       let allVotes: VoteRow[] = [];
       let from = 0;
       const PAGE = 1000;
@@ -104,10 +138,10 @@ export default function VotesPage() {
         from += PAGE;
       }
 
-      const sessions = [...new Set(allVotes.map((v) => v.session_number))].filter(Boolean).sort() as number[];
+      const sessions = [...new Set(allVotes.map((v) => v.session_number))]
+        .filter(Boolean).sort() as number[];
       setAvailableSessions(sessions);
 
-      // members の party 情報を取得
       const membersRes = await supabase.from("members").select("id,party").limit(2000);
       const memberParty: Record<string, string> = {};
       for (const m of membersRes.data || []) {
@@ -121,24 +155,23 @@ export default function VotesPage() {
     fetchData();
   }, []);
 
-  // 全期間の集計（並び順の基準として常に固定）
   const fullResult = useMemo(
     () => calcAlignment(rawVotes, memberPartyMap),
     [rawVotes, memberPartyMap],
   );
 
-  // 全期間の自民党一致率で決めた固定順
   const fixedOrder = useMemo(() => {
     const ref = "自民党";
     return [...fullResult.parties].sort((a, b) => {
       if (!fullResult.matrix[ref]) return 0;
-      const ra = fullResult.matrix[ref][a]?.total > 0 ? fullResult.matrix[ref][a].agree / fullResult.matrix[ref][a].total : 0;
-      const rb = fullResult.matrix[ref][b]?.total > 0 ? fullResult.matrix[ref][b].agree / fullResult.matrix[ref][b].total : 0;
+      const ra = fullResult.matrix[ref][a]?.total > 0
+        ? fullResult.matrix[ref][a].agree / fullResult.matrix[ref][a].total : 0;
+      const rb = fullResult.matrix[ref][b]?.total > 0
+        ? fullResult.matrix[ref][b].agree / fullResult.matrix[ref][b].total : 0;
       return rb - ra;
     });
   }, [fullResult]);
 
-  // 絞り込み後の集計（selectedSession が null のとき全期間）
   const { matrix, parties, billCount, sessionRange } = useMemo(() => {
     const filtered = selectedSession
       ? rawVotes.filter((v) => v.session_number === selectedSession)
@@ -153,7 +186,6 @@ export default function VotesPage() {
     return { ...result, sessionRange: range };
   }, [rawVotes, memberPartyMap, selectedSession, availableSessions]);
 
-  // 固定順を維持しつつ、当該回次にデータのない政党は末尾に
   const sortedParties = fixedOrder.filter((p) => parties.includes(p))
     .concat(parties.filter((p) => !fixedOrder.includes(p)));
 
@@ -173,43 +205,29 @@ export default function VotesPage() {
           </p>
         )}
 
-        {/* 国会回次フィルター */}
+        {/* 国会回次フィルター（プルダウン） */}
         {!loading && availableSessions.length > 1 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-            <button
-              onClick={() => setSelectedSession(null)}
-              style={{
-                padding: "5px 12px", borderRadius: 6, fontSize: 12, cursor: "pointer",
-                border: "1px solid",
-                borderColor: selectedSession === null ? "#333333" : "#e0e0e0",
-                background: selectedSession === null ? "#111111" : "transparent",
-                color: selectedSession === null ? "#f4f4f4" : "#555555",
-                fontWeight: selectedSession === null ? 700 : 400,
-              }}>
-              全期間
-            </button>
-            {availableSessions.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSelectedSession(s === selectedSession ? null : s)}
-                style={{
-                  padding: "5px 12px", borderRadius: 6, fontSize: 12, cursor: "pointer",
-                  border: "1px solid",
-                  borderColor: selectedSession === s ? "#333333" : "#e0e0e0",
-                  background: selectedSession === s ? "#111111" : "transparent",
-                  color: selectedSession === s ? "#f4f4f4" : "#555555",
-                  fontWeight: selectedSession === s ? 700 : 400,
-                }}>
-                第{s}回
-              </button>
-            ))}
+          <div style={{ marginBottom: 20 }}>
+            <select
+              value={selectedSession ?? ""}
+              onChange={(e) => setSelectedSession(e.target.value === "" ? null : Number(e.target.value))}
+              className="input-field"
+              style={{ minWidth: 160 }}>
+              <option value="">全期間</option>
+              {availableSessions.map((s) => (
+                <option key={s} value={s}>第{s}回国会</option>
+              ))}
+            </select>
           </div>
         )}
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>データ計算中...</div>
+          <div className="loading-block">
+            <div className="loading-spinner" />
+            <span>採決データを読み込んでいます...</span>
+          </div>
         ) : parties.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>データがありません。</div>
+          <div className="empty-state">データがありません。</div>
         ) : (
           <>
             {/* マトリックス */}
@@ -223,10 +241,11 @@ export default function VotesPage() {
                       政党
                     </th>
                     {sortedParties.map((p) => (
-                      <th key={p} style={{ padding: "8px 6px", color: "#888888",
-                        borderBottom: "1px solid #e0e0e0", whiteSpace: "nowrap",
-                        writingMode: "vertical-rl", maxWidth: 28 }}>
-                        {p}
+                      <th key={p} style={{ padding: "6px 4px", color: "#888888",
+                        borderBottom: "1px solid #e0e0e0",
+                        writingMode: "vertical-rl", textOrientation: "mixed",
+                        whiteSpace: "nowrap", minWidth: 28, fontSize: 11 }}>
+                        {PARTY_SHORT[p] ?? p}
                       </th>
                     ))}
                   </tr>
@@ -251,7 +270,7 @@ export default function VotesPage() {
                             </td>
                           );
                         }
-                        const rate = cell.agree / cell.total;
+                        const rate   = cell.agree / cell.total;
                         const isSelf = rowParty === colParty;
                         return (
                           <td key={colParty}
@@ -295,5 +314,20 @@ export default function VotesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VotesPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#f4f4f4", padding: "24px" }}>
+        <div className="loading-block">
+          <div className="loading-spinner" />
+          <span>採決データを読み込んでいます...</span>
+        </div>
+      </div>
+    }>
+      <VotesContent />
+    </Suspense>
   );
 }
