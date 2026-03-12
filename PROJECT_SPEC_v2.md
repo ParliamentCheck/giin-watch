@@ -366,11 +366,11 @@ SESSION_MAX = {
 /members                 現職議員一覧（検索・フィルター・ソート）
 /members/[id]            議員詳細（委員会・発言・質問・採決・立法・請願・キーワード）
 /members/former          前議員一覧
-/parties                 政党・会派一覧（ソート付き）
-/parties/[party]         政党詳細（議員・委員長理事・ワードクラウド・内訳）
+/parties                 政党・会派一覧（ソート付き）?sort= でURL共有可
+/parties/[party]         政党詳細（議員・委員長理事・ワードクラウド・内訳）?tab= ?sort= でURL共有可
 /committees              委員会一覧（検索・フィルター）
-/committees/[name]       委員会詳細（委員長理事・議員一覧・請願）
-/votes                   政党別採決一致率マトリクス（会期フィルター付き）
+/committees/[name]       委員会詳細（委員長理事・議員一覧・請願）?tab= ?sort= でURL共有可
+/votes                   政党別採決一致率マトリクス（会期プルダウン・?session= でURL共有可）
 /bills                   議員立法一覧（院フィルター・タイトル検索）
 /favorites               お気に入り議員（活動タイムライン・最大10名）
 /cabinet                 現内閣（役職順）
@@ -407,6 +407,71 @@ components/
 #### revalidate設定
 - サーバーコンポーネントのページには `export const revalidate = 3600` を設定
 - "use client" のページには revalidate は使用不可（ブラウザから直接Supabaseにクエリ）
+
+#### ページコンポーネントのアーキテクチャ（サーバー/クライアント分離）
+
+SEO対応のため、全ページを以下の構造に統一する：
+
+```
+app/bills/
+  page.tsx           ← サーバーコンポーネント（metadata + generateMetadata を export）
+  BillsClient.tsx    ← クライアントコンポーネント（"use client"、全インタラクション）
+```
+
+- `page.tsx` は `"use client"` を付けない。`export const metadata` または `generateMetadata` を定義し、クライアントコンポーネントを `<return <XxxClient />;` でレンダリングするだけ
+- `XxxClient.tsx` は元の `page.tsx` と同内容。`"use client"` を維持。`document.title` の `useEffect` は削除（metadataが代替）
+- 動的ページ（`[id]`, `[party]`, `[name]`）は `generateMetadata` でSupabaseを叩いてページ固有のタイトル・descriptionを生成する
+- 動的ページのサーバー側では JSON-LD もレンダリングし、`<script type="application/ld+json">` としてHTMLに埋め込む
+
+命名規則：
+| ディレクトリ | サーバーファイル | クライアントファイル |
+|-------------|----------------|-------------------|
+| `bills/` | `page.tsx` | `BillsClient.tsx` |
+| `votes/` | `page.tsx` | `VotesClient.tsx` |
+| `cabinet/` | `page.tsx` | `CabinetClient.tsx` |
+| `committees/` | `page.tsx` | `CommitteesClient.tsx` |
+| `parties/` | `page.tsx` | `PartiesClient.tsx` |
+| `members/` | `page.tsx` | `MembersClient.tsx` |
+| `members/former/` | `page.tsx` | `FormerMembersClient.tsx` |
+| `members/[id]/` | `page.tsx` | `MemberDetailClient.tsx` |
+| `parties/[party]/` | `page.tsx` | `PartyDetailClient.tsx` |
+| `committees/[name]/` | `page.tsx` | `CommitteeDetailClient.tsx` |
+| `changelog/` | `page.tsx` | `ChangelogClient.tsx` |
+| `favorites/` | `page.tsx` | `FavoritesClient.tsx` |
+
+#### URLへのUI状態反映
+
+SNSシェア・外部リンクで同じ画面が再現できるよう、**タブ・ソート・フィルターの状態はURLパラメータに反映**する。
+
+標準パターン：
+```tsx
+// "use client" コンポーネント内（Suspenseラッパー必須）
+import { useSearchParams, usePathname, useRouter } from "next/navigation";
+
+const searchParams = useSearchParams();
+const pathname     = usePathname();
+
+// 読み取り
+const tab    = searchParams.get("tab")  ?? "default_tab";
+const sortBy = searchParams.get("sort") ?? "default_sort";
+
+// 書き込み
+const setTab = (t: string) => {
+  const p = new URLSearchParams(searchParams.toString());
+  p.set("tab", t);
+  router.replace(`${pathname}?${p.toString()}`);
+};
+```
+
+- `useSearchParams()` を使用するコンポーネントは必ず `<Suspense>` でラップする（Next.js App Router の要件）
+- ラップパターン: `XxxClient.tsx` に `XxxContent`（実ロジック）と `export default XxxClient`（Suspenseラッパー）を持つ
+
+使用しているURLパラメータ：
+| パラメータ | ページ | 例 |
+|-----------|-------|---|
+| `?tab=` | `/members/[id]`, `/parties/[party]`, `/committees/[name]` | `?tab=speeches` |
+| `?sort=` | `/parties`, `/parties/[party]`, `/committees/[name]` | `?sort=speech_count` |
+| `?session=` | `/votes` | `?session=217` |
 
 #### 議員詳細ページの注釈表示
 カードとタブの間に以下の注釈を表示：
@@ -632,7 +697,9 @@ Actions → 「過去データ一括取得」→ Run workflow → 年を選択
 | `.badge-role` | 役職バッジ（グレー） |
 | `.badge-result` | 結果バッジ（`--result-color`変数で色指定） |
 | `.input-field` | フォーム入力欄 |
-| `.empty-state` | ローディング・空データ表示 |
+| `.loading-spinner` | アニメーション付きスピナー（丸型、CSS `animation: spin`） |
+| `.loading-block` | スピナー＋テキストを中央寄せで表示するコンテナ |
+| `.empty-state` | 空データ表示（テキスト中央・`color: var(--text-muted)`） |
 | `.btn-back` / `.btn-cta` / `.btn-sub` / `.btn-danger` | 各種ボタン |
 | `.fav-btn` / `.active` | お気に入りボタン |
 | `.footer-link` | フッターリンク |
@@ -668,7 +735,130 @@ CSSクラス側で `color-mix()` を使ってバリアントを生成する。
 
 ---
 
-## 13. 未決定事項
+## 13. SEO / AIO / LLMO
+
+### 13.1 実装済みファイル構成
+
+```
+apps/web/
+  app/
+    robots.ts          # robots.txt の Next.js 生成ファイル
+    sitemap.ts         # sitemap.xml の Next.js 動的生成（Supabaseから全ページURL取得）
+  public/
+    llms.txt           # LLM・AIクローラー向け案内文書（新興標準）
+    og-image.svg       # OGP画像（共通）
+    ads.txt            # Google AdSense 設定
+```
+
+### 13.2 メタデータ戦略
+
+#### 静的ページ（固定タイトル）
+`export const metadata: Metadata` を `page.tsx`（サーバーコンポーネント）に定義：
+```tsx
+export const metadata: Metadata = {
+  title: "議員立法",
+  description: "衆議院・参議院に提出された議員立法の一覧。...",
+  openGraph: { title: "...", description: "..." },
+  alternates: { canonical: "https://www.hataraku-giin.com/bills" },
+};
+```
+
+#### 動的ページ（[id], [party], [name]）
+`generateMetadata` でSupabaseから議員名・政党名等を取得してページ固有のメタデータを生成：
+```tsx
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const { data } = await supabase.from("members").select("name, party, ...").eq("id", id).single();
+  return {
+    title: data.name,
+    description: `${data.name}（${data.party}）の国会活動データ...`,
+    openGraph: { ... },
+    alternates: { canonical: `https://www.hataraku-giin.com/members/${id}` },
+  };
+}
+```
+
+#### グローバル設定（layout.tsx）
+| 設定 | 内容 |
+|------|------|
+| `metadataBase` | `https://www.hataraku-giin.com` |
+| `title.template` | `"%s \| はたらく議員"` |
+| `description` | 140字以内の日本語説明文 |
+| `keywords` | 国会議員・議員活動・衆議院・参議院 等 |
+| `openGraph` | title, description, locale: ja_JP, images: og-image.svg |
+| `twitter` | card: summary_large_image, images: og-image.svg |
+
+### 13.3 構造化データ（JSON-LD）
+
+サーバーコンポーネントから `<script type="application/ld+json">` として埋め込む。
+
+| ページ | schema.org タイプ | 内容 |
+|--------|-----------------|------|
+| `layout.tsx`（全ページ） | `WebSite` + `Organization` | サイト全体・SearchAction（/members?q=）・ロゴ |
+| `/members/[id]` | `Person` | 議員名・役職・所属政党・URL |
+| `/parties/[party]` | `PoliticalParty` | 政党名・所属議員数・URL |
+| `/committees/[name]` | `GovernmentOrganization` | 委員会名・委員長・URL |
+
+### 13.4 サイトマップ（sitemap.ts）
+
+Next.js の `app/sitemap.ts` で動的生成。Supabaseから以下を取得してURL一覧を構築：
+- 静的ルート（/, /members, /parties 等）: 固定で記述
+- `/members/[id]`: `is_active = true` の全議員ID
+- `/parties/[party]`: membersテーブルの distinct party
+- `/committees/[name]`: committee_membersテーブルの distinct committee
+
+`changeFrequency` / `priority` は重要度に応じて設定（トップ: 1.0、議員詳細: 0.8 等）
+
+### 13.5 robots.ts
+
+```
+全クローラー: / 許可、/favorites と /api/ は拒否
+GPTBot / ClaudeBot / PerplexityBot: 明示的に許可
+Sitemap: https://www.hataraku-giin.com/sitemap.xml
+```
+
+### 13.6 llms.txt（AI向けドキュメント）
+
+`public/llms.txt` に以下を記載：
+- サービス概要・目的
+- 提供データの種類と取得元
+- 主要ページ一覧
+- 利用上の注意（データは公開情報のみ・活動の評価ではない）
+- AI回答時の注意点
+
+### 13.7 next.config.ts セキュリティヘッダー
+
+```
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+```
+
+静的アセット（SVG/PNG等）には `Cache-Control: public, max-age=86400` を設定。
+`poweredByHeader: false` で `X-Powered-By: Next.js` ヘッダーを除去。
+
+### 13.8 政党名短縮表記（votes ページ）
+
+マトリクスの列ヘッダーはスマホでの重なり防止のため短縮名を使用（`PARTY_SHORT` マップ）：
+
+| 正式名 | 短縮名 |
+|-------|-------|
+| 自民党 | 自民 |
+| 立憲民主党 | 立憲 |
+| 日本維新の会 | 維新 |
+| 国民民主党 | 国民 |
+| れいわ新選組 | れいわ |
+| チームみらい | みらい |
+| 日本保守党 | 保守 |
+| 中道改革連合 | 中道改革 |
+| 沖縄の風 | 沖縄風 |
+| （その他） | そのまま表示 |
+
+---
+
+## 14. 未決定事項
 
 ### データ・機能
 - speechesテーブルのレコード上限値の確定
