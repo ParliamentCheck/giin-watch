@@ -271,11 +271,7 @@ export default function CommitteeDetailPage() {
                     return (
                       <div key={i}
                         onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
-                        style={{ display: "flex", alignItems: "center", gap: 12,
-                          padding: "12px 16px", borderRadius: 10, background: "#e0e0e0",
-                          cursor: "pointer", transition: "background 0.15s" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "#e0e0e0"; }}>
+                        className="member-row">
                         <span style={{ background: "#88888822", color: "#333333",
                           border: "1px solid #88888844", padding: "2px 8px",
                           borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
@@ -301,11 +297,7 @@ export default function CommitteeDetailPage() {
                     return (
                       <div key={i}
                         onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
-                        style={{ display: "flex", alignItems: "center", gap: 12,
-                          padding: "12px 16px", borderRadius: 10, background: "#e0e0e0",
-                          cursor: "pointer", transition: "background 0.15s" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "#e0e0e0"; }}>
+                        className="member-row">
                         <span style={{ background: "#88888822", color: "#333333",
                           border: "1px solid #88888844", padding: "2px 8px",
                           borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
@@ -353,11 +345,7 @@ export default function CommitteeDetailPage() {
               return (
                 <div key={m.member_id}
                   onClick={() => router.push(`/members/${encodeURIComponent(m.member_id)}`)}
-                  style={{ display: "flex", alignItems: "center", gap: 12,
-                    padding: "12px 16px", borderRadius: 10, background: "#e0e0e0",
-                    cursor: "pointer", transition: "background 0.15s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "#e0e0e0"; }}>
+                  className="member-row">
                   {m.role && (
                     <span style={{ fontSize: 10, color: "#555555", border: "1px solid #c8c8c8",
                       padding: "1px 6px", borderRadius: 3, flexShrink: 0 }}>

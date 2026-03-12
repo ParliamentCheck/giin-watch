@@ -249,11 +249,7 @@ export default function PartyDetailPage() {
             {sorted.map((m) => (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                style={{ display: "flex", alignItems: "center", gap: 12,
-                  padding: "12px 16px", borderRadius: 10, cursor: "pointer",
-                  background: "#e0e0e0", transition: "all 0.15s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#263548"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "#e0e0e0"; }}>
+                className="member-row">
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "#111111" }}>{m.name}</div>
                   <div style={{ fontSize: 12, color: "#555555" }}>{m.house} · {m.district}</div>

@@ -104,11 +104,7 @@ export default function PartiesPage() {
             { value: "questions",        label: "📝 質問主意書" },
           ].map((s) => (
             <button key={s.value} onClick={() => setSortBy(s.value)}
-              style={{ background: sortBy === s.value ? "#111111" : "#111111",
-                border: `1px solid ${sortBy === s.value ? "#111111" : "#e0e0e0"}`,
-                color: sortBy === s.value ? "#f4f4f4" : "#555555",
-                padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12,
-                fontWeight: sortBy === s.value ? 700 : 400 }}>
+              className={`filter-btn${sortBy === s.value ? " active" : ""}`}>
               {s.label}
             </button>
           ))}

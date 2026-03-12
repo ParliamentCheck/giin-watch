@@ -258,11 +258,7 @@ export default function MemberDetailPage() {
               else { setFavMsg(result.reason || ""); }
             }
           }}
-            style={{ background: fav ? "#88888822" : "#111111",
-              border: `1px solid ${fav ? "#333333" : "#c8c8c8"}`,
-              color: fav ? "#333333" : "#555555",
-              padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13,
-              fontWeight: fav ? 700 : 400 }}>
+            className={`fav-btn${fav ? " active" : ""}`}>
             {fav ? "⭐ 登録済み" : "☆ お気に入り登録"}
           </button>
         </div>

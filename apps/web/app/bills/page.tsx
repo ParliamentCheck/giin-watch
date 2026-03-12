@@ -78,13 +78,7 @@ export default function BillsPage() {
         <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {["全て", "衆議院", "参議院"].map((h) => (
             <button key={h} onClick={() => setFilterHouse(h)}
-              style={{
-                background: filterHouse === h ? "#111111" : "#ffffff",
-                border: `1px solid ${filterHouse === h ? "#111111" : "#e0e0e0"}`,
-                color: filterHouse === h ? "#f4f4f4" : "#555555",
-                padding: "8px 14px", borderRadius: 8, cursor: "pointer",
-                fontSize: 12, fontWeight: filterHouse === h ? 700 : 400,
-              }}>
+              className={`filter-btn${filterHouse === h ? " active" : ""}`}>
               {h}
             </button>
           ))}

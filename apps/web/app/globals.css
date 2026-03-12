@@ -66,8 +66,98 @@ body {
   /* 議員詳細: サマリーカード 4列→2列 */
   .summary-grid { grid-template-columns: repeat(2, 1fr) !important; }
 
-
   /* 議員詳細: タブバー 2列折り返し */
   .tab-bar { flex-wrap: wrap !important; }
   .tab-bar button { flex: 0 0 calc(50% - 2px) !important; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   共通UIコンポーネント — ここを変えれば全ページ一括反映
+   ───────────────────────────────────────────────────────── */
+
+/* カード */
+.card {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+}
+
+/* フィルター・ソートボタン */
+.filter-btn {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #555555;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.filter-btn:hover {
+  background: #f0f0f0;
+}
+.filter-btn.active {
+  background: #111111;
+  border-color: #111111;
+  color: #f4f4f4;
+  font-weight: 700;
+}
+
+/* タブバー内のタブボタン */
+.tab-pill {
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555555;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tab-pill.active {
+  background: #111111;
+  color: #f4f4f4;
+  font-weight: 700;
+}
+.tab-pill:hover:not(.active) {
+  background: #e8e8e8;
+  color: #333333;
+}
+
+/* 議員行（政党・委員会ページの議員リスト） */
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f4f4f4;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.member-row:hover {
+  background: #e8e8e8;
+}
+
+/* お気に入りボタン */
+.fav-btn {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #555555;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.fav-btn:hover {
+  background: #f0f0f0;
+}
+.fav-btn.active {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #92400e;
+  font-weight: 700;
 }
