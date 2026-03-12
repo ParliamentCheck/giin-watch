@@ -7,6 +7,16 @@ export interface ChangelogEntry {
 const changelog: ChangelogEntry[] = [
   {
     date: "2026-03-12",
+    title: "SEO・AI検索エンジン対応を強化",
+    description: "サイトマップ自動生成・robots.txt整備・llms.txt追加・各ページへの構造化データ（JSON-LD）埋め込みにより、検索エンジンおよびAIクローラーへの情報提供を強化しました。",
+  },
+  {
+    date: "2026-03-12",
+    title: "政党別採決一致率ページを改善",
+    description: "会期フィルターをドロップダウンに変更、モバイルでの政党名省略表示、タブ・ソート状態のURL反映、ローディングスピナーを追加しました。",
+  },
+  {
+    date: "2026-03-12",
     title: "議員立法一覧ページを追加",
     description: "全議員立法を一覧で確認できるページ（/bills）を追加しました。院フィルター・タイトル検索・提出者リンクに対応しています。",
   },
