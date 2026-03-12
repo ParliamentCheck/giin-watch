@@ -175,7 +175,8 @@ export default function VotesPage() {
                 <thead>
                   <tr>
                     <th style={{ padding: "8px 12px", textAlign: "left", color: "#475569",
-                      borderBottom: "1px solid #1e293b", whiteSpace: "nowrap" }}>
+                      borderBottom: "1px solid #1e293b", whiteSpace: "nowrap",
+                      position: "sticky", left: 0, background: "#020817", zIndex: 2 }}>
                       政党
                     </th>
                     {sortedParties.map((p) => (
@@ -192,7 +193,8 @@ export default function VotesPage() {
                     <tr key={rowParty}>
                       <td style={{ padding: "6px 12px", whiteSpace: "nowrap",
                         color: "#cbd5e1", fontWeight: 600, fontSize: 12,
-                        borderBottom: "1px solid #0f172a" }}>
+                        borderBottom: "1px solid #0f172a",
+                        position: "sticky", left: 0, background: "#020817", zIndex: 1 }}>
                         {rowParty}
                       </td>
                       {sortedParties.map((colParty) => {
