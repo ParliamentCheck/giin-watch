@@ -69,10 +69,7 @@ export default function CommitteesPage() {
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-        <button onClick={() => router.push("/")}
-          style={{ background: "transparent", border: "1px solid #c8c8c8", color: "#888888",
-            padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24,
-            fontSize: 14 }}>
+        <button onClick={() => router.push("/")} className="btn-back">
           ← トップに戻る
         </button>
 
@@ -88,20 +85,18 @@ export default function CommitteesPage() {
             placeholder="委員会名で検索"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: 1, minWidth: 200, background: "#e0e0e0", border: "1px solid #c8c8c8",
-              color: "#1a1a1a", padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}
+            className="input-field"
+            style={{ flex: 1, minWidth: 200 }}
           />
           <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
-            style={{ background: "#e0e0e0", border: "1px solid #c8c8c8", color: "#1a1a1a",
-              padding: "10px 14px", borderRadius: 10, fontSize: 14, outline: "none" }}>
+            className="input-field">
             <option value="">衆院・参院すべて</option>
             <option value="衆議院">衆議院</option>
             <option value="参議院">参議院</option>
           </select>
           {(search || selectedHouse) && (
             <button onClick={() => { setSearch(""); setSelectedHouse(""); }}
-              style={{ background: "#c8c8c8", border: "none", color: "#888888",
-                padding: "10px 16px", borderRadius: 10, cursor: "pointer" }}>
+              className="btn-clear">
               クリア
             </button>
           )}
@@ -112,11 +107,11 @@ export default function CommitteesPage() {
         </p>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>
+          <div className="empty-state">
             データ読み込み中...
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>
+          <div className="empty-state">
             該当する委員会がありません。
           </div>
         ) : (
@@ -128,20 +123,16 @@ export default function CommitteesPage() {
               return (
                 <div key={c.committee}
                   onClick={() => router.push(`/committees/${encodeURIComponent(c.committee)}`)}
-                  style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-                    borderRadius: 12, padding: "16px 20px", cursor: "pointer",
-                    transition: "border-color 0.2s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = houseColor; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e0e0e0"; }}>
+                  className="card card-hover"
+                  style={{ padding: "16px 20px", "--hover-color": houseColor } as React.CSSProperties}>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 14, color: "#111111", marginBottom: 4 }}>
                         {c.committee}
                       </div>
-                      <span style={{ background: houseColor + "22", color: houseColor,
-                        border: `1px solid ${houseColor}44`,
-                        padding: "1px 6px", borderRadius: 4, fontSize: 11 }}>
+                      <span className="badge badge-party"
+                        style={{ "--party-color": houseColor } as React.CSSProperties}>
                         {c.house}
                       </span>
                     </div>
@@ -154,9 +145,8 @@ export default function CommitteesPage() {
                     </div>
                   </div>
 
-                  <div style={{ background: "#e0e0e0", borderRadius: 4, height: 4, overflow: "hidden" }}>
-                    <div style={{ width: `${barWidth}%`, height: "100%",
-                      background: houseColor, borderRadius: 4, transition: "width 0.8s ease" }} />
+                  <div className="progress-bar" style={{ height: 4 }}>
+                    <div className="progress-fill" style={{ width: `${barWidth}%`, background: houseColor }} />
                   </div>
                 </div>
               );

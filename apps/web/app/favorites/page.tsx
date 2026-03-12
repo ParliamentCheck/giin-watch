@@ -234,20 +234,18 @@ function FavoritesContent() {
           </button>
         </div>
       ) : loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>
+        <div className="empty-state">
           データ読み込み中...
         </div>
       ) : (
         <>
           {/* 混合タイムライン */}
-          <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-            borderRadius: 12, padding: 20, marginBottom: 24 }}>
-            <h2 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
-              textTransform: "uppercase", letterSpacing: 1 }}>
+          <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+            <h2 className="section-title">
               最近の活動
             </h2>
             {activities.length === 0 ? (
-              <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+              <div className="empty-state" style={{ padding: "20px 0" }}>
                 活動データがありません
               </div>
             ) : (
@@ -256,8 +254,7 @@ function FavoritesContent() {
                   <div key={i} style={{ padding: "12px 0",
                     borderBottom: i < activities.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: "#555555", background: "#e0e0e0",
-                        padding: "2px 7px", borderRadius: 4, flexShrink: 0, marginTop: 1 }}>
+                      <span className="badge-count" style={{ flexShrink: 0, marginTop: 1 }}>
                         {TYPE_LABELS[a.type]}
                       </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -296,26 +293,22 @@ function FavoritesContent() {
           </div>
 
           {/* 議員カード一覧 */}
-          <h2 style={{ margin: "0 0 12px", fontSize: 13, color: "#888888",
-            textTransform: "uppercase", letterSpacing: 1 }}>
+          <h2 className="section-title">
             登録済み議員（{members.length}/{MAX_FAVORITES}）
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {members.map((m) => {
               const color = PARTY_COLORS[m.party] || "#7f8c8d";
               return (
-                <div key={m.id} style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-                  borderRadius: 12, padding: "14px 16px",
-                  display: "flex", alignItems: "center", gap: 12 }}>
+                <div key={m.id} className="card"
+                  style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>
                         {m.name}
                       </span>
                       {m.cabinet_post && (
-                        <span style={{ fontSize: 11, color: "#333333",
-                          background: "#88888822", border: "1px solid #88888844",
-                          padding: "1px 6px", borderRadius: 4 }}>
+                        <span className="badge badge-cabinet">
                           {m.cabinet_post}
                         </span>
                       )}
@@ -327,15 +320,11 @@ function FavoritesContent() {
                   </div>
                   <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                     <button onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                      style={{ background: "#e0e0e0", border: "1px solid #c8c8c8",
-                        color: "#888888", padding: "6px 12px", borderRadius: 7,
-                        cursor: "pointer", fontSize: 12 }}>
+                      className="btn-sub">
                       詳細
                     </button>
                     <button onClick={() => handleRemove(m.id)}
-                      style={{ background: "transparent", border: "1px solid #ef444444",
-                        color: "#ef4444", padding: "6px 12px", borderRadius: 7,
-                        cursor: "pointer", fontSize: 12 }}>
+                      className="btn-danger">
                       解除
                     </button>
                   </div>

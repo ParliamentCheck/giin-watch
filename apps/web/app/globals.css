@@ -1,15 +1,404 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════
+   デザイントークン — ここ1箇所を変えれば全ページに反映される
+   ═══════════════════════════════════════════════════════════ */
 :root {
-  --background: #f4f4f4;
-  --foreground: #111111;
+  /* ページ背景 / カード背景 */
+  --bg-page:    #f4f4f4;
+  --bg-card:    #ffffff;
+  --bg-subtle:  #f0f0f0;
+  --bg-muted:   #e0e0e0;
+
+  /* テキスト */
+  --text-primary:   #111111;
+  --text-body:      #1a1a1a;
+  --text-secondary: #555555;
+  --text-muted:     #888888;
+
+  /* ボーダー */
+  --border:        #e0e0e0;
+  --border-subtle: #c8c8c8;
+
+  /* 丸み */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg-page);
+  --color-foreground: var(--text-primary);
 }
 
+body {
+  background: var(--bg-page);
+  color: var(--text-body);
+  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   カード
+   ═══════════════════════════════════════════════════════════ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.card-xl {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  margin-bottom: 20px;
+}
+/* ホバーで --hover-color ボーダーに変わるカード */
+.card-hover {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card-hover:hover {
+  border-color: var(--hover-color, var(--border-subtle));
+}
+/* ホバーで浮き上がるカード */
+.card-hover-lift {
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card-hover-lift:hover {
+  border-color: var(--hover-color, var(--border-subtle));
+  transform: translateY(-2px);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ボタン
+   ═══════════════════════════════════════════════════════════ */
+
+/* 戻るボタン */
+.btn-back {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+.btn-back:hover {
+  background: var(--bg-subtle);
+}
+
+/* フィルター・ソートボタン */
+.filter-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.filter-btn:hover {
+  background: var(--bg-subtle);
+}
+.filter-btn.active {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: #f4f4f4;
+  font-weight: 700;
+}
+
+/* お気に入りボタン */
+.fav-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.fav-btn:hover {
+  background: var(--bg-subtle);
+}
+.fav-btn.active {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #92400e;
+  font-weight: 700;
+}
+
+/* お気に入り一覧のスター */
+.fav-star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 4px;
+  color: var(--border-subtle);
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.fav-star-btn.active {
+  color: var(--text-body);
+}
+
+/* サブアクションボタン（詳細を見るなど） */
+.btn-sub {
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+.btn-sub:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border);
+}
+
+/* 削除ボタン */
+.btn-danger {
+  background: transparent;
+  border: 1px solid #ef444444;
+  color: #ef4444;
+  padding: 6px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+.btn-danger:hover {
+  background: #ef444411;
+}
+
+/* CTAボタン（リンク） */
+.btn-cta {
+  display: inline-block;
+  background: var(--text-primary);
+  color: #f4f4f4;
+  padding: 14px 32px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.btn-cta:hover {
+  opacity: 0.85;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   タブバー
+   ═══════════════════════════════════════════════════════════ */
+.tab-bar-container {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+}
+.tab-pill {
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tab-pill.active {
+  background: var(--text-primary);
+  color: #f4f4f4;
+  font-weight: 700;
+}
+.tab-pill:hover:not(.active) {
+  background: var(--bg-muted);
+  color: var(--text-body);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   議員行（政党・委員会ページのリスト）
+   ═══════════════════════════════════════════════════════════ */
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.member-row:hover {
+  background: var(--bg-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   バッジ
+   ═══════════════════════════════════════════════════════════ */
+.badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* 政党バッジ: style="--party-color: #xxx" で色を渡す */
+.badge-party {
+  background: color-mix(in srgb, var(--party-color) 13%, transparent);
+  color: var(--party-color);
+  border: 1px solid color-mix(in srgb, var(--party-color) 27%, transparent);
+}
+/* 役職バッジ（グレー） */
+.badge-role {
+  background: #88888822;
+  color: #333333;
+  border: 1px solid #88888844;
+}
+/* 内閣・役職バッジ（グレー強め） */
+.badge-cabinet {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+/* 院バッジ */
+.badge-house {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+}
+/* 前議員バッジ */
+.badge-inactive {
+  display: inline-block;
+  background: #88888822;
+  color: #333333;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+}
+/* カウントバッジ（発言件数など） */
+.badge-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-muted);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+/* 結果バッジ（動的色）: style="--result-color: #xxx" で渡す */
+.badge-result {
+  background: color-mix(in srgb, var(--result-color) 13%, transparent);
+  color: var(--result-color);
+  border: 1px solid color-mix(in srgb, var(--result-color) 27%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   フォーム
+   ═══════════════════════════════════════════════════════════ */
+.input-field {
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-body);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-field:focus {
+  border-color: var(--text-muted);
+}
+.btn-clear {
+  background: var(--bg-muted);
+  border: none;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-clear:hover {
+  background: var(--border-subtle);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   テキスト / タイポグラフィ
+   ═══════════════════════════════════════════════════════════ */
+.section-title {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.page-title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.meta-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   プログレスバー
+   ═══════════════════════════════════════════════════════════ */
+.progress-bar {
+  background: var(--bg-muted);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   状態表示
+   ═══════════════════════════════════════════════════════════ */
+.empty-state {
+  text-align: center;
+  padding: 60px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   フッターリンク
+   ═══════════════════════════════════════════════════════════ */
+.footer-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.footer-link:hover {
+  color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   レスポンシブ
+   ═══════════════════════════════════════════════════════════ */
 /* 政党: PC=3列横並び、モバイル=発言全幅+質問・人数2列 */
 .party-stats-grid {
   display: grid;
@@ -23,141 +412,28 @@
   .party-stats-grid > *:first-child {
     grid-column: 1 / -1;
   }
-
-  /* 政党詳細ヘッダー: 政党名と公式サイトリンクを段分け */
   .party-header { flex-wrap: wrap !important; }
   .party-header-link { flex: 0 0 100% !important; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
-}
-
-/* レスポンシブ: ナビゲーション */
 @media (min-width: 769px) {
   .show-mobile { display: none !important; }
 }
 @media (max-width: 768px) {
   .hidden-mobile { display: none !important; }
-  .show-mobile { display: block !important; }
-}
+  .show-mobile   { display: block !important; }
 
-/* レスポンシブ: 汎用 */
-@media (max-width: 768px) {
-  .resp-stack { flex-direction: column !important; }
-  .resp-full { width: 100% !important; min-width: 0 !important; }
-  .resp-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-  .resp-text-sm { font-size: 12px !important; }
-  .resp-pad { padding: 16px !important; }
-  .resp-gap-sm { gap: 8px !important; }
-  .resp-hide { display: none !important; }
-}
+  .resp-stack    { flex-direction: column !important; }
+  .resp-full     { width: 100% !important; min-width: 0 !important; }
+  .resp-scroll   { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .resp-text-sm  { font-size: 12px !important; }
+  .resp-pad      { padding: 16px !important; }
+  .resp-gap-sm   { gap: 8px !important; }
+  .resp-hide     { display: none !important; }
 
-@media (max-width: 768px) {
-  .resp-stack { flex-direction: column !important; }
-  .resp-full { width: 100% !important; min-width: 0 !important; }
-  .resp-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-  .resp-text-sm { font-size: 12px !important; }
-  .resp-pad { padding: 16px !important; }
-  .resp-gap-sm { gap: 8px !important; }
-
-  /* 議員詳細: サマリーカード 4列→2列 */
-  .summary-grid { grid-template-columns: repeat(2, 1fr) !important; }
-
-  /* 議員詳細: タブバー 2列折り返し */
-  .tab-bar { flex-wrap: wrap !important; }
+  .summary-grid  { grid-template-columns: repeat(2, 1fr) !important; }
+  .tab-bar       { flex-wrap: wrap !important; }
   .tab-bar button { flex: 0 0 calc(50% - 2px) !important; }
-}
-
-/* ─────────────────────────────────────────────────────────
-   共通UIコンポーネント — ここを変えれば全ページ一括反映
-   ───────────────────────────────────────────────────────── */
-
-/* カード */
-.card {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-}
-
-/* フィルター・ソートボタン */
-.filter-btn {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 400;
-  color: #555555;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.filter-btn:hover {
-  background: #f0f0f0;
-}
-.filter-btn.active {
-  background: #111111;
-  border-color: #111111;
-  color: #f4f4f4;
-  font-weight: 700;
-}
-
-/* タブバー内のタブボタン */
-.tab-pill {
-  background: transparent;
-  border: none;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #555555;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.tab-pill.active {
-  background: #111111;
-  color: #f4f4f4;
-  font-weight: 700;
-}
-.tab-pill:hover:not(.active) {
-  background: #e8e8e8;
-  color: #333333;
-}
-
-/* 議員行（政党・委員会ページの議員リスト） */
-.member-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background: #f4f4f4;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.member-row:hover {
-  background: #e8e8e8;
-}
-
-/* お気に入りボタン */
-.fav-btn {
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 400;
-  color: #555555;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.fav-btn:hover {
-  background: #f0f0f0;
-}
-.fav-btn.active {
-  background: #fffbeb;
-  border-color: #f59e0b;
-  color: #92400e;
-  font-weight: 700;
+  .tab-bar-container { flex-wrap: wrap !important; }
+  .tab-bar-container button { flex: 0 0 calc(50% - 2px) !important; }
 }

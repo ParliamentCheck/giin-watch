@@ -89,9 +89,9 @@ export default function CabinetPage() {
       <p style={{ color: "#555555", marginBottom: 24 }}>現在 {members.length}名の内閣構成員を収録</p>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>データ読み込み中...</div>
+        <div className="empty-state">データ読み込み中...</div>
       ) : members.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>データがありません</div>
+        <div className="empty-state">データがありません</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {members.map((m) => {
@@ -99,15 +99,11 @@ export default function CabinetPage() {
             return (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 10,
-                  padding: "12px 16px", cursor: "pointer", transition: "border-color 0.15s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#333333"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e0e0e0"; }}>
+                className="card card-hover"
+                style={{ padding: "12px 16px", "--hover-color": "#333333" } as React.CSSProperties}>
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
                   {/* 大臣職バッジ */}
-                  <span style={{ background: "#88888822", color: "#333333",
-                    border: "1px solid #88888844", padding: "2px 10px",
-                    borderRadius: 4, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <span className="badge badge-role">
                     👑 {m.cabinet_post}
                   </span>
                   {/* 名前 */}
@@ -115,8 +111,7 @@ export default function CabinetPage() {
                     {m.name}
                   </span>
                   {/* 政党バッジ */}
-                  <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                    padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <span className="badge badge-party" style={{ "--party-color": color } as React.CSSProperties}>
                     {m.party}
                   </span>
                   {/* 院・選挙区 */}

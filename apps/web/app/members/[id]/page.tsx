@@ -217,8 +217,8 @@ export default function MemberDetailPage() {
   };
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#f4f4f4", display: "flex",
-      alignItems: "center", justifyContent: "center", color: "#555555" }}>
+    <div className="empty-state" style={{ minHeight: "100vh", background: "#f4f4f4",
+      display: "flex", alignItems: "center", justifyContent: "center" }}>
       データ読み込み中...
     </div>
   );
@@ -240,9 +240,7 @@ export default function MemberDetailPage() {
 
       {/* 戻るボタン + お気に入り */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <button onClick={() => router.back()}
-          style={{ background: "transparent", border: "1px solid #c8c8c8", color: "#888888",
-            padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 14 }}>
+        <button onClick={() => router.back()} className="btn-back" style={{ marginBottom: 0 }}>
           ← 一覧に戻る
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -265,8 +263,7 @@ export default function MemberDetailPage() {
       </div>
 
       {/* ヘッダー */}
-      <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-        borderRadius: 16, padding: 28, marginBottom: 20 }}>
+      <div className="card-xl" style={{ marginBottom: 20 }}>
         <div className="resp-stack" style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", flexShrink: 0,
             background: "#e0e0e0", border: `3px solid ${color}`,
@@ -279,12 +276,7 @@ export default function MemberDetailPage() {
             </h1>
             <div style={{ fontSize: 13, color: "#555555", marginBottom: 10 }}>
 {!member.is_active && (
-                <span style={{
-                  display: "inline-block", background: "#88888822",
-                  color: "#333333", border: "1px solid #333333",
-                  borderRadius: 6, fontSize: 11, fontWeight: 700,
-                  padding: "2px 8px", marginBottom: 6,
-                }}>
+                <span className="badge-inactive">
                   ⚠️ 前議員（現在は議員ではありません）
                 </span>
               )}
@@ -292,27 +284,22 @@ export default function MemberDetailPage() {
               {member.terms && ` · ${member.terms}期`}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+              <span className="badge badge-party" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, "--party-color": color } as React.CSSProperties}>
                 🗳 {member.party}
               </span>
               {showFaction && (
-                <span style={{ background: "#e0e0e0", color: "#888888",
-                  border: "1px solid #c8c8c8", padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
+                <span className="badge badge-house" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
                   🏛 会派: {member.faction}
                 </span>
               )}
               {member.cabinet_post && (
-                <span style={{ background: "#88888822", color: "#333333",
-                  border: "1px solid #88888844", padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                <span className="badge badge-cabinet" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
                   👑 {member.cabinet_post}
                 </span>
               )}
               {member.source_url && (
                 <a href={member.source_url} target="_blank" rel="noopener noreferrer"
-                  style={{ background: "#e0e0e0", color: "#555555",
-                    border: "1px solid #c8c8c8", padding: "3px 10px", borderRadius: 6,
-                    fontSize: 12, textDecoration: "none" }}>
+                  className="badge badge-house" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, textDecoration: "none" }}>
                   📄 公式プロフィール
                 </a>
               )}
@@ -329,8 +316,7 @@ export default function MemberDetailPage() {
           { label: "質問主意書",     value: member.question_count,    unit: "件" },
           { label: "当選回数",       value: member.terms,             unit: "期" },
         ].map((item) => (
-          <div key={item.label} style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-            borderRadius: 12, padding: "16px", textAlign: "center" }}>
+          <div key={item.label} className="card" style={{ padding: "16px", textAlign: "center" }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: "#333333", marginBottom: 4 }}>
               {item.value ?? "—"}
               <span style={{ fontSize: 12, color: "#555555", marginLeft: 4 }}>{item.unit}</span>
@@ -346,8 +332,7 @@ export default function MemberDetailPage() {
       </div>
 
       {/* タブ */}
-      <div className="tab-bar" style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f0f0f0",
-        border: "1px solid #e0e0e0", borderRadius: 12, padding: 4 }}>
+      <div className="tab-bar tab-bar-container">
         {[
           { id: "committees", label: "🏛 委員会" },
           { id: "speeches",   label: `💬 発言 (${member.session_count ?? 0})` },
@@ -358,10 +343,8 @@ export default function MemberDetailPage() {
           { id: "keywords",   label: "☁️ キーワード" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
-              background: tab === t.id ? "#111111" : "transparent",
-              color: tab === t.id ? "#f4f4f4" : "#555555", cursor: "pointer",
-              fontWeight: tab === t.id ? 700 : 400, fontSize: 13, transition: "all 0.2s" }}>
+            className={`tab-pill${tab === t.id ? " active" : ""}`}
+            style={{ flex: 1, padding: "10px 0" }}>
             {t.label}
           </button>
         ))}
@@ -369,13 +352,12 @@ export default function MemberDetailPage() {
 
       {/* 委員会所属タブ */}
       {tab === "committees" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
-            textTransform: "uppercase", letterSpacing: 1 }}>
+        <div className="card" style={{ padding: 20 }}>
+          <h3 className="section-title">
             委員会所属（現在）
           </h3>
           {committees.length === 0 ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               委員会所属データがありません。
             </div>
           ) : (
@@ -385,9 +367,7 @@ export default function MemberDetailPage() {
                 <div key={c.id} style={{ padding: "14px 0",
                   borderBottom: i < committees.length - 1 ? "1px solid #e0e0e0" : "none",
                   display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ background: roleColor + "22", color: roleColor,
-                    border: `1px solid ${roleColor}44`, padding: "2px 8px",
-                    borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                  <span className="badge badge-role">
                     {c.role}
                   </span>
                   <span style={{ fontSize: 14, color: "#1a1a1a" }}>{c.committee}</span>
@@ -400,13 +380,12 @@ export default function MemberDetailPage() {
 
       {/* 発言履歴タブ */}
       {tab === "speeches" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
-            textTransform: "uppercase", letterSpacing: 1 }}>
+        <div className="card" style={{ padding: 20 }}>
+          <h3 className="section-title">
             発言履歴（セッション単位・最新順）
           </h3>
           {sessionGroups.length === 0 ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               発言データがまだありません。
             </div>
           ) : (
@@ -428,8 +407,7 @@ export default function MemberDetailPage() {
                       </span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: "#555555",
-                        background: "#e0e0e0", padding: "2px 8px", borderRadius: 4 }}>
+                      <span className="badge-count">
                         {sg.speeches.length}件の発言
                       </span>
                       <span style={{ color: "#555555", fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
@@ -458,13 +436,12 @@ export default function MemberDetailPage() {
 
       {/* 請願タブ */}
       {tab === "petitions" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
-            textTransform: "uppercase", letterSpacing: 1 }}>
+        <div className="card" style={{ padding: 20 }}>
+          <h3 className="section-title">
             紹介議員を務めた請願
           </h3>
           {petitions.length === 0 ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               請願の紹介議員記録がありません。
             </div>
           ) : (
@@ -488,9 +465,7 @@ export default function MemberDetailPage() {
                       <span style={{ fontSize: 12, color: "#555555" }}>🏛 {p.committee_name}</span>
                     )}
                     {p.result && (
-                      <span style={{ fontSize: 11, color: resultColor, fontWeight: 700,
-                        background: resultColor + "22", border: `1px solid ${resultColor}44`,
-                        padding: "2px 8px", borderRadius: 4 }}>
+                      <span className="badge badge-result" style={{ "--result-color": resultColor } as React.CSSProperties}>
                         {p.result}
                       </span>
                     )}
@@ -517,13 +492,12 @@ export default function MemberDetailPage() {
 
       {/* 質問主意書タブ */}
       {tab === "questions" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
-            textTransform: "uppercase", letterSpacing: 1 }}>
+        <div className="card" style={{ padding: 20 }}>
+          <h3 className="section-title">
             質問主意書（最新20件）
           </h3>
           {questions.length === 0 ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               質問主意書の提出記録がありません。
             </div>
           ) : (
@@ -561,17 +535,16 @@ export default function MemberDetailPage() {
 
       {/* 採決記録タブ（参議院のみ） */}
       {tab === "votes" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
-            textTransform: "uppercase", letterSpacing: 1 }}>
+        <div className="card" style={{ padding: 20 }}>
+          <h3 className="section-title">
             本会議採決記録（参議院・最新100件）
           </h3>
           {member.house !== "参議院" ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               衆議院は個人別の投票記録が公開されていないため、採決データは参議院議員のみ表示されます。
             </div>
           ) : votes.length === 0 ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               採決記録がありません。
             </div>
           ) : (
@@ -584,9 +557,7 @@ export default function MemberDetailPage() {
                     <span style={{ fontSize: 13, color: "#1a1a1a", flex: 1 }}>
                       {v.bill_title}
                     </span>
-                    <span style={{ fontSize: 11, color: voteColor, fontWeight: 700, flexShrink: 0,
-                      background: voteColor + "22", border: `1px solid ${voteColor}44`,
-                      padding: "2px 8px", borderRadius: 4 }}>
+                    <span className="badge badge-result" style={{ flexShrink: 0, "--result-color": voteColor } as React.CSSProperties}>
                       {v.vote}
                     </span>
                   </div>
@@ -602,13 +573,12 @@ export default function MemberDetailPage() {
 
       {/* 議員立法タブ */}
       {tab === "bills" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
-            textTransform: "uppercase", letterSpacing: 1 }}>
+        <div className="card" style={{ padding: 20 }}>
+          <h3 className="section-title">
             議員提出法案
           </h3>
           {bills.length === 0 ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               議員提出法案の記録がありません。
             </div>
           ) : (

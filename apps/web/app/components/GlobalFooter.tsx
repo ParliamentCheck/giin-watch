@@ -32,16 +32,12 @@ export default function GlobalFooter() {
             <span key={link.path} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {link.path.startsWith("http") ? (
                 <a href={link.path} target="_blank" rel="noopener noreferrer"
-                  style={{ color: "#555555", textDecoration: "none" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#888888"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "#555555"; }}
+                  className="footer-link"
                 >{link.label}</a>
               ) : (
                 <span
                   onClick={() => router.push(link.path)}
-                  style={{ color: "#555555", cursor: "pointer" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#888888"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "#555555"; }}
+                  className="footer-link"
                 >{link.label}</span>
               )}
               {i < FOOTER_LINKS.length - 1 && (

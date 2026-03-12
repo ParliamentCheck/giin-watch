@@ -34,7 +34,6 @@ const PARTY_COLORS: Record<string, string> = {
 
 
 
-
 export default function PartiesPage() {
   const router = useRouter();
   const [parties, setParties] = useState<PartyStats[]>([]);
@@ -77,8 +76,6 @@ export default function PartiesPage() {
         partyMap[p].committee_execs  += execCount[m.id]  || 0;
       }
 
-
-
       setParties(Object.values(partyMap));
       setLoading(false);
     }
@@ -95,7 +92,6 @@ export default function PartiesPage() {
 
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🗳 政党・会派別データ</h1>
 
-
         {/* ソートボタン */}
         <div className="resp-stack" style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {[
@@ -111,7 +107,7 @@ export default function PartiesPage() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: 60, color: "#555555" }}>データ読み込み中...</div>
+          <div className="empty-state">データ読み込み中...</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {sorted.map((p, rank) => {
@@ -122,16 +118,8 @@ export default function PartiesPage() {
               return (
                 <div key={p.party}
                   onClick={() => router.push(`/parties/${encodeURIComponent(p.party)}`)}
-                  style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-                    borderRadius: 16, padding: 24, cursor: "pointer", transition: "all 0.2s" }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = color;
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#e0e0e0";
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}>
+                  className="card card-hover-lift"
+                  style={{ borderRadius: 16, padding: 24, "--hover-color": color } as React.CSSProperties}>
 
                   {/* ヘッダー */}
                   <div className="resp-stack resp-gap-sm" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
@@ -147,9 +135,8 @@ export default function PartiesPage() {
                   </div>
 
                   {/* バー */}
-                  <div style={{ marginBottom: 14, background: "#e0e0e0", borderRadius: 4, height: 5 }}>
-                    <div style={{ width: `${barRatio}%`, height: "100%",
-                      background: color, borderRadius: 4, transition: "width 0.6s ease" }} />
+                  <div className="progress-bar" style={{ marginBottom: 14, height: 5 }}>
+                    <div className="progress-fill" style={{ width: `${barRatio}%`, background: color }} />
                   </div>
 
                   {/* 統計グリッド */}

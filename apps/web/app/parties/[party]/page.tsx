@@ -144,8 +144,8 @@ export default function PartyDetailPage() {
   ].filter((b) => b.count > 0);
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#f4f4f4", display: "flex",
-      alignItems: "center", justifyContent: "center", color: "#555555" }}>
+    <div className="empty-state" style={{ minHeight: "100vh", background: "#f4f4f4",
+      display: "flex", alignItems: "center", justifyContent: "center" }}>
       データ読み込み中...
     </div>
   );
@@ -163,33 +163,20 @@ export default function PartyDetailPage() {
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
-      <button onClick={() => router.push("/parties")}
-        style={{ background: "transparent", border: "1px solid #c8c8c8", color: "#888888",
-          padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24, fontSize: 14 }}>
+      <button onClick={() => router.push("/parties")} className="btn-back">
         ← 政党一覧に戻る
       </button>
 
       {/* ヘッダー */}
-      <div style={{ background: "#ffffff", border: `1px solid ${color}44`,
-        borderRadius: 16, padding: 28, marginBottom: 20 }}>
+      <div className="card-xl" style={{ border: `1px solid ${color}44` }}>
         <div className="party-header" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
           <div style={{ width: 16, height: 16, borderRadius: "50%", background: color }} />
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#111111", flex: 1 }}>{party}</h1>
           {PARTY_URLS[party] && (
             <a href={PARTY_URLS[party]} target="_blank" rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="party-header-link"
-              style={{ fontSize: 12, color: "#555555", border: "1px solid #c8c8c8",
-                padding: "4px 10px", borderRadius: 6, textDecoration: "none",
-                flexShrink: 0, transition: "color 0.2s, border-color 0.2s" }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.color = color;
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = color;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.color = "#555555";
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = "#c8c8c8";
-              }}>
+              className="party-header-link party-official-link"
+              style={{ "--party-color": color } as React.CSSProperties}>
               公式サイト →
             </a>
           )}
@@ -213,14 +200,11 @@ export default function PartyDetailPage() {
       </div>
 
       {/* タブ */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#f0f0f0",
-        border: "1px solid #e0e0e0", borderRadius: 12, padding: 4, flexWrap: "wrap" }}>
+      <div className="tab-bar tab-bar-container" style={{ flexWrap: "wrap" }}>
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ flex: 1, minWidth: 120, padding: "10px 0", borderRadius: 9, border: "none",
-              background: tab === t.id ? color : "transparent",
-              color: tab === t.id ? "white" : "#555555", cursor: "pointer",
-              fontWeight: tab === t.id ? 700 : 400, fontSize: 12, transition: "all 0.2s" }}>
+            className={`tab-pill${tab === t.id ? " active" : ""}`}
+            style={{ flex: 1, minWidth: 120, padding: "10px 0" }}>
             {t.label}
           </button>
         ))}
@@ -228,7 +212,7 @@ export default function PartyDetailPage() {
 
       {/* 議員一覧タブ */}
       {tab === "members" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div className="card" style={{ padding: 20 }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             {[
               { value: "speech_count",   label: "発言数順" },
@@ -266,20 +250,16 @@ export default function PartyDetailPage() {
 
       {/* 委員長・理事タブ */}
       {tab === "committees" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 20 }}>
+        <div className="card" style={{ padding: 20 }}>
           {chairList.length > 0 && (
             <>
-              <h3 style={{ margin: "0 0 12px", fontSize: 13, color: "#333333",
-                textTransform: "uppercase", letterSpacing: 1 }}>
+              <h3 className="section-title">
                 🏆 委員長・会長 ({chairList.length}名)
               </h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 24 }}>
                 {chairList.map((c, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12,
-                    padding: "12px 16px", borderRadius: 10, background: "#e0e0e0" }}>
-                    <span style={{ background: "#88888822", color: "#333333",
-                      border: "1px solid #88888844", padding: "2px 8px",
-                      borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                  <div key={i} className="member-row">
+                    <span className="badge badge-role">
                       {c.role}
                     </span>
                     <div style={{ flex: 1 }}>
@@ -294,17 +274,13 @@ export default function PartyDetailPage() {
 
           {execList.length > 0 && (
             <>
-              <h3 style={{ margin: "0 0 12px", fontSize: 13, color: "#333333",
-                textTransform: "uppercase", letterSpacing: 1 }}>
+              <h3 className="section-title">
                 📋 理事・副会長 ({execList.length}名)
               </h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {execList.map((c, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12,
-                    padding: "12px 16px", borderRadius: 10, background: "#e0e0e0" }}>
-                    <span style={{ background: "#88888822", color: "#333333",
-                      border: "1px solid #88888844", padding: "2px 8px",
-                      borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                  <div key={i} className="member-row">
+                    <span className="badge badge-role">
                       {c.role}
                     </span>
                     <div style={{ flex: 1 }}>
@@ -318,7 +294,7 @@ export default function PartyDetailPage() {
           )}
 
           {chairList.length === 0 && execList.length === 0 && (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               委員長・理事のデータがありません。
             </div>
           )}
@@ -327,13 +303,12 @@ export default function PartyDetailPage() {
 
       {/* ワードクラウドタブ */}
       {tab === "wordcloud" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
-          <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#888888",
-            textTransform: "uppercase", letterSpacing: 1 }}>
+        <div className="card" style={{ padding: 24 }}>
+          <h3 className="section-title">
             ☁️ {party} の発言キーワード
           </h3>
           {kwLoading ? (
-            <div style={{ textAlign: "center", padding: "60px 0", color: "#555555" }}>
+            <div className="empty-state" style={{ padding: "60px 0" }}>
               キーワードを集計中...
             </div>
           ) : (
@@ -347,9 +322,8 @@ export default function PartyDetailPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* 衆参比率 */}
-          <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
-            <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#888888",
-              textTransform: "uppercase", letterSpacing: 1 }}>
+          <div className="card" style={{ padding: 24 }}>
+            <h3 className="section-title">
               🏠 衆議院 / 参議院
             </h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
@@ -379,9 +353,8 @@ export default function PartyDetailPage() {
           </div>
 
           {/* 当選回数分布 */}
-          <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 24 }}>
-            <h3 style={{ margin: "0 0 20px", fontSize: 13, color: "#888888",
-              textTransform: "uppercase", letterSpacing: 1 }}>
+          <div className="card" style={{ padding: 24 }}>
+            <h3 className="section-title">
               🗳 当選回数分布
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -394,9 +367,8 @@ export default function PartyDetailPage() {
                       <span>{b.label}</span>
                       <span style={{ color: color, fontWeight: 700 }}>{b.count}名（{Math.round(pct)}%）</span>
                     </div>
-                    <div style={{ height: 8, background: "#e0e0e0", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${pct}%`, height: "100%",
-                        background: color, borderRadius: 4, transition: "width 0.6s ease" }} />
+                    <div className="progress-bar" style={{ height: 8 }}>
+                      <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
                     </div>
                   </div>
                 );

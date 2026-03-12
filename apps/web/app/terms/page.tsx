@@ -8,8 +8,7 @@ export default function TermsPage() {
 
         <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>利用規約</h1>
 
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 16,
-          padding: 28, fontSize: 13, color: "#888888", lineHeight: 2 }}>
+        <div className="card-xl" style={{ fontSize: 13, color: "#888888", lineHeight: 2 }}>
 
           <h2 style={{ fontSize: 16, fontWeight: 700, color: "#1a1a1a", marginBottom: 12 }}>第1条（目的）</h2>
           <p style={{ marginBottom: 20 }}>

@@ -160,8 +160,8 @@ export default function CommitteeDetailPage() {
     ? "#333333" : "#888888";
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#f4f4f4", display: "flex",
-      alignItems: "center", justifyContent: "center", color: "#555555" }}>
+    <div className="empty-state" style={{ minHeight: "100vh", background: "#f4f4f4",
+      display: "flex", alignItems: "center", justifyContent: "center" }}>
       データ読み込み中...
     </div>
   );
@@ -172,15 +172,12 @@ export default function CommitteeDetailPage() {
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
-      <button onClick={() => router.push("/committees")}
-        style={{ background: "transparent", border: "1px solid #c8c8c8", color: "#888888",
-          padding: "8px 16px", borderRadius: 8, cursor: "pointer", marginBottom: 24, fontSize: 14 }}>
+      <button onClick={() => router.push("/committees")} className="btn-back">
         ← 委員会一覧に戻る
       </button>
 
       {/* ヘッダー */}
-      <div style={{ background: "#ffffff", border: `1px solid ${houseColor}44`,
-        borderRadius: 16, padding: 28, marginBottom: 20 }}>
+      <div className="card-xl" style={{ border: `1px solid ${houseColor}44` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
           <div style={{ width: 14, height: 14, borderRadius: "50%", background: houseColor }} />
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111111" }}>
@@ -206,10 +203,8 @@ export default function CommitteeDetailPage() {
       </div>
 
       {/* 党別構成 */}
-      <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-        borderRadius: 12, padding: 24, marginBottom: 16 }}>
-        <h3 style={{ margin: "0 0 16px", fontSize: 13, color: "#888888",
-          textTransform: "uppercase", letterSpacing: 1 }}>
+      <div className="card" style={{ padding: 24, marginBottom: 16 }}>
+        <h3 className="section-title">
           🗳 党別構成
         </h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -227,9 +222,8 @@ export default function CommitteeDetailPage() {
                   </span>
                   <span style={{ color, fontWeight: 700 }}>{count}名（{pct}%）</span>
                 </div>
-                <div style={{ height: 6, background: "#e0e0e0", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ width: `${count / maxPartyCount * 100}%`, height: "100%",
-                    background: color, borderRadius: 3, transition: "width 0.6s ease" }} />
+                <div className="progress-bar" style={{ height: 6 }}>
+                  <div className="progress-fill" style={{ width: `${count / maxPartyCount * 100}%`, background: color }} />
                 </div>
               </div>
             );
@@ -238,19 +232,15 @@ export default function CommitteeDetailPage() {
       </div>
 
       {/* タブバー */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16,
-        background: "#ffffff", border: "1px solid #e0e0e0", borderRadius: 12, padding: 4 }}>
+      <div className="tab-bar tab-bar-container">
         {([
           { id: "chairs"   as const, label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
           { id: "members"  as const, label: `👤 議員一覧 (${members.length})` },
           { id: "petitions" as const, label: `📜 請願 (${petitions.length})` },
         ]).map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
-              background: tab === t.id ? houseColor : "transparent",
-              color: tab === t.id ? "white" : "#555555",
-              cursor: "pointer", fontWeight: tab === t.id ? 700 : 400,
-              fontSize: 13, transition: "all 0.2s" }}>
+            className={`tab-pill${tab === t.id ? " active" : ""}`}
+            style={{ flex: 1, padding: "10px 0" }}>
             {t.label}
           </button>
         ))}
@@ -258,10 +248,9 @@ export default function CommitteeDetailPage() {
 
       {/* 委員長・理事タブ */}
       {tab === "chairs" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-          borderRadius: 12, padding: 24 }}>
+        <div className="card" style={{ padding: 24 }}>
           {chairList.length === 0 && execList.length === 0 ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>データがありません。</div>
+            <div className="empty-state" style={{ padding: "20px 0" }}>データがありません。</div>
           ) : (
             <>
               {chairList.length > 0 && (
@@ -272,17 +261,14 @@ export default function CommitteeDetailPage() {
                       <div key={i}
                         onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
                         className="member-row">
-                        <span style={{ background: "#88888822", color: "#333333",
-                          border: "1px solid #88888844", padding: "2px 8px",
-                          borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                        <span className="badge badge-role">
                           {c.role}
                         </span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: 14, color: "#111111" }}>{c.name}</div>
                           <div style={{ fontSize: 11, color: "#555555" }}>{c.house} · {c.district}</div>
                         </div>
-                        <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                          padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                        <span className="badge badge-party" style={{ flexShrink: 0, "--party-color": color } as React.CSSProperties}>
                           {c.party}
                         </span>
                       </div>
@@ -298,17 +284,14 @@ export default function CommitteeDetailPage() {
                       <div key={i}
                         onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
                         className="member-row">
-                        <span style={{ background: "#88888822", color: "#333333",
-                          border: "1px solid #88888844", padding: "2px 8px",
-                          borderRadius: 4, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                        <span className="badge badge-role">
                           {c.role}
                         </span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: 14, color: "#111111" }}>{c.name}</div>
                           <div style={{ fontSize: 11, color: "#555555" }}>{c.house} · {c.district}</div>
                         </div>
-                        <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                          padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                        <span className="badge badge-party" style={{ flexShrink: 0, "--party-color": color } as React.CSSProperties}>
                           {c.party}
                         </span>
                       </div>
@@ -323,18 +306,14 @@ export default function CommitteeDetailPage() {
 
       {/* 議員一覧タブ */}
       {tab === "members" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-          borderRadius: 12, padding: 24 }}>
+        <div className="card" style={{ padding: 24 }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {[
               { value: "role", label: "役職順" },
               { value: "name", label: "名前順" },
             ].map((s) => (
               <button key={s.value} onClick={() => setSortBy(s.value)}
-                style={{ background: sortBy === s.value ? houseColor + "33" : "#e0e0e0",
-                  border: `1px solid ${sortBy === s.value ? houseColor : "#c8c8c8"}`,
-                  color: sortBy === s.value ? houseColor : "#555555",
-                  padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
+                className={`filter-btn${sortBy === s.value ? " active" : ""}`}>
                 {s.label}
               </button>
             ))}
@@ -356,8 +335,7 @@ export default function CommitteeDetailPage() {
                     <div style={{ fontWeight: 600, fontSize: 14, color: "#111111" }}>{m.name}</div>
                     <div style={{ fontSize: 11, color: "#555555" }}>{m.house} · {m.district}</div>
                   </div>
-                  <span style={{ background: color + "22", color, border: `1px solid ${color}44`,
-                    padding: "2px 8px", borderRadius: 4, fontSize: 11, flexShrink: 0 }}>
+                  <span className="badge badge-party" style={{ flexShrink: 0, "--party-color": color } as React.CSSProperties}>
                     {m.party}
                   </span>
                 </div>
@@ -369,10 +347,9 @@ export default function CommitteeDetailPage() {
 
       {/* 請願タブ */}
       {tab === "petitions" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-          borderRadius: 12, padding: 24 }}>
+        <div className="card" style={{ padding: 24 }}>
           {petitions.length === 0 ? (
-            <div style={{ color: "#888888", fontSize: 13, padding: "20px 0" }}>
+            <div className="empty-state" style={{ padding: "20px 0" }}>
               付託された請願データがありません。
             </div>
           ) : (
@@ -394,9 +371,7 @@ export default function CommitteeDetailPage() {
                     </div>
                     <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
                       {p.result && (
-                        <span style={{ fontSize: 11, color: resultColor, fontWeight: 700,
-                          background: resultColor + "22", border: `1px solid ${resultColor}44`,
-                          padding: "2px 8px", borderRadius: 4 }}>
+                        <span className="badge badge-result" style={{ "--result-color": resultColor } as React.CSSProperties}>
                           {p.result}
                         </span>
                       )}
