@@ -122,12 +122,16 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             ))}
           </div>
 
-          {/* サイト名 */}
+          {/* フッター */}
           <div style={{
-            marginTop: 32, display: "flex", justifyContent: "flex-end",
-            fontSize: 22, color: "#aaa", letterSpacing: "0.05em",
+            marginTop: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-end",
           }}>
-            はたらく議員
+            <span style={{ fontSize: 18, color: "#bbb" }}>
+              ※ 公開国会記録に基づく（発言: 第210〜221回 / 質問主意書・請願: 第196〜221回 / 議員立法: 第208〜221回）
+            </span>
+            <span style={{ fontSize: 22, color: "#aaa", letterSpacing: "0.05em" }}>
+              はたらく議員
+            </span>
           </div>
         </div>
       </div>
