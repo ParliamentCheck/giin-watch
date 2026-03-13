@@ -168,14 +168,15 @@ function PartyDetailContent() {
           role:      c.role,
           committee: c.committee,
         })));
-      setLoading(false);
-
-      // 採決集計（大規模政党でもURL長制限に引っかからないよう50件ずつバッチ処理）
-      if (memberIds.length > 0) {
+      // 採決集計（setLoading前に完了させてFVで遅延させない）
+      const sangiinIds = (membersRes.data || [])
+        .filter((m) => m.house === "参議院")
+        .map((m) => m.id);
+      if (sangiinIds.length > 0) {
         const BATCH = 50;
         let total = 0, yes = 0, no = 0, absent = 0;
-        for (let i = 0; i < memberIds.length; i += BATCH) {
-          const batch = memberIds.slice(i, i + BATCH);
+        for (let i = 0; i < sangiinIds.length; i += BATCH) {
+          const batch = sangiinIds.slice(i, i + BATCH);
           const [t, y, n, a] = await Promise.all([
             supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch),
             supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch).eq("vote", "賛成"),
@@ -190,7 +191,9 @@ function PartyDetailContent() {
         setVoteStats({ total, yes, no, absent });
       }
 
-      // キーワードはバッチフェッチ（遅延）
+      setLoading(false);
+
+      // キーワードはタブ内なので遅延フェッチでOK
       if (memberIds.length > 0) {
         setKwLoading(true);
         const kw = await fetchKeywordsBatched(memberIds);
