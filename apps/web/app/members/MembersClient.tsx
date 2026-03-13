@@ -127,55 +127,61 @@ function MembersContent() {
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>🔍 現職議員一覧</h1>
-      <p style={{ color: "#555555", marginBottom: 24 }}>現在 {members.length}名の議員データを収録</p>
+      {/* タイトル・フィルターカード */}
+      <div className="card-xl" style={{ marginBottom: 16 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🔍 現職議員一覧</h1>
+        <p style={{ color: "#555555", marginBottom: 20, fontSize: 13 }}>現在 {members.length}名の議員データを収録</p>
 
-      {/* フィルター・ソート */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <input
-          type="text"
-          placeholder="議員名・選挙区で検索"
-          value={inputValue}
-          onChange={(e) => {
-            setInputValue(e.target.value);
-            if (!isComposing.current) updateUrl(e.target.value, selectedHouse, selectedParty, sortKey);
-          }}
-          onCompositionStart={() => { isComposing.current = true; }}
-          onCompositionEnd={(e) => {
-            isComposing.current = false;
-            updateUrl((e.target as HTMLInputElement).value, selectedHouse, selectedParty, sortKey);
-          }}
-          className="input-field"
-          style={{ flex: 1, minWidth: 160 }}
-        />
-        <select value={selectedHouse}
-          onChange={(e) => updateUrl(search, e.target.value, selectedParty, sortKey)}
-          className="input-field">
-          <option value="">🏛 衆院・参院</option>
-          <option value="衆議院">衆議院</option>
-          <option value="参議院">参議院</option>
-        </select>
-        <select value={selectedParty}
-          onChange={(e) => updateUrl(search, selectedHouse, e.target.value, sortKey)}
-          className="input-field">
-          <option value="">🗳 政党を選択</option>
-          {parties.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <select value={sortKey}
-          onChange={(e) => updateUrl(search, selectedHouse, selectedParty, e.target.value)}
-          className="input-field">
-          {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        {(search || selectedHouse || selectedParty || sortKey !== "name") && (
-          <button onClick={() => updateUrl("", "", "", "name")}
-            className="btn-clear">
-            クリア
-          </button>
-        )}
+        {/* フィルター・ソート */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 0, flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="議員名・選挙区で検索"
+            value={inputValue}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              if (!isComposing.current) updateUrl(e.target.value, selectedHouse, selectedParty, sortKey);
+            }}
+            onCompositionStart={() => { isComposing.current = true; }}
+            onCompositionEnd={(e) => {
+              isComposing.current = false;
+              updateUrl((e.target as HTMLInputElement).value, selectedHouse, selectedParty, sortKey);
+            }}
+            className="input-field"
+            style={{ flex: 1, minWidth: 160 }}
+          />
+          <select value={selectedHouse}
+            onChange={(e) => updateUrl(search, e.target.value, selectedParty, sortKey)}
+            className="input-field">
+            <option value="">🏛 衆院・参院</option>
+            <option value="衆議院">衆議院</option>
+            <option value="参議院">参議院</option>
+          </select>
+          <select value={selectedParty}
+            onChange={(e) => updateUrl(search, selectedHouse, e.target.value, sortKey)}
+            className="input-field">
+            <option value="">🗳 政党を選択</option>
+            {parties.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select value={sortKey}
+            onChange={(e) => updateUrl(search, selectedHouse, selectedParty, e.target.value)}
+            className="input-field">
+            {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {(search || selectedHouse || selectedParty || sortKey !== "name") && (
+            <button onClick={() => updateUrl("", "", "", "name")}
+              className="btn-clear">
+              クリア
+            </button>
+          )}
+        </div>
       </div>
 
-      <p style={{ color: "#888888", marginBottom: 12, fontSize: 14 }}>{sorted.length}名表示中</p>
+      {/* リストカード */}
+      <div className="card-xl">
+        <p style={{ color: "#888888", marginBottom: 12, fontSize: 13 }}>{sorted.length}名表示中</p>
 
       {loading ? (
         <div className="loading-block">
@@ -224,6 +230,8 @@ function MembersContent() {
           })}
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }

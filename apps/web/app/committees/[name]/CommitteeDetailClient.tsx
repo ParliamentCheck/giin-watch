@@ -180,8 +180,8 @@ function CommitteeDetailContent() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
-      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
-      padding: "24px", maxWidth: 900, margin: "0 auto" }}>
+      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
+    <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
       <button onClick={() => router.push("/committees")} className="btn-back">
@@ -266,46 +266,40 @@ function CommitteeDetailContent() {
           ) : (
             <>
               {chairList.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: execList.length > 0 ? 12 : 0 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: execList.length > 0 ? 12 : 0 }}>
                   {chairList.map((c, i) => {
                     const color = PARTY_COLORS[c.party] || "#7f8c8d";
                     return (
                       <div key={i}
                         onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
-                        className="member-row">
-                        <span className="badge badge-role">
-                          {c.role}
-                        </span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: "#111111" }}>{c.name}</div>
-                          <div style={{ fontSize: 11, color: "#555555" }}>{c.house} · {c.district}</div>
+                        className="card card-hover"
+                        style={{ padding: "12px 16px", "--hover-color": color } as React.CSSProperties}>
+                        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 12px" }}>
+                          <span className="badge badge-role">{c.role}</span>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: "#111111" }}>{c.name}</span>
+                          <span style={{ fontSize: 12, color: "#555555" }}>{c.house} · {c.district}</span>
+                          <span className="badge badge-party" style={{ marginLeft: "auto", "--party-color": color } as React.CSSProperties}>{c.party}</span>
                         </div>
-                        <span className="badge badge-party" style={{ flexShrink: 0, "--party-color": color } as React.CSSProperties}>
-                          {c.party}
-                        </span>
                       </div>
                     );
                   })}
                 </div>
               )}
               {execList.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {execList.map((c, i) => {
                     const color = PARTY_COLORS[c.party] || "#7f8c8d";
                     return (
                       <div key={i}
                         onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
-                        className="member-row">
-                        <span className="badge badge-role">
-                          {c.role}
-                        </span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 600, fontSize: 14, color: "#111111" }}>{c.name}</div>
-                          <div style={{ fontSize: 11, color: "#555555" }}>{c.house} · {c.district}</div>
+                        className="card card-hover"
+                        style={{ padding: "12px 16px", "--hover-color": color } as React.CSSProperties}>
+                        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 12px" }}>
+                          <span className="badge badge-role">{c.role}</span>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: "#111111" }}>{c.name}</span>
+                          <span style={{ fontSize: 12, color: "#555555" }}>{c.house} · {c.district}</span>
+                          <span className="badge badge-party" style={{ marginLeft: "auto", "--party-color": color } as React.CSSProperties}>{c.party}</span>
                         </div>
-                        <span className="badge badge-party" style={{ flexShrink: 0, "--party-color": color } as React.CSSProperties}>
-                          {c.party}
-                        </span>
                       </div>
                     );
                   })}
@@ -330,26 +324,20 @@ function CommitteeDetailContent() {
               </button>
             ))}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {sorted.map((m) => {
               const color = PARTY_COLORS[m.party] || "#7f8c8d";
               return (
                 <div key={m.member_id}
                   onClick={() => router.push(`/members/${encodeURIComponent(m.member_id)}`)}
-                  className="member-row">
-                  {m.role && (
-                    <span style={{ fontSize: 10, color: "#555555", border: "1px solid #c8c8c8",
-                      padding: "1px 6px", borderRadius: 3, flexShrink: 0 }}>
-                      {m.role}
-                    </span>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: "#111111" }}>{m.name}</div>
-                    <div style={{ fontSize: 11, color: "#555555" }}>{m.house} · {m.district}</div>
+                  className="card card-hover"
+                  style={{ padding: "12px 16px", "--hover-color": color } as React.CSSProperties}>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 12px" }}>
+                    {m.role && <span className="badge badge-role">{m.role}</span>}
+                    <span style={{ fontWeight: 700, fontSize: 14, color: "#111111" }}>{m.name}</span>
+                    <span style={{ fontSize: 12, color: "#555555" }}>{m.house} · {m.district}</span>
+                    <span className="badge badge-party" style={{ marginLeft: "auto", "--party-color": color } as React.CSSProperties}>{m.party}</span>
                   </div>
-                  <span className="badge badge-party" style={{ flexShrink: 0, "--party-color": color } as React.CSSProperties}>
-                    {m.party}
-                  </span>
                 </div>
               );
             })}
@@ -414,6 +402,7 @@ function CommitteeDetailContent() {
           )}
         </div>
       )}
+    </div>
     </div>
   );
 }

@@ -4,11 +4,10 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 const NAV_ITEMS = [
-  { label: "トップ",       path: "/" },
   { label: "議員一覧",     path: "/members" },
   { label: "内閣",         path: "/cabinet" },
-  { label: "政党・会派",   path: "/parties" },
-  { label: "委員会別",     path: "/committees" },
+  { label: "政党",         path: "/parties" },
+  { label: "委員会",       path: "/committees" },
   { label: "議員立法",     path: "/bills" },
   { label: "採決",         path: "/votes" },
   { label: "前議員",       path: "/members/former" },
@@ -34,6 +33,7 @@ export default function GlobalNav() {
       <div style={{
         height: 60, display: "flex", alignItems: "center",
         padding: "0 16px", justifyContent: "space-between",
+        maxWidth: 900, margin: "0 auto", width: "100%",
       }}>
         {/* ロゴ */}
         <div onClick={() => navigate("/")}
@@ -42,7 +42,7 @@ export default function GlobalNav() {
         </div>
 
         {/* PC: ナビリンク */}
-        <div style={{ display: "flex", gap: 4, flex: 1, marginLeft: 24 }}
+        <div style={{ display: "flex", gap: 4, marginLeft: 24 }}
           className="hidden-mobile">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.path ||

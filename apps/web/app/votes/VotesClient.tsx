@@ -195,123 +195,130 @@ function VotesContent() {
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px",
     }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🗳 政党別採決一致率</h1>
-        <p style={{ color: "#555555", fontSize: 13, marginBottom: 4 }}>
-          参議院本会議の採決記録をもとに、政党間の投票行動の一致率を集計しています。
-        </p>
-        {!loading && (
-          <p style={{ color: "#888888", fontSize: 12, marginBottom: 16 }}>
-            対象: {sessionRange}（採決 {billCount} 件）
+
+        {/* タイトル・フィルターカード */}
+        <div className="card-xl" style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🗳 政党別採決一致率</h1>
+          <p style={{ color: "#555555", fontSize: 13, marginBottom: 4 }}>
+            参議院本会議の採決記録をもとに、政党間の投票行動の一致率を集計しています。
           </p>
-        )}
+          {!loading && (
+            <p style={{ color: "#888888", fontSize: 12, marginBottom: 16 }}>
+              対象: {sessionRange}（採決 {billCount} 件）
+            </p>
+          )}
 
-        {/* 国会回次フィルター（プルダウン） */}
-        {!loading && availableSessions.length > 1 && (
-          <div style={{ marginBottom: 20 }}>
-            <select
-              value={selectedSession ?? ""}
-              onChange={(e) => setSelectedSession(e.target.value === "" ? null : Number(e.target.value))}
-              className="input-field"
-              style={{ minWidth: 160 }}>
-              <option value="">全期間</option>
-              {availableSessions.map((s) => (
-                <option key={s} value={s}>第{s}回国会</option>
-              ))}
-            </select>
-          </div>
-        )}
+          {/* 国会回次フィルター（プルダウン） */}
+          {!loading && availableSessions.length > 1 && (
+            <div style={{ marginBottom: 0 }}>
+              <select
+                value={selectedSession ?? ""}
+                onChange={(e) => setSelectedSession(e.target.value === "" ? null : Number(e.target.value))}
+                className="input-field"
+                style={{ minWidth: 160 }}>
+                <option value="">全期間</option>
+                {availableSessions.map((s) => (
+                  <option key={s} value={s}>第{s}回国会</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
 
-        {loading ? (
-          <div className="loading-block">
-            <div className="loading-spinner" />
-            <span>採決データを読み込んでいます...</span>
-          </div>
-        ) : parties.length === 0 ? (
-          <div className="empty-state">データがありません。</div>
-        ) : (
-          <>
-            {/* マトリックス */}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th style={{ padding: "8px 12px", textAlign: "left", color: "#888888",
-                      borderBottom: "1px solid #e0e0e0", whiteSpace: "nowrap",
-                      position: "sticky", left: 0, background: "#f4f4f4", zIndex: 2 }}>
-                      政党
-                    </th>
-                    {sortedParties.map((p) => (
-                      <th key={p} style={{ padding: "6px 4px", color: "#888888",
-                        borderBottom: "1px solid #e0e0e0",
-                        writingMode: "vertical-rl", textOrientation: "mixed",
-                        whiteSpace: "nowrap", minWidth: 28, fontSize: 11 }}>
-                        {PARTY_SHORT[p] ?? p}
+        {/* 一覧カード */}
+        <div className="card-xl">
+          {loading ? (
+            <div className="loading-block">
+              <div className="loading-spinner" />
+              <span>採決データを読み込んでいます...</span>
+            </div>
+          ) : parties.length === 0 ? (
+            <div className="empty-state">データがありません。</div>
+          ) : (
+            <>
+              {/* マトリックス */}
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: "8px 12px", textAlign: "left", color: "#888888",
+                        borderBottom: "1px solid #e0e0e0", whiteSpace: "nowrap",
+                        position: "sticky", left: 0, background: "#f4f4f4", zIndex: 2 }}>
+                        政党
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedParties.map((rowParty) => (
-                    <tr key={rowParty}>
-                      <td style={{ padding: "6px 12px", whiteSpace: "nowrap",
-                        color: "#444444", fontWeight: 600, fontSize: 12,
-                        borderBottom: "1px solid #e0e0e0",
-                        position: "sticky", left: 0, background: "#f4f4f4", zIndex: 1 }}>
-                        {rowParty}
-                      </td>
-                      {sortedParties.map((colParty) => {
-                        const cell = matrix[rowParty]?.[colParty];
-                        if (!cell || cell.total === 0) {
+                      {sortedParties.map((p) => (
+                        <th key={p} style={{ padding: "6px 4px", color: "#888888",
+                          borderBottom: "1px solid #e0e0e0",
+                          writingMode: "vertical-rl", textOrientation: "mixed",
+                          whiteSpace: "nowrap", minWidth: 28, fontSize: 11 }}>
+                          {PARTY_SHORT[p] ?? p}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedParties.map((rowParty) => (
+                      <tr key={rowParty}>
+                        <td style={{ padding: "6px 12px", whiteSpace: "nowrap",
+                          color: "#444444", fontWeight: 600, fontSize: 12,
+                          borderBottom: "1px solid #e0e0e0",
+                          position: "sticky", left: 0, background: "#f4f4f4", zIndex: 1 }}>
+                          {rowParty}
+                        </td>
+                        {sortedParties.map((colParty) => {
+                          const cell = matrix[rowParty]?.[colParty];
+                          if (!cell || cell.total === 0) {
+                            return (
+                              <td key={colParty} style={{ padding: "6px 4px", textAlign: "center",
+                                background: "#f0f0f0", borderBottom: "1px solid #f4f4f4",
+                                color: "#aaaaaa" }}>
+                                —
+                              </td>
+                            );
+                          }
+                          const rate   = cell.agree / cell.total;
+                          const isSelf = rowParty === colParty;
                           return (
-                            <td key={colParty} style={{ padding: "6px 4px", textAlign: "center",
-                              background: "#f0f0f0", borderBottom: "1px solid #f4f4f4",
-                              color: "#aaaaaa" }}>
-                              —
+                            <td key={colParty}
+                              title={`${rowParty} × ${colParty}: ${cell.agree}/${cell.total}件一致`}
+                              style={{
+                                padding: "6px 4px", textAlign: "center",
+                                background: isSelf ? "#e8e8e8" : alignColor(rate),
+                                color: isSelf ? "#888888" : alignTextColor(rate),
+                                borderBottom: "1px solid #f4f4f4",
+                                fontWeight: isSelf ? 400 : 700,
+                                cursor: "default",
+                              }}>
+                              {isSelf ? "—" : `${Math.round(rate * 100)}%`}
                             </td>
                           );
-                        }
-                        const rate   = cell.agree / cell.total;
-                        const isSelf = rowParty === colParty;
-                        return (
-                          <td key={colParty}
-                            title={`${rowParty} × ${colParty}: ${cell.agree}/${cell.total}件一致`}
-                            style={{
-                              padding: "6px 4px", textAlign: "center",
-                              background: isSelf ? "#e8e8e8" : alignColor(rate),
-                              color: isSelf ? "#888888" : alignTextColor(rate),
-                              borderBottom: "1px solid #f4f4f4",
-                              fontWeight: isSelf ? 400 : 700,
-                              cursor: "default",
-                            }}>
-                            {isSelf ? "—" : `${Math.round(rate * 100)}%`}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* 凡例 */}
-            <div style={{ display: "flex", gap: 16, marginTop: 20, fontSize: 11, color: "#555555", flexWrap: "wrap" }}>
-              {[
-                { color: "#bbf7d0", label: "90%以上" },
-                { color: "#d1fae5", label: "70〜89%" },
-                { color: "#fef9c3", label: "50〜69%" },
-                { color: "#fee2e2", label: "50%未満" },
-              ].map((item) => (
-                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 14, height: 14, background: item.color, borderRadius: 2 }} />
-                  {item.label}
-                </div>
-              ))}
-            </div>
-            <p style={{ fontSize: 11, color: "#c8c8c8", marginTop: 12 }}>
-              ※ 各党の多数派（賛成または反対）が一致した採決の割合。欠席は集計対象外。参議院のみ。
-            </p>
-          </>
-        )}
+              {/* 凡例 */}
+              <div style={{ display: "flex", gap: 16, marginTop: 20, fontSize: 11, color: "#555555", flexWrap: "wrap" }}>
+                {[
+                  { color: "#bbf7d0", label: "90%以上" },
+                  { color: "#d1fae5", label: "70〜89%" },
+                  { color: "#fef9c3", label: "50〜69%" },
+                  { color: "#fee2e2", label: "50%未満" },
+                ].map((item) => (
+                  <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 14, height: 14, background: item.color, borderRadius: 2 }} />
+                    {item.label}
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: "#c8c8c8", marginTop: 12 }}>
+                ※ 各党の多数派（賛成または反対）が一致した採決の割合。欠席は集計対象外。参議院のみ。
+              </p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

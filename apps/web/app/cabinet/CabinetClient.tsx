@@ -84,49 +84,57 @@ export default function CabinetClient() {
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>内閣一覧</h1>
-      <p style={{ color: "#555555", marginBottom: 24 }}>現在 {members.length}名の内閣構成員を収録</p>
+      {/* タイトルカード */}
+      <div className="card-xl" style={{ marginBottom: 16 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>内閣一覧</h1>
+        <p style={{ color: "#555555", marginBottom: 0 }}>現在 {members.length}名の内閣構成員を収録</p>
+      </div>
 
-      {loading ? (
-        <div className="loading-block">
-          <div className="loading-spinner" />
-          <span>データを読み込んでいます...</span>
-        </div>
-      ) : members.length === 0 ? (
-        <div className="empty-state">データがありません</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {members.map((m) => {
-            const color = PARTY_COLORS[m.party] || "#7f8c8d";
-            return (
-              <div key={m.id}
-                onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
-                className="card card-hover"
-                style={{ padding: "12px 16px", "--hover-color": "#333333" } as React.CSSProperties}>
-                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
-                  {/* 大臣職バッジ */}
-                  <span className="badge badge-role">
-                    👑 {m.cabinet_post}
-                  </span>
-                  {/* 名前 */}
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "#111111", minWidth: 90 }}>
-                    {m.name}
-                  </span>
-                  {/* 政党バッジ */}
-                  <span className="badge badge-party" style={{ "--party-color": color } as React.CSSProperties}>
-                    {m.party}
-                  </span>
-                  {/* 院・選挙区 */}
-                  <span style={{ color: "#555555", fontSize: 12, whiteSpace: "nowrap" }}>
-                    {m.house} · {m.district}
-                  </span>
+      {/* リストカード */}
+      <div className="card-xl">
+        {loading ? (
+          <div className="loading-block">
+            <div className="loading-spinner" />
+            <span>データを読み込んでいます...</span>
+          </div>
+        ) : members.length === 0 ? (
+          <div className="empty-state">データがありません</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {members.map((m) => {
+              const color = PARTY_COLORS[m.party] || "#7f8c8d";
+              return (
+                <div key={m.id}
+                  onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
+                  className="card card-hover"
+                  style={{ padding: "12px 16px", "--hover-color": "#333333" } as React.CSSProperties}>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
+                    {/* 大臣職バッジ */}
+                    <span className="badge badge-role">
+                      👑 {m.cabinet_post}
+                    </span>
+                    {/* 名前 */}
+                    <span style={{ fontWeight: 700, fontSize: 15, color: "#111111", minWidth: 90 }}>
+                      {m.name}
+                    </span>
+                    {/* 政党バッジ */}
+                    <span className="badge badge-party" style={{ "--party-color": color } as React.CSSProperties}>
+                      {m.party}
+                    </span>
+                    {/* 院・選挙区 */}
+                    <span style={{ color: "#555555", fontSize: 12, whiteSpace: "nowrap" }}>
+                      {m.house} · {m.district}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
+      </div>
     </div>
   );
 }

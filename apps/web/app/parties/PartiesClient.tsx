@@ -62,34 +62,40 @@ function PartiesContent() {
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>🗳 政党・会派</h1>
+        {/* タイトルカード */}
+        <div className="card-xl" style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 0 }}>🗳 政党・会派</h1>
+        </div>
 
-        {loading ? (
-          <div className="loading-block">
-            <div className="loading-spinner" />
-            <span>データを読み込んでいます...</span>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {parties.map((p) => {
-              const color = PARTY_COLORS[p.party] || "#7f8c8d";
-              return (
-                <div key={p.party}
-                  onClick={() => router.push(`/parties/${encodeURIComponent(p.party)}`)}
-                  className="card card-hover"
-                  style={{ padding: "14px 20px", "--hover-color": color } as React.CSSProperties}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 16, fontWeight: 700, color: "#111111", flex: 1 }}>
-                      {p.party}
-                    </span>
-                    <span style={{ fontSize: 13, color: "#888888" }}>{p.total}名</span>
+        {/* リストカード */}
+        <div className="card-xl">
+          {loading ? (
+            <div className="loading-block">
+              <div className="loading-spinner" />
+              <span>データを読み込んでいます...</span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {parties.map((p) => {
+                const color = PARTY_COLORS[p.party] || "#7f8c8d";
+                return (
+                  <div key={p.party}
+                    onClick={() => router.push(`/parties/${encodeURIComponent(p.party)}`)}
+                    className="card card-hover"
+                    style={{ padding: "14px 20px", "--hover-color": color } as React.CSSProperties}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 16, fontWeight: 700, color: "#111111", flex: 1 }}>
+                        {p.party}
+                      </span>
+                      <span style={{ fontSize: 13, color: "#888888" }}>{p.total}名</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

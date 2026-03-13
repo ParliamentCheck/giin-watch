@@ -186,41 +186,45 @@ function FavoritesContent() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
-      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
-      padding: "24px", maxWidth: 900, margin: "0 auto" }}>
+      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-      {/* ヘッダー */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>⭐ お気に入り議員</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          {members.length > 0 && (
-            <button onClick={handleShare}
-              style={{ background: copied ? "#22c55e22" : "#111111",
-                border: `1px solid ${copied ? "#22c55e" : "#c8c8c8"}`,
-                color: copied ? "#22c55e" : "#555555",
-                padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
-              {copied ? "✓ コピーしました" : "🔗 URLシェア"}
-            </button>
-          )}
+      {/* ヘッダーカード */}
+      <div className="card-xl" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>⭐ お気に入り議員</h1>
+          <div style={{ display: "flex", gap: 8 }}>
+            {members.length > 0 && (
+              <button onClick={handleShare}
+                style={{ background: copied ? "#22c55e22" : "#111111",
+                  border: `1px solid ${copied ? "#22c55e" : "#c8c8c8"}`,
+                  color: copied ? "#22c55e" : "#555555",
+                  padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>
+                {copied ? "✓ コピーしました" : "🔗 URLシェア"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* インポート通知 */}
+        {imported !== null && (
+          <div style={{ background: "#22c55e22", border: "1px solid #22c55e44",
+            color: "#22c55e", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13 }}>
+            {imported}人の議員をインポートしました
+          </div>
+        )}
+
+        {/* 注意書き */}
+        <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
+          borderRadius: 10, padding: "12px 16px", marginBottom: 0, fontSize: 12, color: "#888888",
+          lineHeight: 1.8 }}>
+          ⚠️ お気に入りはこの端末・ブラウザにのみ保存されます。ブラウザのデータ消去・プライベートモードでは保存されません。他の端末・ブラウザとは同期されません。運営者にはデータは送信されません。
         </div>
       </div>
 
-      {/* インポート通知 */}
-      {imported !== null && (
-        <div style={{ background: "#22c55e22", border: "1px solid #22c55e44",
-          color: "#22c55e", borderRadius: 10, padding: "12px 16px", marginBottom: 20, fontSize: 13 }}>
-          {imported}人の議員をインポートしました
-        </div>
-      )}
-
-      {/* 注意書き */}
-      <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
-        borderRadius: 10, padding: "12px 16px", marginBottom: 24, fontSize: 12, color: "#888888",
-        lineHeight: 1.8 }}>
-        ⚠️ お気に入りはこの端末・ブラウザにのみ保存されます。ブラウザのデータ消去・プライベートモードでは保存されません。他の端末・ブラウザとは同期されません。運営者にはデータは送信されません。
-      </div>
-
+      {/* メインコンテンツカード */}
+      <div className="card-xl">
       {memberIds.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0", color: "#888888" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>⭐</div>
@@ -334,6 +338,8 @@ function FavoritesContent() {
           </div>
         </>
       )}
+      </div>
+      </div>
     </div>
   );
 }

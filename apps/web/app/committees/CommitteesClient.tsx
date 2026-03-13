@@ -69,91 +69,97 @@ export default function CommitteesClient() {
 
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-        <button onClick={() => router.push("/")} className="btn-back">
-          ← トップに戻る
-        </button>
+        {/* タイトル・フィルターカード */}
+        <div className="card-xl" style={{ marginBottom: 16 }}>
+          <button onClick={() => router.push("/")} className="btn-back">
+            ← トップに戻る
+          </button>
 
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🏛 委員会一覧</h1>
-        <p style={{ color: "#555555", marginBottom: 24, fontSize: 14 }}>
-          現在の委員会・調査会ごとの所属議員数
-        </p>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🏛 委員会一覧</h1>
+          <p style={{ color: "#555555", marginBottom: 24, fontSize: 14 }}>
+            現在の委員会・調査会ごとの所属議員数
+          </p>
 
-        {/* フィルター */}
-        <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-          <input
-            type="text"
-            placeholder="委員会名で検索"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input-field"
-            style={{ flex: 1, minWidth: 200 }}
-          />
-          <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
-            className="input-field">
-            <option value="">衆院・参院すべて</option>
-            <option value="衆議院">衆議院</option>
-            <option value="参議院">参議院</option>
-          </select>
-          {(search || selectedHouse) && (
-            <button onClick={() => { setSearch(""); setSelectedHouse(""); }}
-              className="btn-clear">
-              クリア
-            </button>
-          )}
+          {/* フィルター */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 0, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="委員会名で検索"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input-field"
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <select value={selectedHouse} onChange={(e) => setSelectedHouse(e.target.value)}
+              className="input-field">
+              <option value="">衆院・参院すべて</option>
+              <option value="衆議院">衆議院</option>
+              <option value="参議院">参議院</option>
+            </select>
+            {(search || selectedHouse) && (
+              <button onClick={() => { setSearch(""); setSelectedHouse(""); }}
+                className="btn-clear">
+                クリア
+              </button>
+            )}
+          </div>
         </div>
 
-        <p style={{ color: "#888888", marginBottom: 16, fontSize: 14 }}>
-          {filtered.length}件の委員会・調査会
-        </p>
+        {/* リストカード */}
+        <div className="card-xl">
+          <p style={{ color: "#888888", marginBottom: 16, fontSize: 14 }}>
+            {filtered.length}件の委員会・調査会
+          </p>
 
-        {loading ? (
-          <div className="loading-block">
-            <div className="loading-spinner" />
-            <span>データを読み込んでいます...</span>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="empty-state">
-            該当する委員会がありません。
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {filtered.map((c) => {
-              const barWidth = (c.count / maxCount) * 100;
-              const houseColor = c.house === "衆議院" ? "#333333" : "#888888";
+          {loading ? (
+            <div className="loading-block">
+              <div className="loading-spinner" />
+              <span>データを読み込んでいます...</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="empty-state">
+              該当する委員会がありません。
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {filtered.map((c) => {
+                const barWidth = (c.count / maxCount) * 100;
+                const houseColor = c.house === "衆議院" ? "#333333" : "#888888";
 
-              return (
-                <div key={c.committee}
-                  onClick={() => router.push(`/committees/${encodeURIComponent(c.committee)}`)}
-                  className="card card-hover"
-                  style={{ padding: "16px 20px", "--hover-color": houseColor } as React.CSSProperties}>
+                return (
+                  <div key={c.committee}
+                    onClick={() => router.push(`/committees/${encodeURIComponent(c.committee)}`)}
+                    className="card card-hover"
+                    style={{ padding: "16px 20px", "--hover-color": houseColor } as React.CSSProperties}>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#111111", marginBottom: 4 }}>
-                        {c.committee}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: "#111111", marginBottom: 4 }}>
+                          {c.committee}
+                        </div>
+                        <span className="badge badge-party"
+                          style={{ "--party-color": houseColor } as React.CSSProperties}>
+                          {c.house}
+                        </span>
                       </div>
-                      <span className="badge badge-party"
-                        style={{ "--party-color": houseColor } as React.CSSProperties}>
-                        {c.house}
-                      </span>
+
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <span style={{ fontSize: 18, fontWeight: 800, color: "#111111" }}>
+                          {c.count}
+                        </span>
+                        <span style={{ fontSize: 12, color: "#555555", marginLeft: 4 }}>名</span>
+                      </div>
                     </div>
 
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: "#111111" }}>
-                        {c.count}
-                      </span>
-                      <span style={{ fontSize: 12, color: "#555555", marginLeft: 4 }}>名</span>
+                    <div className="progress-bar" style={{ height: 4 }}>
+                      <div className="progress-fill" style={{ width: `${barWidth}%`, background: houseColor }} />
                     </div>
                   </div>
-
-                  <div className="progress-bar" style={{ height: 4 }}>
-                    <div className="progress-fill" style={{ width: `${barWidth}%`, background: houseColor }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
