@@ -475,3 +475,7 @@ body {
   .activity-balance-radar { align-self: center !important; }
   .activity-balance-body .summary-grid { width: 100% !important; }
 }
+
+@media (min-width: 769px) {
+  .activity-balance-radar svg { transform: scale(1.1); transform-origin: center; }
+}

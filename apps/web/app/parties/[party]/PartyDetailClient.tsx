@@ -84,6 +84,7 @@ function PartyDetailContent() {
   const [loading,    setLoading]    = useState(true);
   const [kwLoading,  setKwLoading]  = useState(false);
   const [radarGlobalMax, setRadarGlobalMax] = useState({ session: 1, question: 1, bill: 1, petition: 1, role: 1 });
+  const [voteStats, setVoteStats] = useState<{ total: number; yes: number; no: number; absent: number } | null>(null);
   const searchParams = useSearchParams();
   const pathname     = usePathname();
   const tab          = searchParams.get("tab") ?? "breakdown";
@@ -168,6 +169,22 @@ function PartyDetailContent() {
           committee: c.committee,
         })));
       setLoading(false);
+
+      // 採決集計
+      if (memberIds.length > 0) {
+        const [totalRes, yesRes, noRes, absentRes] = await Promise.all([
+          supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", memberIds),
+          supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", memberIds).eq("vote", "賛成"),
+          supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", memberIds).eq("vote", "反対"),
+          supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", memberIds).eq("vote", "欠席"),
+        ]);
+        setVoteStats({
+          total:  totalRes.count  ?? 0,
+          yes:    yesRes.count    ?? 0,
+          no:     noRes.count     ?? 0,
+          absent: absentRes.count ?? 0,
+        });
+      }
 
       // キーワードはバッチフェッチ（遅延）
       if (memberIds.length > 0) {
@@ -295,6 +312,28 @@ function PartyDetailContent() {
                 <div style={{ fontSize: 10, color: "#888888" }}>{item.label}</div>
               </div>
             ))}
+            {/* 採決記録 — 3列フル */}
+            <div style={{ gridColumn: "1 / -1", background: "#f8f8f8", borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#555555", marginBottom: 8, textAlign: "center" }}>本会議採決記録</div>
+              <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
+                {[
+                  { label: "賛成", value: voteStats?.yes    ?? null, unit: "件" },
+                  { label: "反対", value: voteStats?.no     ?? null, unit: "件" },
+                  { label: "欠席率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.absent / voteStats.total * 100) : voteStats ? 0 : null, unit: "%" },
+                ].map((s) => (
+                  <div key={s.label}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
+                      {s.value != null ? s.value : "–"}
+                      {s.value != null && <span style={{ fontSize: 11, color: "#555555", marginLeft: 3 }}>{s.unit}</span>}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#888888" }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: "#aaaaaa", marginTop: 8 }}>
+                ※ 第208回〜第221回国会の記録に基づく（参議院のみ最新100件）。
+              </div>
+            </div>
           </div>
         </div>
       </div>
