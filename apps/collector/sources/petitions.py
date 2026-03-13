@@ -270,6 +270,7 @@ def _scrape_sangiin_list(session: int) -> list[dict]:
         return []
 
     items = []
+    seen_numbers = set()
     for tr in soup.find_all("tr"):
         tds = tr.find_all("td")
         if len(tds) < 3:
@@ -278,6 +279,12 @@ def _scrape_sangiin_list(session: int) -> list[dict]:
         if not num_match:
             continue
         number = int(num_match.group(1))
+        # yousiリンクが存在する行のみ対象（付託済み請願のみ・未付託は除外）
+        yousi_link = tds[1].find("a")
+        if not yousi_link or not yousi_link.get("href"):
+            continue
+        yousi_href = yousi_link["href"]
+        yousi_url = yousi_href if yousi_href.startswith("http") else f"{SANGIIN_SEIGAN_BASE}/{session}/{yousi_href.lstrip('./')}"
         title = tds[1].get_text(strip=True)
         futaku_link = tds[2].find("a")
         if not futaku_link or not futaku_link.get("href"):
@@ -288,7 +295,10 @@ def _scrape_sangiin_list(session: int) -> list[dict]:
         else:
             clean = href.lstrip("./")
             futaku_url = f"{SANGIIN_SEIGAN_BASE}/{session}/{clean}"
-        items.append({"number": number, "title": title, "futaku_url": futaku_url})
+        if number in seen_numbers:
+            continue
+        seen_numbers.add(number)
+        items.append({"number": number, "title": title, "futaku_url": futaku_url, "yousi_url": yousi_url})
 
     logger.info("参院 第%d回: 請願 %d件", session, len(items))
     return items
@@ -404,7 +414,7 @@ def collect_sangiin_petitions(full: bool = False) -> None:
                 "result_date":      futaku["result_date"],
                 "introducer_ids":   introducer_ids or None,
                 "introducer_names": futaku["introducer_names"] or None,
-                "source_url":       f"{SANGIIN_SEIGAN_BASE}/{session}/yousi/yo{session}{item['number']:04d}.htm",
+                "source_url":       item["yousi_url"],
             })
             time.sleep(0.5)
 
@@ -415,6 +425,27 @@ def collect_sangiin_petitions(full: bool = False) -> None:
                 logger.warning("参院請願: 重複ID %d件を除去 (session=%d)", len(records) - len(deduped), session)
             batch_upsert("sangiin_petitions", list(deduped.values()), on_conflict="id", label=f"petitions:sangi:{session}")
             total_saved += len(records)
+
+            # yousiリンクなしで登録された旧レコードのsource_urlをNULLに修正
+            valid_ids = set(deduped.keys())
+            existing = execute_with_retry(
+                lambda: client.table("sangiin_petitions")
+                    .select("id")
+                    .eq("session", session)
+                    .not_.is_("source_url", "null"),
+                label=f"fetch_existing_sangi:{session}",
+            ).data or []
+            stale_ids = [r["id"] for r in existing if r["id"] not in valid_ids]
+            if stale_ids:
+                for sid in stale_ids:
+                    execute_with_retry(
+                        lambda sid=sid: client.table("sangiin_petitions")
+                            .update({"source_url": None})
+                            .eq("id", sid),
+                        label=f"null_source_url:{sid}",
+                    )
+                logger.info("参院 第%d回: source_url無効 %d件をNULLに修正", session, len(stale_ids))
+
         logger.info("参院 第%d回: %d件保存", session, len(records))
 
     logger.info("参院請願 収集完了: 合計%d件", total_saved)
