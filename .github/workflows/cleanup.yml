@@ -11,6 +11,7 @@ on:
           - db-stats
           - verify-counts
           - check-orphans
+          - vacuum-speeches
         default: truncate-speeches
 
 env:
@@ -35,4 +36,13 @@ jobs:
         run: pip install -r apps/collector/requirements.txt
 
       - name: クリーンアップ実行
+        if: inputs.task != 'vacuum-speeches'
         run: python apps/collector/processors/cleanup.py --task ${{ inputs.task }}
+
+      - name: VACUUM FULL speeches
+        if: inputs.task == 'vacuum-speeches'
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          psql "postgresql://postgres@db.yyqktchttzvbzigeiajx.supabase.co:5432/postgres" \
+            -c "VACUUM FULL speeches;"
