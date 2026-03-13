@@ -132,7 +132,7 @@ function MemberDetailContent() {
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
-    router.replace(`${pathname}?${p.toString()}`);
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
   };
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
   const [fav,        setFav]        = useState(false);
