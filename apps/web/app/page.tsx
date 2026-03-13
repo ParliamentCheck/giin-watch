@@ -194,6 +194,11 @@ export default async function TopPage() {
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-neutral-400 animate-pulse" />
             収集期間: 2018年〜現在（毎日自動更新）
           </div>
+          <p className="text-xs mt-3 leading-relaxed max-w-xl mx-auto bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-2.5">
+            当サイトは、国会会議録等の公開記録および公開情報から機械的に集計した一部指標を表示します。<br className="hidden sm:block" />
+            党務・地元活動・非公開会議等、参照できない活動は含みません。<br className="hidden sm:block" />
+            当サイトの表示は、活動の良否・有無を判定するものではありません。
+          </p>
         </div>
       </section>
 

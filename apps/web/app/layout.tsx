@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import GlobalNav from "./components/GlobalNav";
-import MaintenanceBanner from "./components/MaintenanceBanner";
-import { ElectionSafeBanner } from "./components/ElectionSafeMode";
 import GlobalFooter from "./components/GlobalFooter";
 
 const BASE_URL = "https://www.hataraku-giin.com";
@@ -97,21 +95,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             gtag('config', 'G-1QJP14PKPF');
           `}
         </Script>
-        <MaintenanceBanner />
-        <ElectionSafeBanner />
-        <div style={{
-          background: "#f4f4f4",
-          borderBottom: "1px solid #e0e0e0",
-          padding: "10px 16px",
-          fontSize: 11,
-          color: "#555555",
-          lineHeight: 1.6,
-          textAlign: "center",
-        }}>
-          当サイトは、国会会議録等の公開記録および公開情報から機械的に集計した一部指標を表示します。
-          党務、地元活動、非公開の政策調整、非公開会議等、参照できない活動は含みません。
-          当サイトの表示は、活動の良否・有無を判定するものではありません。
-        </div>
         <GlobalNav />
         <main style={{ minHeight: "calc(100vh - 60px - 120px)" }}>
           {children}

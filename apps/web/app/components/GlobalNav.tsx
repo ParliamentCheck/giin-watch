@@ -25,11 +25,7 @@ export default function GlobalNav() {
   };
 
   return (
-    <nav style={{
-      position: "sticky", top: 0, zIndex: 100,
-      background: "#f8f8f8",
-      borderBottom: "1px solid #e0e0e0",
-    }}>
+    <header className="global-header">
       <div style={{
         height: 60, display: "flex", alignItems: "center",
         padding: "0 16px", justifyContent: "space-between",
@@ -42,7 +38,7 @@ export default function GlobalNav() {
         </div>
 
         {/* PC: ナビリンク */}
-        <div style={{ display: "flex", gap: 4, marginLeft: 24 }}
+        <nav style={{ display: "flex", gap: 4, marginLeft: 24 }}
           className="hidden-mobile">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.path ||
@@ -59,7 +55,7 @@ export default function GlobalNav() {
               </button>
             );
           })}
-        </div>
+        </nav>
 
         {/* SP: ハンバーガー */}
         <button onClick={() => setOpen(!open)}
@@ -74,7 +70,7 @@ export default function GlobalNav() {
 
       {/* SP: ドロワーメニュー */}
       {open && (
-        <div style={{
+        <nav style={{
           background: "#f8f8f8", borderTop: "1px solid #e0e0e0",
           padding: "8px 0",
         }}>
@@ -94,8 +90,8 @@ export default function GlobalNav() {
               </button>
             );
           })}
-        </div>
+        </nav>
       )}
-    </nav>
+    </header>
   );
 }
