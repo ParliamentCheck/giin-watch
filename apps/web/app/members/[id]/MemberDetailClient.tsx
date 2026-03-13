@@ -288,7 +288,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           {member && (
             <button onClick={() => {
               const url = `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`;
-              const prompt = `${member.name}（${member.party}・${member.house}・${member.district}）についての情報をまとめてください。\n${url}`;
+              const prompt = `${member.name}（${member.party}・${member.house}・${member.district}）について詳しく教えてください。\n${url}`;
               navigator.clipboard.writeText(prompt).then(() => {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
