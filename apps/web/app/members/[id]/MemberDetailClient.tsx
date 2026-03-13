@@ -123,7 +123,6 @@ function MemberDetailContent() {
   const [bills,      setBills]      = useState<Bill[]>([]);
   const [petitions,  setPetitions]  = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
-  const [maxValues,  setMaxValues]  = useState({ session: 1, question: 1, bill: 1, petition: 1 });
   useEffect(() => {
     if (member?.name) document.title = `${member.name} | はたらく議員`;
   }, [member]);
@@ -170,20 +169,6 @@ function MemberDetailContent() {
         setMember(memberData);
         setFav(isFavorite(memberId));
 
-        // 同じ院の最大値を取得してレーダーチャートの正規化に使う
-        const { data: maxData } = await supabase
-          .from("members")
-          .select("session_count, question_count, bill_count, petition_count")
-          .eq("house", memberData.house)
-          .eq("is_active", true);
-        if (maxData && maxData.length > 0) {
-          setMaxValues({
-            session:  Math.max(...maxData.map((m: any) => m.session_count  ?? 0), 1),
-            question: Math.max(...maxData.map((m: any) => m.question_count ?? 0), 1),
-            bill:     Math.max(...maxData.map((m: any) => m.bill_count     ?? 0), 1),
-            petition: Math.max(...maxData.map((m: any) => m.petition_count ?? 0), 1),
-          });
-        }
       }
       if (safe(1)) setSpeeches(safe(1));
       const shugiinQ = safe(2) || [];
@@ -340,7 +325,7 @@ function MemberDetailContent() {
       <div className="card" style={{ padding: "16px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 2 }}>活動バランス</div>
         <div style={{ fontSize: 11, color: "#888888", marginBottom: 12, lineHeight: 1.6 }}>
-          同じ院の現職議員の中での相対的な活動分布を示します。
+          この議員の活動の中で、どこに重点が置かれているかを示します。
         </div>
         <div className="activity-balance-body" style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div className="activity-balance-radar" style={{ flexShrink: 0 }}>
@@ -349,7 +334,6 @@ function MemberDetailContent() {
               questionCount={member.question_count ?? 0}
               billCount={member.bill_count         ?? 0}
               petitionCount={member.petition_count ?? 0}
-              maxValues={maxValues}
               color={PARTY_COLORS[member.party] || "#333333"}
             />
           </div>

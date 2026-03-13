@@ -5,12 +5,6 @@ interface Props {
   questionCount: number;
   billCount:     number;
   petitionCount: number;
-  maxValues: {
-    session:  number;
-    question: number;
-    bill:     number;
-    petition: number;
-  };
   color?: string;
 }
 
@@ -36,7 +30,7 @@ function polarToXY(angle: number, r: number) {
 
 export default function ActivityRadar({
   sessionCount, questionCount, billCount, petitionCount,
-  maxValues, color = "#333333",
+  color = "#333333",
 }: Props) {
   const rawValues = {
     session:  sessionCount,
@@ -45,10 +39,11 @@ export default function ActivityRadar({
     petition: petitionCount,
   };
 
-  const ratios = AXES.map(({ key }) => {
-    const max = maxValues[key];
-    return max > 0 ? Math.min(rawValues[key] / max, 1) : 0;
-  });
+  const selfMax = Math.max(sessionCount, questionCount, billCount, petitionCount);
+
+  const ratios = AXES.map(({ key }) =>
+    selfMax > 0 ? rawValues[key] / selfMax : 0
+  );
 
   const n = AXES.length;
   const angleStep = 360 / n;
