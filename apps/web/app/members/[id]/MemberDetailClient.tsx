@@ -18,6 +18,7 @@ interface Member {
   session_count: number | null;
   question_count: number | null;
   bill_count: number | null;
+  petition_count: number | null;
   cabinet_post: string | null;
   source_url: string | null;
   is_active: boolean;
@@ -282,13 +283,15 @@ function MemberDetailContent() {
               {member.name}
             </h1>
             <div style={{ fontSize: 13, color: "#555555", marginBottom: 10 }}>
-{!member.is_active && (
+              {!member.is_active && (
                 <span className="badge-inactive">
                   ⚠️ 前議員（現在は議員ではありません）
                 </span>
               )}
               {member.house} · {member.district}
-              {member.terms && ` · ${member.terms}期`}
+              {member.terms && (
+                <><br />当選回数：{member.terms}期</>
+              )}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <span className="badge badge-party" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, "--party-color": color } as React.CSSProperties}>
@@ -316,12 +319,14 @@ function MemberDetailContent() {
       </div>
 
       {/* 活動サマリーカード */}
-      <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
         {[
-          { label: "委員会所属",     value: committees.length,        unit: "件" },
-          { label: "発言セッション", value: member.session_count,     unit: "回" },
-          { label: "質問主意書",     value: member.question_count,    unit: "件" },
-          { label: "当選回数",       value: member.terms,             unit: "期" },
+          { label: "委員会所属",     value: committees.length,           unit: "件" },
+          { label: "発言セッション", value: member.session_count,        unit: "回" },
+          { label: "質問主意書",     value: member.question_count,       unit: "件" },
+          { label: "採決",           value: votes.length,                unit: "件" },
+          { label: "議員立法",       value: member.bill_count,           unit: "件" },
+          { label: "請願",           value: member.petition_count,       unit: "件" },
         ].map((item) => (
           <div key={item.label} className="card" style={{ padding: "16px", textAlign: "center" }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: "#333333", marginBottom: 4 }}>
@@ -342,11 +347,11 @@ function MemberDetailContent() {
       <div className="tab-bar tab-bar-container">
         {[
           { id: "committees", label: "🏛 委員会" },
-          { id: "speeches",   label: `💬 発言 (${member.session_count ?? 0})` },
-          { id: "questions",  label: `📝 質問主意書 (${member.question_count ?? 0})` },
-          { id: "votes",      label: `🗳 採決 (${votes.length})` },
-          { id: "bills",      label: `📋 議員立法 (${member.bill_count ?? bills.length})` },
-          { id: "petitions",  label: `📜 請願 (${petitions.length})` },
+          { id: "speeches",   label: "💬 発言" },
+          { id: "questions",  label: "📝 質問主意書" },
+          { id: "votes",      label: "🗳 採決" },
+          { id: "bills",      label: "📋 議員立法" },
+          { id: "petitions",  label: "📜 請願" },
           { id: "keywords",   label: "☁️ キーワード" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
