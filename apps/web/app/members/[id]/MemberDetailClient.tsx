@@ -110,12 +110,17 @@ const ROLE_COLORS: Record<string, string> = {
   "副会長": "#333333",
 };
 
-function MemberDetailContent() {
+function MemberDetailContent({ initialMember, initialGlobalMax, initialCommitteeCount, initialVoteCount }: {
+  initialMember?: Member | null;
+  initialGlobalMax?: { session: number; question: number; bill: number; petition: number };
+  initialCommitteeCount?: number | null;
+  initialVoteCount?: number | null;
+}) {
   const params   = useParams();
   const router   = useRouter();
   const memberId = decodeURIComponent(params.id as string);
 
-  const [member,     setMember]     = useState<Member | null>(null);
+  const [member,     setMember]     = useState<Member | null>(initialMember ?? null);
   const [speeches,   setSpeeches]   = useState<Speech[]>([]);
   const [questions,  setQuestions]  = useState<Question[]>([]);
   const [committees, setCommittees] = useState<CommitteeMember[]>([]);
@@ -123,11 +128,12 @@ function MemberDetailContent() {
   const [bills,      setBills]      = useState<Bill[]>([]);
   const [petitions,  setPetitions]  = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
-  const [globalMax,  setGlobalMax]  = useState({ session: 1, question: 1, bill: 1, petition: 1 });
+  const [globalMax,  setGlobalMax]  = useState(initialGlobalMax ?? { session: 1, question: 1, bill: 1, petition: 1 });
   useEffect(() => {
     if (member?.name) document.title = `${member.name} | はたらく議員`;
   }, [member]);
-  const [loading,    setLoading]    = useState(true);
+  const [loading,       setLoading]       = useState(!initialMember);
+  const [clientLoaded,  setClientLoaded]  = useState(false);
   const searchParams = useSearchParams();
   const pathname     = usePathname();
   const tab          = searchParams.get("tab") ?? "committees";
@@ -139,11 +145,14 @@ function MemberDetailContent() {
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
   const [fav,        setFav]        = useState(false);
   const [favMsg,     setFavMsg]     = useState("");
+  const [copied,     setCopied]     = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
       const results = await Promise.allSettled([
-        supabase.from("members").select("*").eq("id", memberId).single(),
+        initialMember
+          ? Promise.resolve({ data: initialMember, error: null })
+          : supabase.from("members").select("*").eq("id", memberId).single(),
         supabase.from("speeches").select("*").eq("member_id", memberId)
           .order("spoken_at", { ascending: false }).limit(200),
         supabase.from("questions").select("*").eq("member_id", memberId)
@@ -203,23 +212,26 @@ function MemberDetailContent() {
         });
       setPetitions(allPetitions);
 
-      // グローバルMAX取得（レーダーチャート正規化用）
-      const gmRes = await supabase
-        .from("members")
-        .select("session_count,question_count,bill_count,petition_count")
-        .limit(2000);
-      if (gmRes.data && gmRes.data.length > 0) {
-        let gm = { session: 1, question: 1, bill: 1, petition: 1 };
-        for (const m of gmRes.data) {
-          if ((m.session_count  ?? 0) > gm.session)  gm.session  = m.session_count;
-          if ((m.question_count ?? 0) > gm.question) gm.question = m.question_count;
-          if ((m.bill_count     ?? 0) > gm.bill)     gm.bill     = m.bill_count;
-          if ((m.petition_count ?? 0) > gm.petition) gm.petition = m.petition_count;
+      // グローバルMAX取得（SSRで渡されていない場合のみ）
+      if (!initialGlobalMax) {
+        const gmRes = await supabase
+          .from("members")
+          .select("session_count,question_count,bill_count,petition_count")
+          .limit(2000);
+        if (gmRes.data && gmRes.data.length > 0) {
+          let gm = { session: 1, question: 1, bill: 1, petition: 1 };
+          for (const m of gmRes.data) {
+            if ((m.session_count  ?? 0) > gm.session)  gm.session  = m.session_count;
+            if ((m.question_count ?? 0) > gm.question) gm.question = m.question_count;
+            if ((m.bill_count     ?? 0) > gm.bill)     gm.bill     = m.bill_count;
+            if ((m.petition_count ?? 0) > gm.petition) gm.petition = m.petition_count;
+          }
+          setGlobalMax(gm);
         }
-        setGlobalMax(gm);
       }
 
       setLoading(false);
+      setClientLoaded(true);
     }
     fetchAll();
   }, [memberId]);
@@ -273,6 +285,20 @@ function MemberDetailContent() {
           ← 一覧に戻る
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {member && (
+            <button onClick={() => {
+              const url = `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`;
+              const prompt = `${member.name}（${member.party}・${member.house}・${member.district}）についての情報をまとめてください。\n${url}`;
+              navigator.clipboard.writeText(prompt).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              });
+            }}
+              className="btn-back"
+              style={{ marginBottom: 0, fontSize: 12 }}>
+              {copied ? "✓ コピーしました" : "プロンプト作成"}
+            </button>
+          )}
           {favMsg && <span style={{ fontSize: 12, color: "#ef4444" }}>{favMsg}</span>}
           <button onClick={() => {
             if (fav) {
@@ -360,17 +386,17 @@ function MemberDetailContent() {
           </div>
           <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
             {[
-              { label: "委員会所属",     value: committees.length,    unit: "件" },
-              { label: "発言セッション", value: member.session_count, unit: "回" },
-              { label: "質問主意書",     value: member.question_count, unit: "件" },
-              { label: "採決",           value: votes.length,          unit: "件" },
-              { label: "議員立法",       value: member.bill_count,     unit: "件" },
-              { label: "請願",           value: member.petition_count, unit: "件" },
+              { label: "委員会所属",     value: clientLoaded ? committees.length : (initialCommitteeCount ?? null), unit: "件" },
+              { label: "発言セッション", value: member.session_count,                                                  unit: "回" },
+              { label: "質問主意書",     value: member.question_count,                                                 unit: "件" },
+              { label: "採決",           value: clientLoaded ? votes.length : (initialVoteCount ?? null),             unit: "件" },
+              { label: "議員立法",       value: member.bill_count,                  unit: "件" },
+              { label: "請願",           value: member.petition_count,              unit: "件" },
             ].map((item) => (
               <div key={item.label} style={{ background: "#f8f8f8", borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
                   {item.value ?? "—"}
-                  <span style={{ fontSize: 11, color: "#555555", marginLeft: 3 }}>{item.unit}</span>
+                  {item.value != null && <span style={{ fontSize: 11, color: "#555555", marginLeft: 3 }}>{item.unit}</span>}
                 </div>
                 <div style={{ fontSize: 10, color: "#888888" }}>{item.label}</div>
               </div>
@@ -721,10 +747,15 @@ function MemberDetailContent() {
   );
 }
 
-export default function MemberDetailClient() {
+export default function MemberDetailClient({ initialMember, initialGlobalMax, initialCommitteeCount, initialVoteCount }: {
+  initialMember?: Member | null;
+  initialGlobalMax?: { session: number; question: number; bill: number; petition: number };
+  initialCommitteeCount?: number | null;
+  initialVoteCount?: number | null;
+}) {
   return (
     <Suspense fallback={<div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>}>
-      <MemberDetailContent />
+      <MemberDetailContent initialMember={initialMember} initialGlobalMax={initialGlobalMax} initialCommitteeCount={initialCommitteeCount} initialVoteCount={initialVoteCount} />
     </Suspense>
   );
 }
