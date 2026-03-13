@@ -455,4 +455,7 @@ body {
   .tab-bar button { flex: 0 0 calc(50% - 2px) !important; }
   .tab-bar-container { flex-wrap: wrap !important; }
   .tab-bar-container button { flex: 0 0 calc(50% - 2px) !important; }
+
+  .activity-balance-body { flex-direction: column !important; }
+  .activity-balance-radar { align-self: center !important; }
 }

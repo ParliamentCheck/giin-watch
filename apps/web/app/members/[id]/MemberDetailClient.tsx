@@ -336,42 +336,40 @@ function MemberDetailContent() {
         </div>
       </div>
 
-      {/* 活動サマリーカード */}
-      <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
-        {[
-          { label: "委員会所属",     value: committees.length,           unit: "件" },
-          { label: "発言セッション", value: member.session_count,        unit: "回" },
-          { label: "質問主意書",     value: member.question_count,       unit: "件" },
-          { label: "採決",           value: votes.length,                unit: "件" },
-          { label: "議員立法",       value: member.bill_count,           unit: "件" },
-          { label: "請願",           value: member.petition_count,       unit: "件" },
-        ].map((item) => (
-          <div key={item.label} className="card" style={{ padding: "16px", textAlign: "center" }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#333333", marginBottom: 4 }}>
-              {item.value ?? "—"}
-              <span style={{ fontSize: 12, color: "#555555", marginLeft: 4 }}>{item.unit}</span>
-            </div>
-            <div style={{ fontSize: 11, color: "#555555" }}>{item.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* 活動バランスレーダーチャート */}
-      <div className="card" style={{ padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 24 }}>
-        <div style={{ flexShrink: 0 }}>
-          <ActivityRadar
-            sessionCount={member.session_count   ?? 0}
-            questionCount={member.question_count ?? 0}
-            billCount={member.bill_count         ?? 0}
-            petitionCount={member.petition_count ?? 0}
-            maxValues={maxValues}
-            color={PARTY_COLORS[member.party] || "#333333"}
-          />
+      {/* 活動バランス + サマリー */}
+      <div className="card" style={{ padding: "16px 20px", marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 2 }}>活動バランス</div>
+        <div style={{ fontSize: 11, color: "#888888", marginBottom: 12, lineHeight: 1.6 }}>
+          同じ院の現職議員の中での相対的な活動分布を示します。
         </div>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 6 }}>活動バランス</div>
-          <div style={{ fontSize: 11, color: "#888888", lineHeight: 1.7 }}>
-            同じ院の現職議員の中での相対的な活動分布を示します。
+        <div className="activity-balance-body" style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div className="activity-balance-radar" style={{ flexShrink: 0 }}>
+            <ActivityRadar
+              sessionCount={member.session_count   ?? 0}
+              questionCount={member.question_count ?? 0}
+              billCount={member.bill_count         ?? 0}
+              petitionCount={member.petition_count ?? 0}
+              maxValues={maxValues}
+              color={PARTY_COLORS[member.party] || "#333333"}
+            />
+          </div>
+          <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
+            {[
+              { label: "委員会所属",     value: committees.length,    unit: "件" },
+              { label: "発言セッション", value: member.session_count, unit: "回" },
+              { label: "質問主意書",     value: member.question_count, unit: "件" },
+              { label: "採決",           value: votes.length,          unit: "件" },
+              { label: "議員立法",       value: member.bill_count,     unit: "件" },
+              { label: "請願",           value: member.petition_count, unit: "件" },
+            ].map((item) => (
+              <div key={item.label} style={{ background: "#f8f8f8", borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
+                  {item.value ?? "—"}
+                  <span style={{ fontSize: 11, color: "#555555", marginLeft: 3 }}>{item.unit}</span>
+                </div>
+                <div style={{ fontSize: 10, color: "#888888" }}>{item.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
