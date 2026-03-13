@@ -8,13 +8,16 @@ import { partyColor } from "../lib/partyColors";
 
 /* ─── データ取得（サーバーサイド） ─────────────────────────────── */
 async function getStats() {
-  const [membersRes, questionRes] =
+  const [membersRes, questionRes, billsRes, petitionRes, sangiinPetitionRes] =
     await Promise.all([
       supabase
         .from("members")
         .select("id, house, party, speech_count, question_count")
         .eq("is_active", true).limit(2000),
       supabase.from("questions").select("id", { count: "exact", head: true }),
+      supabase.from("bills").select("id", { count: "exact", head: true }),
+      supabase.from("petitions").select("id", { count: "exact", head: true }),
+      supabase.from("sangiin_petitions").select("id", { count: "exact", head: true }),
     ]);
 
   const members = membersRes.data || [];
@@ -22,8 +25,9 @@ async function getStats() {
   const shugiin = members.filter((m: any) => m.house === "衆議院").length;
   const sangiin = members.filter((m: any) => m.house === "参議院").length;
   const speeches = members.reduce((sum: number, m: any) => sum + (m.speech_count || 0), 0);
+  const petitions = (petitionRes.count || 0) + (sangiinPetitionRes.count || 0);
 
-  return { total: members.length, shugiin, sangiin, parties, speeches, questions: questionRes.count || 0 };
+  return { total: members.length, shugiin, sangiin, parties, speeches, questions: questionRes.count || 0, bills: billsRes.count || 0, petitions };
 }
 
 async function getRecentQuestions() {
@@ -108,6 +112,34 @@ async function getLatestCommitteeActivity() {
     }));
 }
 
+async function getRecentBills() {
+  const billsRes = await supabase
+    .from("bills")
+    .select("id, title, submitted_at, status, house, source_url, submitter_ids")
+    .order("submitted_at", { ascending: false })
+    .limit(10);
+
+  const bills = billsRes.data || [];
+  const allIds = [...new Set(bills.flatMap((b: any) => b.submitter_ids || []))];
+
+  if (allIds.length === 0) return bills.map((b: any) => ({ ...b, submitterNames: [] }));
+
+  const membersRes = await supabase
+    .from("members")
+    .select("id, name")
+    .in("id", allIds.slice(0, 100));
+
+  const memberMap: Record<string, string> = {};
+  for (const m of membersRes.data || []) memberMap[m.id] = m.name;
+
+  return bills.map((b: any) => ({
+    ...b,
+    submitters: (b.submitter_ids || [])
+      .map((id: string) => memberMap[id] ? { id, name: memberMap[id] } : null)
+      .filter(Boolean),
+  }));
+}
+
 async function getPartyBreakdown() {
   const { data } = await supabase
     .from("members")
@@ -132,12 +164,13 @@ async function getPartyBreakdown() {
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
-  const [stats, recentQuestions, committeeActivities, partyBreakdown, recentPetitions] = await Promise.all([
+  const [stats, recentQuestions, committeeActivities, partyBreakdown, recentPetitions, recentBills] = await Promise.all([
     getStats(),
     getRecentQuestions(),
     getLatestCommitteeActivity(),
     getPartyBreakdown(),
     getRecentPetitions(),
+    getRecentBills(),
   ]);
 
   const maxPartyCount = partyBreakdown[0]?.total || 1;
@@ -166,18 +199,20 @@ export default async function TopPage() {
 
       <div className="max-w-4xl mx-auto px-5 pb-20">
         {/* ── 統計カード ──────────────────────────────────────── */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-16">
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-16">
           {[
-            { label: "現職議員",   value: stats.total,    unit: "名", accent: "text-neutral-900" },
-            { label: "衆議院",     value: stats.shugiin,  unit: "名", accent: "text-neutral-900" },
-            { label: "参議院",     value: stats.sangiin,  unit: "名", accent: "text-neutral-900" },
-            { label: "政党・会派", value: stats.parties,  unit: "党", accent: "text-neutral-900" },
-            { label: "発言記録",   value: stats.speeches, unit: "件", accent: "text-neutral-900" },
-            { label: "質問主意書", value: stats.questions, unit: "件", accent: "text-neutral-900" },
+            { label: "現職議員",   value: stats.total,     unit: "名" },
+            { label: "衆議院",     value: stats.shugiin,   unit: "名" },
+            { label: "参議院",     value: stats.sangiin,   unit: "名" },
+            { label: "政党・会派", value: stats.parties,   unit: "党" },
+            { label: "発言記録",   value: stats.speeches,  unit: "件" },
+            { label: "質問主意書", value: stats.questions, unit: "件" },
+            { label: "議員立法",   value: stats.bills,     unit: "件" },
+            { label: "請願",       value: stats.petitions, unit: "件" },
           ].map((item) => (
             <div key={item.label}
               className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center hover:border-neutral-300 transition-colors">
-              <div className={`text-2xl font-extrabold tabular-nums ${item.accent}`}>
+              <div className="text-2xl font-extrabold tabular-nums text-neutral-900">
                 {item.value.toLocaleString()}
               </div>
               <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
@@ -186,16 +221,21 @@ export default async function TopPage() {
         </section>
 
         {/* ── メインナビゲーション ────────────────────────────── */}
-        <section className="grid sm:grid-cols-2 gap-4 mb-16">
+        <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
           {[
-            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。全議員のプロフィールと活動実績を検索", path: "/members",    border: "hover:border-neutral-400" },
-            { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",     path: "/committees", border: "hover:border-neutral-400" },
-            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数と構成。国会での勢力図が一目でわかる",       path: "/parties",    border: "hover:border-neutral-400" },
+            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。全議員のプロフィールと活動実績を検索",               path: "/members"    },
+            { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",                     path: "/committees" },
+            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数・活動バランス。国会での勢力図と政党の特色が見える",           path: "/parties"    },
+            { icon: "📋", title: "議員立法",   desc: "議員が提出した法案の一覧。超党派共同立法のフィルターも可能",                     path: "/bills"      },
+            { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",         path: "/votes"      },
+            { icon: "👑", title: "現内閣",     desc: "現在の大臣・副大臣・政務官の一覧。各閣僚の議員ページにもリンク",                   path: "/cabinet"    },
           ].map((item) => (
             <Link key={item.path} href={item.path}
-              className={`group block bg-neutral-200/60 border border-neutral-200 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 ${item.border}`}>
-              <div className="text-3xl mb-3">{item.icon}</div>
-              <div className="text-lg font-bold text-neutral-900 mb-2 group-hover:text-neutral-600 transition-colors">{item.title}</div>
+              className="group block bg-neutral-200/60 border border-neutral-200 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">{item.icon}</span>
+                <span className="text-lg font-bold text-neutral-900 group-hover:text-neutral-600 transition-colors">{item.title}</span>
+              </div>
               <div className="text-sm text-neutral-500 leading-relaxed">{item.desc}</div>
             </Link>
           ))}
@@ -206,6 +246,7 @@ export default async function TopPage() {
           recentQuestions={recentQuestions as any}
           committeeActivities={committeeActivities}
           recentPetitions={recentPetitions as any}
+          recentBills={recentBills as any}
         />
 
         {/* ── 政党別 議員数 ──────────────────────────────────── */}
@@ -243,14 +284,19 @@ export default async function TopPage() {
           <h2 className="text-base font-bold text-neutral-900 mb-4">🕐 更新履歴</h2>
           <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl divide-y divide-neutral-200">
             {changelog.map((entry, i) => (
-              <div key={i} className="flex items-start gap-4 px-5 py-4">
-                <span className="tabular-nums text-xs text-neutral-500 shrink-0 mt-0.5">{entry.date}</span>
-                <div>
+              <div key={i} className="px-5 py-3 flex items-baseline gap-4">
+                <span className="tabular-nums text-xs text-neutral-500 shrink-0">{entry.date}</span>
+                {entry.description ? (
+                  <details className="flex-1">
+                    <summary className="text-sm font-medium text-neutral-900 cursor-pointer list-none flex items-center gap-1">
+                      <span className="text-neutral-400 text-[10px]">▶</span>
+                      {entry.title}
+                    </summary>
+                    <div className="text-xs text-neutral-500 mt-1.5 leading-relaxed">{entry.description}</div>
+                  </details>
+                ) : (
                   <div className="text-sm font-medium text-neutral-900">{entry.title}</div>
-                  {entry.description && (
-                    <div className="text-xs text-neutral-500 mt-0.5 leading-relaxed">{entry.description}</div>
-                  )}
-                </div>
+                )}
               </div>
             ))}
           </div>
