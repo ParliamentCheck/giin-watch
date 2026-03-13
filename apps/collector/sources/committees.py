@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 import time
 
@@ -71,7 +72,7 @@ def collect_shugiin_committees() -> None:
     client = get_client()
     logger.info("衆議院議員を取得中...")
     member_map: dict[str, str] = {
-        _normalize_shu(m["name"]): m["id"]
+        re.sub(r"\s+", "", _normalize_shu(m["name"])): m["id"]
         for m in (
             execute_with_retry(
                 lambda: client.table("members").select("id, name").eq("house", "衆議院").limit(2000),
@@ -90,8 +91,9 @@ def collect_shugiin_committees() -> None:
         members = _scrape_shugiin_members(c["name"], c["url"])
         logger.info("  → %d名", len(members))
         for m in members:
+            key = re.sub(r"\s+", "", m["name"])
             all_rows.append({
-                "member_id": member_map.get(m["name"]),
+                "member_id": member_map.get(key),
                 "name":      m["name"],
                 "committee": m["committee"],
                 "role":      m["role"],

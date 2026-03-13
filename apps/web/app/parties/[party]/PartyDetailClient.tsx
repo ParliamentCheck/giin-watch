@@ -91,7 +91,7 @@ function PartyDetailContent() {
     p.set("tab", t);
     router.replace(`${pathname}?${p.toString()}`);
   };
-  const sortBy = searchParams.get("sort") ?? "speech_count";
+  const sortBy = searchParams.get("sort") ?? "session_count";
   const setSortBy = (s: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("sort", s);
@@ -187,8 +187,11 @@ function PartyDetailContent() {
   const totalRoles     = chairs.length;
 
   const sorted = [...members].sort((a, b) => {
-    if (sortBy === "speech_count")   return (b.speech_count   || 0) - (a.speech_count   || 0);
+    if (sortBy === "session_count")  return (b.session_count  || 0) - (a.session_count  || 0);
     if (sortBy === "question_count") return (b.question_count || 0) - (a.question_count || 0);
+    if (sortBy === "bill_count")     return (b.bill_count     || 0) - (a.bill_count     || 0);
+    if (sortBy === "petition_count") return (b.petition_count || 0) - (a.petition_count || 0);
+    if (sortBy === "terms")          return (b.terms          || 0) - (a.terms          || 0);
     return a.name.localeCompare(b.name);
   });
 
@@ -216,7 +219,7 @@ function PartyDetailContent() {
   const tabs = [
     { id: "members",    label: `👤 議員一覧 (${members.length})` },
     { id: "committees", label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
-    { id: "wordcloud",  label: "☁️ ワードクラウド" },
+    { id: "wordcloud",  label: "☁️ キーワード" },
     { id: "breakdown",  label: "📊 内訳" },
   ];
 
@@ -226,13 +229,13 @@ function PartyDetailContent() {
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
-      <button onClick={() => router.push("/parties")} className="btn-back">
+      <button onClick={() => router.push("/parties")} className="btn-back" style={{ marginBottom: 16 }}>
         ← 政党一覧に戻る
       </button>
 
       {/* ヘッダー */}
       <div className="card-xl" style={{ border: `1px solid ${color}44` }}>
-        <div className="party-header" style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+        <div className="party-header" style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ width: 16, height: 16, borderRadius: "50%", background: color }} />
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#111111", flex: 1 }}>{party}</h1>
           {PARTY_URLS[party] && (
@@ -245,21 +248,6 @@ function PartyDetailContent() {
           )}
         </div>
 
-        <div className="party-stats-grid">
-          {[
-            { label: "発言数合計",     value: totalSpeeches.toLocaleString(), unit: "件" },
-            { label: "質問主意書合計", value: totalQuestions,                 unit: "件" },
-            { label: "議員数",         value: members.length,                 unit: "名" },
-          ].map((item) => (
-            <div key={item.label} style={{ background: "#e0e0e0", borderRadius: 12, padding: 16, textAlign: "center" }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color, marginBottom: 4 }}>
-                {item.value}
-                <span style={{ fontSize: 12, color: "#555555", marginLeft: 4 }}>{item.unit}</span>
-              </div>
-              <div style={{ fontSize: 11, color: "#555555" }}>{item.label}</div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* 活動バランス */}
@@ -317,10 +305,13 @@ function PartyDetailContent() {
       {/* 議員一覧タブ */}
       {tab === "members" && (
         <div className="card" style={{ padding: 20 }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {[
-              { value: "speech_count",   label: "発言数順" },
+              { value: "session_count",  label: "発言順" },
               { value: "question_count", label: "質問主意書順" },
+              { value: "bill_count",     label: "議員立法順" },
+              { value: "petition_count", label: "請願順" },
+              { value: "terms",          label: "当選回数順" },
               { value: "name",           label: "名前順" },
             ].map((s) => (
               <button key={s.value} onClick={() => setSortBy(s.value)}
@@ -340,11 +331,13 @@ function PartyDetailContent() {
                 className="member-row">
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "#111111" }}>{m.name}</div>
-                  <div style={{ fontSize: 12, color: "#555555" }}>{m.house} · {m.district}</div>
+                  <div style={{ fontSize: 12, color: "#555555" }}>{m.house} · {m.district}{m.terms ? ` · ${m.terms}期` : ""}</div>
                 </div>
-                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#555555" }}>
-                  <span>💬 {m.speech_count   || 0}件</span>
-                  <span>📝 {m.question_count || 0}件</span>
+                <div className="member-row-stats" style={{ display: "flex", gap: 12, fontSize: 12, color: "#555555" }}>
+                  <span>発言 {m.session_count  || 0}</span>
+                  <span>質問 {m.question_count || 0}</span>
+                  <span>立法 {m.bill_count     || 0}</span>
+                  <span>請願 {m.petition_count || 0}</span>
                 </div>
               </div>
             ))}

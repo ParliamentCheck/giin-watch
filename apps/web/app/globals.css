@@ -445,6 +445,9 @@ body {
   .resp-stack    { flex-direction: column !important; }
   .resp-full     { width: 100% !important; min-width: 0 !important; }
   .resp-scroll   { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+
+  .member-row { flex-wrap: wrap; align-items: flex-start; }
+  .member-row-stats { flex-basis: 100% !important; justify-content: flex-start !important; }
   .resp-text-sm  { font-size: 12px !important; }
   .resp-pad      { padding: 16px !important; }
   .resp-gap-sm   { gap: 8px !important; }

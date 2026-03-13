@@ -1,16 +1,12 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 interface PartyStats {
   party: string;
   total: number;
-  speeches: number;
-  questions: number;
-  committee_chairs: number;
-  committee_execs: number;
 }
 
 const PARTY_COLORS: Record<string, string> = {
@@ -31,87 +27,42 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":         "#7f8c8d",
 };
 
-
-
-
 function PartiesContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname     = usePathname();
   const [parties, setParties] = useState<PartyStats[]>([]);
-  const sortBy       = searchParams.get("sort") ?? "total";
-  const setSortBy = (s: string) => {
-    const p = new URLSearchParams(searchParams.toString());
-    p.set("sort", s);
-    router.replace(`${pathname}?${p.toString()}`);
-  };
   const [loading, setLoading] = useState(true);
   useEffect(() => { document.title = "政党・会派 | はたらく議員"; }, []);
 
   useEffect(() => {
     async function fetchStats() {
-      const [membersRes, committeeRes] = await Promise.all([
-        supabase.from("members").select("id, party, speech_count, question_count").eq("is_active", true).limit(2000),
-        supabase.from("committee_members").select("member_id, role"),
-      ]);
+      const { data } = await supabase
+        .from("members")
+        .select("party")
+        .eq("is_active", true)
+        .limit(2000);
 
-      const members    = membersRes.data   || [];
-      const committees = committeeRes.data || [];
-
-      const chairCount: Record<string, number> = {};
-      const execCount:  Record<string, number> = {};
-      for (const c of committees) {
-        if (!c.member_id) continue;
-        if (c.role === "委員長" || c.role === "会長") {
-          chairCount[c.member_id] = (chairCount[c.member_id] || 0) + 1;
-        } else if (c.role === "理事" || c.role === "副会長") {
-          execCount[c.member_id] = (execCount[c.member_id] || 0) + 1;
-        }
-      }
-
-      const partyMap: Record<string, PartyStats> = {};
-      for (const m of members) {
+      const partyMap: Record<string, number> = {};
+      for (const m of data || []) {
         const p = m.party || "無所属";
-        if (!partyMap[p]) {
-          partyMap[p] = { party: p, total: 0, speeches: 0, questions: 0,
-            committee_chairs: 0, committee_execs: 0 };
-        }
-        partyMap[p].total++;
-        partyMap[p].speeches  += m.speech_count   || 0;
-        partyMap[p].questions += m.question_count || 0;
-        partyMap[p].committee_chairs += chairCount[m.id] || 0;
-        partyMap[p].committee_execs  += execCount[m.id]  || 0;
+        partyMap[p] = (partyMap[p] || 0) + 1;
       }
 
-      setParties(Object.values(partyMap));
+      const sorted = Object.entries(partyMap)
+        .map(([party, total]) => ({ party, total }))
+        .sort((a, b) => b.total - a.total);
+
+      setParties(sorted);
       setLoading(false);
     }
     fetchStats();
   }, []);
-
-  const sorted = [...parties].sort((a: any, b: any) => b[sortBy] - a[sortBy]);
-  const maxVal  = Math.max(...sorted.map((p: any) => p[sortBy]), 1);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🗳 政党・会派別データ</h1>
-
-        {/* ソートボタン */}
-        <div className="resp-stack" style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {[
-            { value: "total",            label: "人数" },
-            { value: "speeches",         label: "💬 発言数" },
-            { value: "questions",        label: "📝 質問主意書" },
-          ].map((s) => (
-            <button key={s.value} onClick={() => setSortBy(s.value)}
-              className={`filter-btn${sortBy === s.value ? " active" : ""}`}>
-              {s.label}
-            </button>
-          ))}
-        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>🗳 政党・会派</h1>
 
         {loading ? (
           <div className="loading-block">
@@ -119,51 +70,20 @@ function PartiesContent() {
             <span>データを読み込んでいます...</span>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {sorted.map((p, rank) => {
-              const color      = PARTY_COLORS[p.party] || "#7f8c8d";
-              const barRatio   = Math.round(((p as any)[sortBy] / maxVal) * 100);
-              const avgSpeeches = p.total > 0 ? Math.round(p.speeches / p.total) : 0;
-
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {parties.map((p) => {
+              const color = PARTY_COLORS[p.party] || "#7f8c8d";
               return (
                 <div key={p.party}
                   onClick={() => router.push(`/parties/${encodeURIComponent(p.party)}`)}
-                  className="card card-hover-lift"
-                  style={{ borderRadius: 16, padding: 24, "--hover-color": color } as React.CSSProperties}>
-
-                  {/* ヘッダー */}
-                  <div className="resp-stack resp-gap-sm" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                    <span style={{ fontSize: 13, color: "#888888", fontWeight: 700, width: 20 }}>
-                      {rank + 1}
-                    </span>
+                  className="card card-hover"
+                  style={{ padding: "14px 20px", "--hover-color": color } as React.CSSProperties}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                    <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#111111", flex: 1 }}>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "#111111", flex: 1 }}>
                       {p.party}
-                    </h2>
-                    <span style={{ fontSize: 12, color: "#555555" }}>{p.total}名</span>
-
-                  </div>
-
-                  {/* バー */}
-                  <div className="progress-bar" style={{ marginBottom: 14, height: 5 }}>
-                    <div className="progress-fill" style={{ width: `${barRatio}%`, background: color }} />
-                  </div>
-
-                  {/* 統計グリッド */}
-                  <div className="party-stats-grid">
-                    {[
-                      { label: "発言数合計",    value: p.speeches.toLocaleString(),   unit: "件" },
-                      { label: "質問主意書",    value: p.questions,                   unit: "件" },
-                      { label: "議員数",        value: p.total,                       unit: "名" },
-                    ].map((item) => (
-                      <div key={item.label} style={{ background: "#e0e0e0", borderRadius: 10, padding: 12 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#111111", marginBottom: 2 }}>
-                          {item.value}
-                          <span style={{ fontSize: 10, color: "#555555", marginLeft: 3 }}>{item.unit}</span>
-                        </div>
-                        <div style={{ fontSize: 10, color: "#555555" }}>{item.label}</div>
-                      </div>
-                    ))}
+                    </span>
+                    <span style={{ fontSize: 13, color: "#888888" }}>{p.total}名</span>
                   </div>
                 </div>
               );
