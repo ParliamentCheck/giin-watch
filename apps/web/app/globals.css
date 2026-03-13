@@ -458,4 +458,5 @@ body {
 
   .activity-balance-body { flex-direction: column !important; }
   .activity-balance-radar { align-self: center !important; }
+  .activity-balance-body .summary-grid { width: 100% !important; }
 }
