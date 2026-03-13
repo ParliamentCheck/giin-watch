@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
+import ActivityRadar from "../../components/ActivityRadar";
 import { isFavorite, addFavorite, removeFavorite } from "../../../lib/favorites";
 
 interface Member {
@@ -122,6 +123,7 @@ function MemberDetailContent() {
   const [bills,      setBills]      = useState<Bill[]>([]);
   const [petitions,  setPetitions]  = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
+  const [maxValues,  setMaxValues]  = useState({ session: 1, question: 1, bill: 1, petition: 1 });
   useEffect(() => {
     if (member?.name) document.title = `${member.name} | はたらく議員`;
   }, [member]);
@@ -163,9 +165,25 @@ function MemberDetailContent() {
 
       const safe = (i: number) => results[i].status === "fulfilled" ? results[i].value.data : null;
 
-      if (safe(0)) {
-        setMember(safe(0));
+      const memberData = safe(0);
+      if (memberData) {
+        setMember(memberData);
         setFav(isFavorite(memberId));
+
+        // 同じ院の最大値を取得してレーダーチャートの正規化に使う
+        const { data: maxData } = await supabase
+          .from("members")
+          .select("session_count, question_count, bill_count, petition_count")
+          .eq("house", memberData.house)
+          .eq("is_active", true);
+        if (maxData && maxData.length > 0) {
+          setMaxValues({
+            session:  Math.max(...maxData.map((m: any) => m.session_count  ?? 0), 1),
+            question: Math.max(...maxData.map((m: any) => m.question_count ?? 0), 1),
+            bill:     Math.max(...maxData.map((m: any) => m.bill_count     ?? 0), 1),
+            petition: Math.max(...maxData.map((m: any) => m.petition_count ?? 0), 1),
+          });
+        }
       }
       if (safe(1)) setSpeeches(safe(1));
       const shugiinQ = safe(2) || [];
@@ -336,6 +354,26 @@ function MemberDetailContent() {
             <div style={{ fontSize: 11, color: "#555555" }}>{item.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* 活動バランスレーダーチャート */}
+      <div className="card" style={{ padding: "16px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 24 }}>
+        <div style={{ flexShrink: 0 }}>
+          <ActivityRadar
+            sessionCount={member.session_count   ?? 0}
+            questionCount={member.question_count ?? 0}
+            billCount={member.bill_count         ?? 0}
+            petitionCount={member.petition_count ?? 0}
+            maxValues={maxValues}
+            color={PARTY_COLORS[member.party] || "#333333"}
+          />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 6 }}>活動バランス</div>
+          <div style={{ fontSize: 11, color: "#888888", lineHeight: 1.7 }}>
+            同じ院の現職議員の中での相対的な活動分布を示します。
+          </div>
+        </div>
       </div>
 
       {/* カード注釈 */}
