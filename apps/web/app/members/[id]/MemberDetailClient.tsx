@@ -496,6 +496,25 @@ function MemberDetailContent() {
           <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
             ※ 第196回〜第221回国会の記録に基づく。
           </p>
+          {petitions.length > 0 && (() => {
+            const adopted    = petitions.filter(p => p.result?.split("\n")[0].trim().startsWith("採択")).length;
+            const rejected   = petitions.filter(p => p.result?.split("\n")[0].trim() === "不採択").length;
+            const pending    = petitions.filter(p => !p.result || p.result.trim() === "" || p.result.includes("審査未了")).length;
+            return (
+              <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+                {[
+                  { label: "採択",    count: adopted,  color: "#22c55e" },
+                  { label: "不採択",  count: rejected, color: "#ef4444" },
+                  { label: "審査未了", count: pending,  color: "#888888" },
+                ].map(({ label, count, color }) => (
+                  <div key={label} style={{ background: "#f4f4f4", borderRadius: 8, padding: "8px 16px", textAlign: "center", minWidth: 72 }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color }}>{count}</div>
+                    <div style={{ fontSize: 11, color: "#888888" }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           {petitions.length === 0 ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
               請願の紹介議員記録がありません。
