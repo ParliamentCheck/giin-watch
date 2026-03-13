@@ -329,7 +329,7 @@ function MemberDetailContent() {
           <a href="/disclaimer#activity-radar" style={{ color: "#888888", marginLeft: 4 }}>算出方法はこちら ↗</a>
         </div>
         <div className="activity-balance-body" style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div className="activity-balance-radar" style={{ flexShrink: 0 }}>
+          <div className="activity-balance-radar" style={{ width: 350, flexShrink: 0 }}>
             <ActivityRadar
               sessionCount={member.session_count   ?? 0}
               questionCount={member.question_count ?? 0}
@@ -338,7 +338,7 @@ function MemberDetailContent() {
               color={PARTY_COLORS[member.party] || "#333333"}
             />
           </div>
-          <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, maxWidth: 260 }}>
+          <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
             {[
               { label: "委員会所属",     value: committees.length,    unit: "件" },
               { label: "発言セッション", value: member.session_count, unit: "回" },

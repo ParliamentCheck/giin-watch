@@ -80,7 +80,7 @@ export default function ActivityRadar({
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       width={SIZE}
       height={SIZE}
-      style={{ overflow: "visible" }}
+      style={{ overflow: "visible", display: "block", margin: "auto" }}
     >
       {/* グリッドポリゴン */}
       {gridPolygons.map((points, i) => (
