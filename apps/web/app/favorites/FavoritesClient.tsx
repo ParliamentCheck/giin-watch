@@ -266,14 +266,16 @@ function FavoritesContent() {
                         </div>
                         {a.url ? (
                           <a href={a.url} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 13, color: "#1a1a1a", textDecoration: "none",
+                            style={{ fontSize: 13, color: "#1a1a1a",
+                              textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px",
                               display: "block", overflow: "hidden", textOverflow: "ellipsis",
                               whiteSpace: "nowrap" }}
                             title={a.label}>
                             {a.label}
+                            <span style={{ marginLeft: 4, color: "#aaaaaa", fontSize: 11, textDecoration: "none" }}>↗</span>
                           </a>
                         ) : (
-                          <span style={{ fontSize: 13, color: "#1a1a1a",
+                          <span style={{ fontSize: 13, color: "#888888",
                             display: "block", overflow: "hidden", textOverflow: "ellipsis",
                             whiteSpace: "nowrap" }} title={a.label}>
                             {a.label}

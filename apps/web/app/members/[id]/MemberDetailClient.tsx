@@ -436,7 +436,7 @@ function MemberDetailContent() {
                           borderBottom: i < sg.speeches.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                           <a href={s.source_url} target="_blank" rel="noopener noreferrer"
                             style={{ fontSize: 12, color: "#333333", textDecoration: "none" }}>
-                            📄 発言 #{i + 1} を見る →
+                            📄 発言 #{i + 1} を見る ↗
                           </a>
                         </div>
                       ))}
@@ -491,7 +491,7 @@ function MemberDetailContent() {
                     {p.source_url && (
                       <a href={p.source_url} target="_blank" rel="noopener noreferrer"
                         style={{ fontSize: 12, color: "#333333", textDecoration: "none" }}>
-                        📄 詳細を見る →
+                        📄 詳細を見る ↗
                       </a>
                     )}
                   </div>
@@ -546,7 +546,7 @@ function MemberDetailContent() {
                   )}
                   <a href={q.source_url} target="_blank" rel="noopener noreferrer"
                     style={{ fontSize: 12, color: "#333333", textDecoration: "none" }}>
-                    📄 詳細を見る →
+                    📄 詳細を見る ↗
                   </a>
                 </div>
               </div>
@@ -624,7 +624,7 @@ function MemberDetailContent() {
                     <a href={b.source_url} target="_blank" rel="noopener noreferrer"
                       style={{ color: "#333333", textDecoration: "none" }}
                       onClick={(e) => e.stopPropagation()}>
-                      📄 本文を見る →
+                      📄 本文を見る ↗
                     </a>
                   )}
                 </div>

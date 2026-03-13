@@ -81,11 +81,12 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                 }`}>{q.house}</span>
                 {q.source_url ? (
                   <a href={q.source_url} target="_blank" rel="noopener noreferrer"
-                    className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2">
+                    className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2 underline underline-offset-2 decoration-neutral-400">
                     {q.title}
+                    <span className="inline-block ml-1 text-neutral-400 text-[11px] no-underline">↗</span>
                   </a>
                 ) : (
-                  <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{q.title}</span>
+                  <span className="text-sm text-neutral-500 leading-snug line-clamp-2">{q.title}</span>
                 )}
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6">
@@ -152,11 +153,12 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                   }`}>{p.house}</span>
                   {p.source_url ? (
                     <a href={p.source_url} target="_blank" rel="noopener noreferrer"
-                      className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2">
+                      className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2 underline underline-offset-2 decoration-neutral-400">
                       {p.title}
+                      <span className="inline-block ml-1 text-neutral-400 text-[11px] no-underline">↗</span>
                     </a>
                   ) : (
-                    <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{p.title}</span>
+                    <span className="text-sm text-neutral-500 leading-snug line-clamp-2">{p.title}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6 flex-wrap">

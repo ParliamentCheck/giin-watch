@@ -110,12 +110,13 @@ export default function BillsClient() {
                 <div style={{ marginBottom: 8 }}>
                   {b.source_url ? (
                     <a href={b.source_url} target="_blank" rel="noopener noreferrer"
-                      className="link-hover"
-                      style={{ fontWeight: 600, fontSize: 14 }}>
+                      style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a",
+                        textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>
                       {b.title}
+                      <span style={{ marginLeft: 4, color: "#aaaaaa", fontSize: 11, textDecoration: "none" }}>↗</span>
                     </a>
                   ) : (
-                    <span style={{ color: "#1a1a1a", fontWeight: 600, fontSize: 14 }}>{b.title}</span>
+                    <span style={{ color: "#888888", fontWeight: 600, fontSize: 14 }}>{b.title}</span>
                   )}
                 </div>
 

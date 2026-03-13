@@ -177,26 +177,6 @@ scripts/
 
 ## 残タスク
 
-### 要実行（データ補完）
-- [ ] **`keyword-all`** を Actions で実行
-  → 725名分のキーワードが未構築。2022年〜現在年を全件再構築。何度実行しても正しい結果になる
-
-### 要実行（bills 再収集）
-- [ ] **`bills-collect`** を Actions で再実行
-  → commit 6c8d874 でスクレイパーを修正済み。修正版で再収集が必要
-  → 詳細ページ取得のため完了まで数十分かかる
-  → 完了後に以下のSQLで確認:
-    ```sql
-    SELECT COUNT(*), house FROM bills GROUP BY house;
-    WITH all_sids AS (SELECT unnest(submitter_ids) AS sid FROM bills)
-    SELECT COUNT(*) AS total, COUNT(m.id) AS matched FROM all_sids a LEFT JOIN members m ON m.id = a.sid;
-    ```
-
-### 要実行（請願データ初期取得）
-- [ ] **`petitions-collect`** を Actions で実行
-  → `petitions` / `sangiin_petitions` テーブルにデータを一括投入
-  → 完了後、scoring-only を実行して `petition_count` を更新
-
 ### 対応しない・保留
 - **議員写真** — 著作権・肖像権リスクがあるため、安全な方法が確認できない限り実装しない
 - **衆院採決記録** — 個人別データの収集コストが高すぎるため、良い案が見つかるまで保留
