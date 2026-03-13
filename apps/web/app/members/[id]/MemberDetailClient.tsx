@@ -450,6 +450,9 @@ function MemberDetailContent() {
           <h3 className="section-title">
             紹介議員を務めた請願
           </h3>
+          <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
+            ※ 第196回〜第221回国会の記録に基づく。
+          </p>
           {petitions.length === 0 ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
               請願の紹介議員記録がありません。
@@ -594,6 +597,9 @@ function MemberDetailContent() {
           <h3 className="section-title">
             議員提出法案
           </h3>
+          <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
+            ※ 第208回〜第221回国会の記録に基づく。
+          </p>
           {bills.length === 0 ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
               議員提出法案の記録がありません。
