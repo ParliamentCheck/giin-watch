@@ -18,7 +18,6 @@ interface Bill {
 interface MemberInfo {
   id: string;
   name: string;
-  party: string;
 }
 
 export default function BillsClient() {
@@ -27,10 +26,8 @@ export default function BillsClient() {
   const [memberMap, setMemberMap] = useState<Record<string, MemberInfo>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-
   const [isComposing, setIsComposing] = useState(false);
   const [filterHouse, setFilterHouse] = useState<string>("全て");
-  const [filterCrossParty, setFilterCrossParty] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -42,7 +39,7 @@ export default function BillsClient() {
           .limit(1000),
         supabase
           .from("members")
-          .select("id,name,party")
+          .select("id,name")
           .limit(2000),
       ]);
       setBills(billsRes.data || []);
@@ -56,15 +53,8 @@ export default function BillsClient() {
     fetchData();
   }, []);
 
-  const getCrossPartyInfo = (b: Bill) => {
-    if (!b.submitter_ids || b.submitter_ids.length < 2) return null;
-    const parties = [...new Set(b.submitter_ids.map(id => memberMap[id]?.party).filter(Boolean))];
-    return parties.length >= 2 ? parties : null;
-  };
-
   const filtered = bills.filter((b) => {
     if (filterHouse !== "全て" && b.house !== filterHouse) return false;
-    if (filterCrossParty && !getCrossPartyInfo(b)) return false;
     if (search && !isComposing) {
       const q = search.toLowerCase();
       if (!b.title?.toLowerCase().includes(q)) return false;
@@ -91,11 +81,6 @@ export default function BillsClient() {
               {h}
             </button>
           ))}
-          <button
-            onClick={() => setFilterCrossParty(!filterCrossParty)}
-            className={`filter-btn${filterCrossParty ? " active" : ""}`}>
-            🤝 超党派
-          </button>
           <input
             type="text"
             placeholder="法案名を検索..."
@@ -142,11 +127,6 @@ export default function BillsClient() {
                     <span className="badge badge-house">{b.house}</span>
                   )}
                   {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
-                  {getCrossPartyInfo(b) && (
-                    <span style={{ fontSize: 11, background: "#e8f5e9", color: "#2e7d32", padding: "1px 8px", borderRadius: 4, fontWeight: 600 }}>
-                      🤝 超党派
-                    </span>
-                  )}
                 </div>
 
                 {/* 提出者 */}
