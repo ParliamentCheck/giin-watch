@@ -1,0 +1,38 @@
+name: データクリーンアップ
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "実行タスク"
+        type: choice
+        options:
+          - truncate-speeches
+          - db-stats
+          - verify-counts
+          - check-orphans
+        default: truncate-speeches
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+  PYTHONPATH: apps/collector
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r apps/collector/requirements.txt
+
+      - name: クリーンアップ実行
+        run: python apps/collector/processors/cleanup.py --task ${{ inputs.task }}
