@@ -110,25 +110,29 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
           {committeeActivities.length === 0 ? (
             <p className="text-sm text-neutral-500 py-8 text-center">データがありません</p>
           ) : committeeActivities.map((c) => (
-            <a key={`${c.date}-${c.committee}`} href={c.ndlUrl || undefined}
-              target="_blank" rel="noopener noreferrer"
-              className="block bg-white/40 border border-neutral-200 rounded-xl px-4 py-3 hover:border-neutral-300 transition-colors">
+            <div key={`${c.date}-${c.committee}`}
+              className="bg-white/40 border border-neutral-200 rounded-xl px-4 py-3">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-semibold text-neutral-900">{c.committee}</div>
+                {c.ndlUrl ? (
+                  <a href={c.ndlUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-semibold text-neutral-900 hover:text-neutral-600 transition-colors underline underline-offset-2 decoration-neutral-400">
+                    {c.committee}
+                    <span className="inline-block ml-1 text-neutral-400 text-[11px] no-underline">↗</span>
+                  </a>
+                ) : (
+                  <div className="text-sm font-semibold text-neutral-900">{c.committee}</div>
+                )}
                 <span className="text-xs text-neutral-500 tabular-nums shrink-0 ml-2">{c.date}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {c.members.slice(0, 8).map((m) => (
-                  <span key={m.id}
-                    className="text-xs text-neutral-700 bg-neutral-100/60 px-2 py-0.5 rounded">
+                {c.members.map((m) => (
+                  <Link key={m.id} href={`/members/${encodeURIComponent(m.id)}`}
+                    className="text-xs text-neutral-700 bg-neutral-100/60 px-2 py-0.5 rounded hover:bg-neutral-200/60 transition-colors">
                     {m.name}
-                  </span>
+                  </Link>
                 ))}
-                {c.members.length > 8 && (
-                  <span className="text-xs text-neutral-400 px-2 py-0.5">他{c.members.length - 8}名</span>
-                )}
               </div>
-            </a>
+            </div>
           ))}
           <p className="text-[11px] text-neutral-400 mt-2">
             ※ 国会会議録システムへの反映には1〜2週間かかる場合があります
