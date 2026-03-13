@@ -1,22 +1,18 @@
 """speeches テーブルに VACUUM FULL を実行する（容量回収用）"""
 import os
-import socket
 import psycopg2
 
-host = "db.yyqktchttzvbzigeiajx.supabase.co"
-
-# IPv4 アドレスを明示的に解決
-ipv4 = socket.getaddrinfo(host, 5432, socket.AF_INET)[0][4][0]
-print(f"Connecting to {ipv4}:5432 ...")
-
+# セッションモード接続プーラー（IPv4対応）経由で接続
+# ユーザー名は postgres.{project_ref} 形式
 conn = psycopg2.connect(
-    host=ipv4,
+    host="aws-0-ap-northeast-1.pooler.supabase.com",
     port=5432,
-    user="postgres",
+    user="postgres.yyqktchttzvbzigeiajx",
     password=os.environ["SUPABASE_DB_PASSWORD"],
     dbname="postgres",
     sslmode="require",
     connect_timeout=30,
+    options="-c default_transaction_isolation=autocommit",
 )
 conn.autocommit = True
 
