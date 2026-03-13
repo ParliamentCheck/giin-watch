@@ -44,7 +44,8 @@ def scrape_profile(profile_url: str) -> dict:
         if m:
             terms = int(m.group(1))
 
-        return {"party": party, "faction": faction, "district": district, "terms": terms}
+        election_type = "比例" if "比例" in district else "選挙区"
+        return {"party": party, "faction": faction, "district": district, "terms": terms, "election_type": election_type}
 
     except Exception as e:
         logger.warning(f"プロフィール取得エラー {profile_url}: {e}")
@@ -101,15 +102,16 @@ def scrape_sangiin() -> list[dict]:
         detail = scrape_profile(profile_url)
 
         members.append({
-            "name":       name,
-            "party":      detail["party"],
-            "faction":    detail["faction"],
-            "district":   detail["district"],
-            "prefecture": detail["district"],
-            "house":      "参議院",
-            "terms":      detail.get("terms"),
-            "source_url": profile_url,
-            "ndl_names":  ndl_names,
+            "name":          name,
+            "party":         detail["party"],
+            "faction":       detail["faction"],
+            "district":      detail["district"],
+            "prefecture":    detail["district"],
+            "house":         "参議院",
+            "terms":         detail.get("terms"),
+            "source_url":    profile_url,
+            "ndl_names":     ndl_names,
+            "election_type": detail.get("election_type"),
         })
 
         logger.info(f"[{i+1}/{len(links)}] {name} / {detail['faction']} / {detail['party']} / {detail['district']}")
@@ -140,15 +142,17 @@ def scrape_shugiin() -> list[dict]:
             district = cells[3].get_text(strip=True)
             terms_raw = cells[4].get_text(strip=True) if len(cells) > 4 else '0'
             terms = parse_terms(terms_raw)
+            election_type = "比例" if "(比)" in district or "（比）" in district else "小選挙区"
 
             members.append({
-                "name":       name,
-                "party":      party,
-                "faction":    faction,
-                "district":   district,
-                "prefecture": district.replace('(比)', '').replace('（比）', '').rstrip('0123456789').strip(),
-                "house":      "衆議院",
-                "terms":      terms,
+                "name":          name,
+                "party":         party,
+                "faction":       faction,
+                "district":      district,
+                "prefecture":    district.replace('(比)', '').replace('（比）', '').rstrip('0123456789').strip(),
+                "house":         "衆議院",
+                "terms":         terms,
+                "election_type": election_type,
             })
 
         logger.info(f"ページ{i}完了")
@@ -174,7 +178,8 @@ def register_members(members: list[dict]) -> None:
             "prefecture": m.get("prefecture", "不明"),
             "terms":      m.get("terms"),
             "source_url": m.get("source_url"),
-            "is_active":  True,
+            "is_active":     True,
+            "election_type": m.get("election_type"),
         })
 
     if rows:

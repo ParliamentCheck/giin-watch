@@ -19,6 +19,7 @@ interface Member {
   bill_count: number | null;
   petition_count: number | null;
   gender: string | null;
+  election_type: string | null;
 }
 
 interface CommitteeRole {
@@ -103,7 +104,7 @@ function PartyDetailContent() {
       const [membersRes, allMembersRes, committeeRes] = await Promise.all([
         supabase
           .from("members")
-          .select("id, name, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender")
+          .select("id, name, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender, election_type")
           .eq("party", party)
           .eq("is_active", true)
           .limit(2000),
@@ -201,6 +202,13 @@ function PartyDetailContent() {
   // 内訳集計
   const shugiin  = members.filter((m) => m.house === "衆議院").length;
   const sangiin  = members.filter((m) => m.house === "参議院").length;
+  const shugiinMembers  = members.filter((m) => m.house === "衆議院");
+  const sangiinMembers  = members.filter((m) => m.house === "参議院");
+  const shugiinSenkyoku = shugiinMembers.filter((m) => m.election_type === "小選挙区").length;
+  const shugiinHirei    = shugiinMembers.filter((m) => m.election_type === "比例").length;
+  const sangiinSenkyoku = sangiinMembers.filter((m) => m.election_type === "選挙区").length;
+  const sangiinHirei    = sangiinMembers.filter((m) => m.election_type === "比例").length;
+
   const termsBuckets = [
     { label: "初当選（1期）",  count: members.filter((m) => (m.terms || 0) === 1).length },
     { label: "2〜3期",         count: members.filter((m) => (m.terms || 0) >= 2 && (m.terms || 0) <= 3).length },
@@ -454,6 +462,57 @@ function PartyDetailContent() {
               <div style={{ flex: 1, background: "#333333" }} />
             </div>
           </div>
+
+          {/* 当選方式内訳 */}
+          {(shugiinMembers.length > 0 || sangiinMembers.length > 0) && (
+            <div className="card" style={{ padding: 24 }}>
+              <h3 className="section-title">🗳 当選方式</h3>
+              {shugiinMembers.length > 0 && (
+                <div style={{ marginBottom: sangiinMembers.length > 0 ? 20 : 0 }}>
+                  <div style={{ fontSize: 12, color: "#888888", marginBottom: 8 }}>衆議院</div>
+                  {[
+                    { label: "小選挙区", count: shugiinSenkyoku, total: shugiinMembers.length },
+                    { label: "比例",     count: shugiinHirei,    total: shugiinMembers.length },
+                  ].map((b) => {
+                    const pct = b.total > 0 ? b.count / b.total * 100 : 0;
+                    return (
+                      <div key={b.label} style={{ marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#888888", marginBottom: 4 }}>
+                          <span>{b.label}</span>
+                          <span style={{ color, fontWeight: 700 }}>{b.count}名（{Math.round(pct)}%）</span>
+                        </div>
+                        <div className="progress-bar" style={{ height: 8 }}>
+                          <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {sangiinMembers.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, color: "#888888", marginBottom: 8 }}>参議院</div>
+                  {[
+                    { label: "選挙区", count: sangiinSenkyoku, total: sangiinMembers.length },
+                    { label: "比例",   count: sangiinHirei,    total: sangiinMembers.length },
+                  ].map((b) => {
+                    const pct = b.total > 0 ? b.count / b.total * 100 : 0;
+                    return (
+                      <div key={b.label} style={{ marginBottom: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#888888", marginBottom: 4 }}>
+                          <span>{b.label}</span>
+                          <span style={{ color, fontWeight: 700 }}>{b.count}名（{Math.round(pct)}%）</span>
+                        </div>
+                        <div className="progress-bar" style={{ height: 8 }}>
+                          <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 当選回数分布 */}
           <div className="card" style={{ padding: 24 }}>
