@@ -335,7 +335,7 @@ function MemberDetailContent() {
 
       {/* カード注釈 */}
       <div style={{ fontSize: 11, color: "#888888", marginBottom: 16, padding: "0 4px" }}>
-        ※ 発言セッションは同日・同委員会の発言を1回として集計（第210回〜第221回国会の記録に基づく）。当選回数は現在の所属院におけるものです。
+        ※ 当選回数は現在の所属院におけるものです。
       </div>
 
       {/* タブ */}
@@ -391,6 +391,9 @@ function MemberDetailContent() {
           <h3 className="section-title">
             発言履歴（セッション単位・最新順）
           </h3>
+          <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
+            ※ 同日・同委員会の発言を1回として集計（第210回〜第221回国会の記録に基づく）。
+          </p>
           {sessionGroups.length === 0 ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
               発言データがまだありません。
@@ -504,6 +507,9 @@ function MemberDetailContent() {
           <h3 className="section-title">
             質問主意書（最新20件）
           </h3>
+          <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
+            ※ 第196回〜第221回国会の記録に基づく。
+          </p>
           {questions.length === 0 ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
               質問主意書の提出記録がありません。
@@ -547,6 +553,9 @@ function MemberDetailContent() {
           <h3 className="section-title">
             本会議採決記録（参議院・最新100件）
           </h3>
+          <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
+            ※ 第208回〜第221回国会の記録に基づく（参議院のみ）。
+          </p>
           {member.house !== "参議院" ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
               衆議院は個人別の投票記録が公開されていないため、採決データは参議院議員のみ表示されます。
