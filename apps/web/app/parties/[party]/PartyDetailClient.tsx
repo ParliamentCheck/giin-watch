@@ -86,7 +86,7 @@ function PartyDetailContent() {
   const [radarGlobalMax, setRadarGlobalMax] = useState({ session: 1, question: 1, bill: 1, petition: 1, role: 1 });
   const searchParams = useSearchParams();
   const pathname     = usePathname();
-  const tab          = searchParams.get("tab") ?? "members";
+  const tab          = searchParams.get("tab") ?? "breakdown";
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
