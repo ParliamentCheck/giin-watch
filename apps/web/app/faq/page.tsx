@@ -89,7 +89,7 @@ export default function FaqPage() {
         </section>
 
         <section id="wordcloud" style={sectionStyle}>
-          <h2 style={h2Style}>ワードクラウドについて</h2>
+          <h2 style={h2Style}>キーワードについて</h2>
           <p style={pStyle}>
             議員・政党の発言データから形態素解析（MeCab）で名詞を抽出し、出現頻度の高い順に表示しています。
           </p>
