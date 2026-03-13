@@ -567,7 +567,7 @@ function MemberDetailContent() {
         <div style={{ padding: "16px 0" }}>
           <WordCloud keywords={keywords} width={600} height={320} />
           <p style={{ textAlign: "center", fontSize: 11, color: "#888888", marginTop: 8 }}>
-            <a href="/faq#wordcloud" style={{ color: "#888888" }}>集計方法はこちら ↗</a>
+            <a href="/faq#keywords" style={{ color: "#888888" }}>集計方法はこちら ↗</a>
           </p>
         </div>
       )}
@@ -635,27 +635,48 @@ function MemberDetailContent() {
             <div className="empty-state" style={{ padding: "20px 0" }}>
               採決記録がありません。
             </div>
-          ) : (
-            votes.map((v, i) => {
-              const voteColor = v.vote === "賛成" ? "#22c55e" : v.vote === "反対" ? "#ef4444" : "#555555";
-              return (
-                <div key={v.id} style={{ padding: "12px 0",
-                  borderBottom: i < votes.length - 1 ? "1px solid #e0e0e0" : "none" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                    <span style={{ fontSize: 13, color: "#1a1a1a", flex: 1 }}>
-                      {v.bill_title}
-                    </span>
-                    <span className="badge badge-result" style={{ flexShrink: 0, "--result-color": voteColor } as React.CSSProperties}>
-                      {v.vote}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12, color: "#555555", marginTop: 4 }}>
-                    {v.vote_date || "日付不明"} · 第{v.session_number}回国会
-                  </div>
+          ) : (() => {
+            const yea        = votes.filter(v => v.vote === "賛成").length;
+            const nay        = votes.filter(v => v.vote === "反対").length;
+            const absent     = votes.filter(v => v.vote === "欠席").length;
+            const absentRate = votes.length > 0 ? Math.round((absent / votes.length) * 100) : 0;
+            return (
+              <>
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  {[
+                    { label: "賛成",   count: `${yea}`,        color: "#22c55e" },
+                    { label: "反対",   count: `${nay}`,        color: "#ef4444" },
+                    { label: "欠席",   count: `${absent}`,     color: "#888888" },
+                    { label: "欠席率", count: `${absentRate}%`, color: absent > 0 ? "#f59e0b" : "#888888" },
+                  ].map(({ label, count, color }) => (
+                    <div key={label} style={{ background: "#f4f4f4", borderRadius: 8, padding: "8px 0", textAlign: "center", flex: 1 }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color }}>{count}</div>
+                      <div style={{ fontSize: 11, color: "#888888" }}>{label}</div>
+                    </div>
+                  ))}
                 </div>
-              );
-            })
-          )}
+                {votes.map((v, i) => {
+                  const voteColor = v.vote === "賛成" ? "#22c55e" : v.vote === "反対" ? "#ef4444" : "#888888";
+                  return (
+                    <div key={v.id} style={{ padding: "12px 0",
+                      borderBottom: i < votes.length - 1 ? "1px solid #e0e0e0" : "none" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                        <span style={{ fontSize: 13, color: "#1a1a1a", flex: 1 }}>
+                          {v.bill_title}
+                        </span>
+                        <span className="badge badge-result" style={{ flexShrink: 0, "--result-color": voteColor } as React.CSSProperties}>
+                          {v.vote}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#555555", marginTop: 4 }}>
+                        {v.vote_date || "日付不明"} · 第{v.session_number}回国会
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
         </div>
       )}
 
