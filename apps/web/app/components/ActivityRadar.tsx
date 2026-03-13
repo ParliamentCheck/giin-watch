@@ -13,11 +13,13 @@ const CENTER = SIZE / 2;
 const RADIUS = 72;
 const LABEL_OFFSET = 22;
 
+// 右側（グリッドに面する方向）に短いラベルを配置
+// 0°=上: 発言, 90°=右: 請願, 180°=下: 議員立法, 270°=左: 質問主意書
 const AXES = [
   { key: "session",  label: "発言" },
-  { key: "question", label: "質問主意書" },
-  { key: "bill",     label: "議員立法" },
   { key: "petition", label: "請願" },
+  { key: "bill",     label: "議員立法" },
+  { key: "question", label: "質問主意書" },
 ] as const;
 
 function polarToXY(angle: number, r: number) {

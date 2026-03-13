@@ -325,7 +325,8 @@ function MemberDetailContent() {
       <div className="card" style={{ padding: "16px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 2 }}>活動バランス</div>
         <div style={{ fontSize: 11, color: "#888888", marginBottom: 12, lineHeight: 1.6 }}>
-          この議員の活動の中で、どこに重点が置かれているかを示します。
+          発言・質問主意書・議員立法・請願の件数を図示しています。
+          <a href="/disclaimer#activity-radar" style={{ color: "#888888", marginLeft: 4 }}>算出方法はこちら ↗</a>
         </div>
         <div className="activity-balance-body" style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div className="activity-balance-radar" style={{ flexShrink: 0 }}>
@@ -337,7 +338,7 @@ function MemberDetailContent() {
               color={PARTY_COLORS[member.party] || "#333333"}
             />
           </div>
-          <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
+          <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, width: 200 }}>
             {[
               { label: "委員会所属",     value: committees.length,    unit: "件" },
               { label: "発言セッション", value: member.session_count, unit: "回" },

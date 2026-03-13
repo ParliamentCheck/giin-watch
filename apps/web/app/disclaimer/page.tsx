@@ -68,6 +68,17 @@ export default function DisclaimerPage() {
           </p>
         </section>
 
+        <section id="activity-radar" style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1 }}>活動バランスチャートについて</h2>
+          <p style={{ lineHeight: 1.9, color: "#888888" }}>
+            議員詳細ページの活動バランスチャートは、発言セッション・質問主意書・議員立法・請願の4項目について、
+            それぞれの件数を集計し、4項目の中で最も多い件数を100%として各項目の件数を図示しています。
+            各項目は件数のみを示すものであり、活動の労力・質・重要性を比較するものではありません。
+            また、4項目すべてが0件の場合はチャートが空白になります。
+          </p>
+        </section>
+
         <section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
             textTransform: "uppercase", letterSpacing: 1 }}>免責</h2>
