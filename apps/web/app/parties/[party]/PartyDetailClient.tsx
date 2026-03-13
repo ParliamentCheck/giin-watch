@@ -317,8 +317,8 @@ function PartyDetailContent() {
               <div style={{ fontSize: 13, fontWeight: 700, color: "#555555", marginBottom: 8, textAlign: "center" }}>本会議採決記録</div>
               <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
                 {[
-                  { label: "賛成", value: voteStats?.yes    ?? null, unit: "件" },
-                  { label: "反対", value: voteStats?.no     ?? null, unit: "件" },
+                  { label: "賛成率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.yes    / voteStats.total * 100) : voteStats ? 0 : null, unit: "%" },
+                  { label: "反対率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.no     / voteStats.total * 100) : voteStats ? 0 : null, unit: "%" },
                   { label: "欠席率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.absent / voteStats.total * 100) : voteStats ? 0 : null, unit: "%" },
                 ].map((s) => (
                   <div key={s.label}>
