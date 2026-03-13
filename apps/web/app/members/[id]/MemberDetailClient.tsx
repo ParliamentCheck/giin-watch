@@ -338,7 +338,7 @@ function MemberDetailContent() {
               color={PARTY_COLORS[member.party] || "#333333"}
             />
           </div>
-          <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, width: 200 }}>
+          <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1, maxWidth: 260 }}>
             {[
               { label: "委員会所属",     value: committees.length,    unit: "件" },
               { label: "発言セッション", value: member.session_count, unit: "回" },
