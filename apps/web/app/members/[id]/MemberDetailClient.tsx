@@ -344,7 +344,7 @@ function MemberDetailContent() {
         <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 2 }}>活動バランス</div>
         <div style={{ fontSize: 11, color: "#888888", marginBottom: 12, lineHeight: 1.6 }}>
           各活動の件数から活動の比重・傾向を図示しています。活動量の多さを示すものではありません。
-          <a href="/disclaimer#activity-radar" style={{ color: "#888888", marginLeft: 4 }}>算出方法はこちら ↗</a>
+          <a href="/faq#activity-radar" style={{ color: "#888888", marginLeft: 4 }}>算出方法はこちら ↗</a>
         </div>
         <div className="activity-balance-body" style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div className="activity-balance-radar" style={{ width: 350, flexShrink: 0 }}>
@@ -566,6 +566,9 @@ function MemberDetailContent() {
       {tab === "keywords" && (
         <div style={{ padding: "16px 0" }}>
           <WordCloud keywords={keywords} width={600} height={320} />
+          <p style={{ textAlign: "center", fontSize: 11, color: "#888888", marginTop: 8 }}>
+            <a href="/faq#wordcloud" style={{ color: "#888888" }}>集計方法はこちら ↗</a>
+          </p>
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 
 const FOOTER_LINKS = [
   { label: "サイトについて", path: "/about" },
+  { label: "データ仕様", path: "/faq" },
   { label: "免責事項", path: "/disclaimer" },
   { label: "利用規約", path: "/terms" },
   { label: "変更履歴", path: "/changelog" },
