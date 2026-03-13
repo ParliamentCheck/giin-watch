@@ -416,10 +416,12 @@ function PartyDetailContent() {
               キーワードを集計中...
             </div>
           ) : (
-            <WordCloud keywords={keywords} width={800} height={400} />
-            <p style={{ textAlign: "center", fontSize: 11, color: "#888888", marginTop: 8 }}>
-              <a href="/faq#wordcloud" style={{ color: "#888888" }}>集計方法はこちら ↗</a>
-            </p>
+            <>
+              <WordCloud keywords={keywords} width={800} height={400} />
+              <p style={{ textAlign: "center", fontSize: 11, color: "#888888", marginTop: 8 }}>
+                <a href="/faq#wordcloud" style={{ color: "#888888" }}>集計方法はこちら ↗</a>
+              </p>
+            </>
           )}
         </div>
       )}
