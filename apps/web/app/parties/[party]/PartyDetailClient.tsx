@@ -170,20 +170,24 @@ function PartyDetailContent() {
         })));
       setLoading(false);
 
-      // 採決集計
+      // 採決集計（大規模政党でもURL長制限に引っかからないよう50件ずつバッチ処理）
       if (memberIds.length > 0) {
-        const [totalRes, yesRes, noRes, absentRes] = await Promise.all([
-          supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", memberIds),
-          supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", memberIds).eq("vote", "賛成"),
-          supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", memberIds).eq("vote", "反対"),
-          supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", memberIds).eq("vote", "欠席"),
-        ]);
-        setVoteStats({
-          total:  totalRes.count  ?? 0,
-          yes:    yesRes.count    ?? 0,
-          no:     noRes.count     ?? 0,
-          absent: absentRes.count ?? 0,
-        });
+        const BATCH = 50;
+        let total = 0, yes = 0, no = 0, absent = 0;
+        for (let i = 0; i < memberIds.length; i += BATCH) {
+          const batch = memberIds.slice(i, i + BATCH);
+          const [t, y, n, a] = await Promise.all([
+            supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch),
+            supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch).eq("vote", "賛成"),
+            supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch).eq("vote", "反対"),
+            supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch).eq("vote", "欠席"),
+          ]);
+          total  += t.count ?? 0;
+          yes    += y.count ?? 0;
+          no     += n.count ?? 0;
+          absent += a.count ?? 0;
+        }
+        setVoteStats({ total, yes, no, absent });
       }
 
       // キーワードはバッチフェッチ（遅延）
@@ -317,9 +321,9 @@ function PartyDetailContent() {
               <div style={{ fontSize: 13, fontWeight: 700, color: "#555555", marginBottom: 8, textAlign: "center" }}>本会議採決記録</div>
               <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
                 {[
-                  { label: "賛成率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.yes    / voteStats.total * 100) : voteStats ? 0 : null, unit: "%" },
-                  { label: "反対率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.no     / voteStats.total * 100) : voteStats ? 0 : null, unit: "%" },
-                  { label: "欠席率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.absent / voteStats.total * 100) : voteStats ? 0 : null, unit: "%" },
+                  { label: "賛成率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.yes    / voteStats.total * 100) : null, unit: "%" },
+                  { label: "反対率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.no     / voteStats.total * 100) : null, unit: "%" },
+                  { label: "欠席率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.absent / voteStats.total * 100) : null, unit: "%" },
                 ].map((s) => (
                   <div key={s.label}>
                     <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
@@ -487,30 +491,26 @@ function PartyDetailContent() {
                     {members.length > 0 ? Math.round(shugiin / members.length * 100) : 0}%
                   </div>
                 </div>
-                {shugiinMembers.length > 0 && (
-                  <>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                      {[
-                        { label: "小選挙区", count: shugiinSenkyoku },
-                        { label: "比例",     count: shugiinHirei    },
-                      ].map((b) => (
-                        <div key={b.label} style={{ background: "#f0f0f0", borderRadius: 10, padding: "10px 6px", textAlign: "center" }}>
-                          <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
-                            {b.count}<span style={{ fontSize: 12, color: "#555555", marginLeft: 3 }}>名</span>
-                          </div>
-                          <div style={{ fontSize: 11, color: "#555555" }}>{b.label}</div>
-                          <div style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
-                            {shugiinMembers.length > 0 ? Math.round(b.count / shugiinMembers.length * 100) : 0}%
-                          </div>
-                        </div>
-                      ))}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[
+                    { label: "小選挙区", count: shugiinSenkyoku },
+                    { label: "比例",     count: shugiinHirei    },
+                  ].map((b) => (
+                    <div key={b.label} style={{ background: "#f0f0f0", borderRadius: 10, padding: "10px 6px", textAlign: "center" }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
+                        {b.count}<span style={{ fontSize: 12, color: "#555555", marginLeft: 3 }}>名</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#555555" }}>{b.label}</div>
+                      <div style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
+                        {shugiinMembers.length > 0 ? Math.round(b.count / shugiinMembers.length * 100) : 0}%
+                      </div>
                     </div>
-                    <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex", background: "#e0e0e0" }}>
-                      <div style={{ width: `${shugiinMembers.length > 0 ? shugiinSenkyoku / shugiinMembers.length * 100 : 0}%`, background: "#888888", transition: "width 0.6s ease" }} />
-                      <div style={{ flex: 1, background: "#bbbbbb" }} />
-                    </div>
-                  </>
-                )}
+                  ))}
+                </div>
+                <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex", background: "#e0e0e0" }}>
+                  <div style={{ width: `${shugiinMembers.length > 0 ? shugiinSenkyoku / shugiinMembers.length * 100 : 0}%`, background: "#888888", transition: "width 0.6s ease" }} />
+                  <div style={{ flex: 1, background: "#bbbbbb" }} />
+                </div>
               </div>
 
               {/* 参議院列 */}
@@ -524,30 +524,26 @@ function PartyDetailContent() {
                     {members.length > 0 ? Math.round(sangiin / members.length * 100) : 0}%
                   </div>
                 </div>
-                {sangiinMembers.length > 0 && (
-                  <>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                      {[
-                        { label: "選挙区", count: sangiinSenkyoku },
-                        { label: "比例",   count: sangiinHirei    },
-                      ].map((b) => (
-                        <div key={b.label} style={{ background: "#f0f0f0", borderRadius: 10, padding: "10px 6px", textAlign: "center" }}>
-                          <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
-                            {b.count}<span style={{ fontSize: 12, color: "#555555", marginLeft: 3 }}>名</span>
-                          </div>
-                          <div style={{ fontSize: 11, color: "#555555" }}>{b.label}</div>
-                          <div style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
-                            {sangiinMembers.length > 0 ? Math.round(b.count / sangiinMembers.length * 100) : 0}%
-                          </div>
-                        </div>
-                      ))}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[
+                    { label: "選挙区", count: sangiinSenkyoku },
+                    { label: "比例",   count: sangiinHirei    },
+                  ].map((b) => (
+                    <div key={b.label} style={{ background: "#f0f0f0", borderRadius: 10, padding: "10px 6px", textAlign: "center" }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
+                        {b.count}<span style={{ fontSize: 12, color: "#555555", marginLeft: 3 }}>名</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#555555" }}>{b.label}</div>
+                      <div style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
+                        {sangiinMembers.length > 0 ? Math.round(b.count / sangiinMembers.length * 100) : 0}%
+                      </div>
                     </div>
-                    <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex", background: "#e0e0e0" }}>
-                      <div style={{ width: `${sangiinMembers.length > 0 ? sangiinSenkyoku / sangiinMembers.length * 100 : 0}%`, background: "#333333", transition: "width 0.6s ease" }} />
-                      <div style={{ flex: 1, background: "#999999" }} />
-                    </div>
-                  </>
-                )}
+                  ))}
+                </div>
+                <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex", background: "#e0e0e0" }}>
+                  <div style={{ width: `${sangiinMembers.length > 0 ? sangiinSenkyoku / sangiinMembers.length * 100 : 0}%`, background: "#333333", transition: "width 0.6s ease" }} />
+                  <div style={{ flex: 1, background: "#999999" }} />
+                </div>
               </div>
 
             </div>
