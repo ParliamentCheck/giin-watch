@@ -123,6 +123,7 @@ function MemberDetailContent() {
   const [bills,      setBills]      = useState<Bill[]>([]);
   const [petitions,  setPetitions]  = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
+  const [globalMax,  setGlobalMax]  = useState({ session: 1, question: 1, bill: 1, petition: 1 });
   useEffect(() => {
     if (member?.name) document.title = `${member.name} | はたらく議員`;
   }, [member]);
@@ -201,6 +202,23 @@ function MemberDetailContent() {
           return b.number - a.number;
         });
       setPetitions(allPetitions);
+
+      // グローバルMAX取得（レーダーチャート正規化用）
+      const gmRes = await supabase
+        .from("members")
+        .select("session_count,question_count,bill_count,petition_count")
+        .limit(2000);
+      if (gmRes.data && gmRes.data.length > 0) {
+        let gm = { session: 1, question: 1, bill: 1, petition: 1 };
+        for (const m of gmRes.data) {
+          if ((m.session_count  ?? 0) > gm.session)  gm.session  = m.session_count;
+          if ((m.question_count ?? 0) > gm.question) gm.question = m.question_count;
+          if ((m.bill_count     ?? 0) > gm.bill)     gm.bill     = m.bill_count;
+          if ((m.petition_count ?? 0) > gm.petition) gm.petition = m.petition_count;
+        }
+        setGlobalMax(gm);
+      }
+
       setLoading(false);
     }
     fetchAll();
@@ -325,16 +343,18 @@ function MemberDetailContent() {
       <div className="card" style={{ padding: "16px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 2 }}>活動バランス</div>
         <div style={{ fontSize: 11, color: "#888888", marginBottom: 12, lineHeight: 1.6 }}>
-          発言・質問主意書・議員立法・請願の件数を図示しています。
+          各活動の件数から活動の比重・傾向を図示しています。活動量の多さを示すものではありません。
           <a href="/disclaimer#activity-radar" style={{ color: "#888888", marginLeft: 4 }}>算出方法はこちら ↗</a>
         </div>
         <div className="activity-balance-body" style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div className="activity-balance-radar" style={{ width: 350, flexShrink: 0 }}>
             <ActivityRadar
-              sessionCount={member.session_count   ?? 0}
-              questionCount={member.question_count ?? 0}
-              billCount={member.bill_count         ?? 0}
-              petitionCount={member.petition_count ?? 0}
+              axes={[
+                { key: "session",  label: "発言",       value: member.session_count  ?? 0, globalMax: globalMax.session  },
+                { key: "petition", label: "請願",       value: member.petition_count ?? 0, globalMax: globalMax.petition },
+                { key: "bill",     label: "議員立法",   value: member.bill_count     ?? 0, globalMax: globalMax.bill     },
+                { key: "question", label: "質問主意書", value: member.question_count ?? 0, globalMax: globalMax.question },
+              ]}
               color={PARTY_COLORS[member.party] || "#333333"}
             />
           </div>

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
+import ActivityRadar from "../../components/ActivityRadar";
 import { PARTY_COLORS } from "../../../lib/partyColors";
 
 interface Member {
@@ -13,7 +14,10 @@ interface Member {
   district: string;
   terms: number | null;
   speech_count: number | null;
+  session_count: number | null;
   question_count: number | null;
+  bill_count: number | null;
+  petition_count: number | null;
   gender: string | null;
 }
 
@@ -78,6 +82,7 @@ function PartyDetailContent() {
   const [keywords,   setKeywords]   = useState<KeywordData[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [kwLoading,  setKwLoading]  = useState(false);
+  const [radarGlobalMax, setRadarGlobalMax] = useState({ session: 1, question: 1, bill: 1, petition: 1, role: 1 });
   const searchParams = useSearchParams();
   const pathname     = usePathname();
   const tab          = searchParams.get("tab") ?? "members";
@@ -95,22 +100,64 @@ function PartyDetailContent() {
 
   useEffect(() => {
     async function fetchAll() {
-      const membersRes = await supabase
-        .from("members")
-        .select("id, name, house, district, terms, speech_count, question_count, gender")
-        .eq("party", party)
-        .eq("is_active", true).limit(2000);
+      const [membersRes, allMembersRes, committeeRes] = await Promise.all([
+        supabase
+          .from("members")
+          .select("id, name, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender")
+          .eq("party", party)
+          .eq("is_active", true)
+          .limit(2000),
+        supabase
+          .from("members")
+          .select("id, party, session_count, question_count, bill_count, petition_count")
+          .eq("is_active", true)
+          .limit(2000),
+        supabase
+          .from("committee_members")
+          .select("member_id, name, role, committee")
+          .in("role", ["委員長", "理事", "会長", "副会長"]),
+      ]);
 
-      const memberIds = (membersRes.data || []).map((m) => m.id);
-
-      const committeeRes = memberIds.length > 0
-        ? await supabase
-            .from("committee_members")
-            .select("member_id, name, role, committee")
-            .in("role", ["委員長", "理事", "会長", "副会長"])
-        : { data: [] };
-
+      const memberIds   = (membersRes.data || []).map((m) => m.id);
       const memberIdSet = new Set(memberIds);
+
+      // 全政党のレーダー用globalMax計算
+      const allMembers  = allMembersRes.data || [];
+      const allCommitteeRows = committeeRes.data || [];
+
+      // 全メンバーのid→party マップ
+      const idToParty: Record<string, string> = {};
+      for (const m of allMembers) {
+        if (m.party) idToParty[m.id] = m.party;
+      }
+
+      // 政党別に集計
+      const partySums: Record<string, { session: number; question: number; bill: number; petition: number; role: number }> = {};
+      for (const m of allMembers) {
+        if (!m.party) continue;
+        if (!partySums[m.party]) partySums[m.party] = { session: 0, question: 0, bill: 0, petition: 0, role: 0 };
+        partySums[m.party].session  += m.session_count  ?? 0;
+        partySums[m.party].question += m.question_count ?? 0;
+        partySums[m.party].bill     += m.bill_count     ?? 0;
+        partySums[m.party].petition += m.petition_count ?? 0;
+      }
+      for (const row of allCommitteeRows) {
+        const p = idToParty[row.member_id];
+        if (!p) continue;
+        if (!partySums[p]) partySums[p] = { session: 0, question: 0, bill: 0, petition: 0, role: 0 };
+        partySums[p].role += 1;
+      }
+
+      const gm = { session: 1, question: 1, bill: 1, petition: 1, role: 1 };
+      for (const s of Object.values(partySums)) {
+        if (s.session  > gm.session)  gm.session  = s.session;
+        if (s.question > gm.question) gm.question = s.question;
+        if (s.bill     > gm.bill)     gm.bill     = s.bill;
+        if (s.petition > gm.petition) gm.petition = s.petition;
+        if (s.role     > gm.role)     gm.role     = s.role;
+      }
+      setRadarGlobalMax(gm);
+
       setMembers(membersRes.data || []);
       setChairs((committeeRes.data || [])
         .filter((c) => memberIdSet.has(c.member_id))
@@ -134,6 +181,10 @@ function PartyDetailContent() {
 
   const totalSpeeches  = members.reduce((s, m) => s + (m.speech_count   || 0), 0);
   const totalQuestions = members.reduce((s, m) => s + (m.question_count || 0), 0);
+  const totalSessions  = members.reduce((s, m) => s + (m.session_count  || 0), 0);
+  const totalBills     = members.reduce((s, m) => s + (m.bill_count     || 0), 0);
+  const totalPetitions = members.reduce((s, m) => s + (m.petition_count || 0), 0);
+  const totalRoles     = chairs.length;
 
   const sorted = [...members].sort((a, b) => {
     if (sortBy === "speech_count")   return (b.speech_count   || 0) - (a.speech_count   || 0);
@@ -208,6 +259,47 @@ function PartyDetailContent() {
               <div style={{ fontSize: 11, color: "#555555" }}>{item.label}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* 活動バランス */}
+      <div className="card" style={{ padding: "16px 20px", marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 2 }}>活動バランス</div>
+        <div style={{ fontSize: 11, color: "#888888", marginBottom: 12, lineHeight: 1.6 }}>
+          各活動の件数から活動の比重・傾向を図示しています。活動量の多さを示すものではありません。
+          <a href="/disclaimer#activity-radar" style={{ color: "#888888", marginLeft: 4 }}>算出方法はこちら ↗</a>
+        </div>
+        <div className="activity-balance-body" style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div className="activity-balance-radar" style={{ width: 350, flexShrink: 0 }}>
+            <ActivityRadar
+              axes={[
+                { key: "session",  label: "発言",       value: totalSessions,  globalMax: radarGlobalMax.session  },
+                { key: "role",     label: "委員会役職", value: totalRoles,     globalMax: radarGlobalMax.role     },
+                { key: "bill",     label: "議員立法",   value: totalBills,     globalMax: radarGlobalMax.bill     },
+                { key: "question", label: "質問主意書", value: totalQuestions, globalMax: radarGlobalMax.question },
+                { key: "petition", label: "請願",       value: totalPetitions, globalMax: radarGlobalMax.petition },
+              ]}
+              color={color}
+            />
+          </div>
+          <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
+            {[
+              { label: "発言セッション", value: totalSessions,  unit: "回" },
+              { label: "質問主意書",     value: totalQuestions, unit: "件" },
+              { label: "議員立法",       value: totalBills,     unit: "件" },
+              { label: "請願",           value: totalPetitions, unit: "件" },
+              { label: "委員会役職",     value: totalRoles,     unit: "件" },
+              { label: "議員数",         value: members.length, unit: "名" },
+            ].map((item) => (
+              <div key={item.label} style={{ background: "#f8f8f8", borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
+                  {item.value}
+                  <span style={{ fontSize: 11, color: "#555555", marginLeft: 3 }}>{item.unit}</span>
+                </div>
+                <div style={{ fontSize: 10, color: "#888888" }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
