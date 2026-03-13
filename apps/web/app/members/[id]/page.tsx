@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: data.name,
     description,
     openGraph: { title: `${data.name} | はたらく議員`, description, url },
-    twitter: { card: "summary", title: `${data.name} | はたらく議員`, description },
+    twitter: { card: "summary_large_image", title: `${data.name} | はたらく議員`, description },
     alternates: { canonical: url },
   };
 }
