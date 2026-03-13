@@ -44,5 +44,6 @@ jobs:
         env:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          psql -4 "postgresql://postgres@db.yyqktchttzvbzigeiajx.supabase.co:5432/postgres?sslmode=require" \
+          HOST=$(getent ahostsv4 db.yyqktchttzvbzigeiajx.supabase.co | head -1 | awk '{print $1}')
+          psql "postgresql://postgres@${HOST}:5432/postgres?sslmode=require" \
             -c "VACUUM FULL speeches;"
