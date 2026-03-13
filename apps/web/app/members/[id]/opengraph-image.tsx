@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
+import fs from "fs";
+import path from "path";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 export const alt = "議員詳細";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -26,6 +28,9 @@ const PARTY_COLORS: Record<string, string> = {
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const memberId = decodeURIComponent(id);
+
+  const logoSvg = fs.readFileSync(path.join(process.cwd(), "public", "logo-nav.svg"), "utf-8");
+  const logoSrc = `data:image/svg+xml;base64,${Buffer.from(logoSvg).toString("base64")}`;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || "";
@@ -129,9 +134,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             <span style={{ fontSize: 18, color: "#bbb" }}>
               ※ 公開国会記録に基づく（発言: 第210〜221回 / 質問主意書・請願: 第196〜221回 / 議員立法: 第208〜221回）
             </span>
-            <span style={{ fontSize: 22, color: "#aaa", letterSpacing: "0.05em" }}>
-              はたらく議員
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoSrc} alt="はたらく議員" style={{ height: 36, opacity: 0.6 }} />
           </div>
         </div>
       </div>
