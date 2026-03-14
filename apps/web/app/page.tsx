@@ -293,9 +293,12 @@ export default async function TopPage() {
 
         {/* ── 更新履歴 ─────────────────────────────────────────── */}
         <section className="mb-16">
-          <h2 className="text-base font-bold text-neutral-900 mb-4">🕐 更新履歴</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-neutral-900">🕐 更新履歴</h2>
+            <Link href="/changelog" className="text-xs text-neutral-500 hover:text-neutral-700 transition-colors">すべて見る →</Link>
+          </div>
           <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl divide-y divide-neutral-200">
-            {changelog.map((entry, i) => (
+            {changelog.slice(0, 5).map((entry, i) => (
               <div key={i} className="px-5 py-3 flex items-baseline gap-4">
                 <span className="tabular-nums text-xs text-neutral-500 shrink-0">{entry.date}</span>
                 {entry.description ? (
