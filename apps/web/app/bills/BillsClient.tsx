@@ -164,7 +164,20 @@ export default function BillsClient() {
   }, []);
 
   const memberBills   = bills.filter((b) => (b.bill_type ?? "議員立法") === "議員立法");
-  const cabinetBills  = bills.filter((b) => b.bill_type === "閣法");
+  const cabinetBills  = bills
+    .filter((b) => b.bill_type === "閣法")
+    .sort((a, b) => {
+      const sd = (b.session_number ?? 0) - (a.session_number ?? 0);
+      if (sd !== 0) return sd;
+      // 同一回次内は submitted_at 降順（null は後ろ）
+      if (a.submitted_at && b.submitted_at) return b.submitted_at.localeCompare(a.submitted_at);
+      if (a.submitted_at) return -1;
+      if (b.submitted_at) return 1;
+      // IDの末尾番号降順
+      const na = parseInt(a.id.split("-").pop() ?? "0");
+      const nb = parseInt(b.id.split("-").pop() ?? "0");
+      return nb - na;
+    });
 
   const filtered = (activeTab === "cabinet" ? cabinetBills : memberBills).filter((b) => {
     if (filterHouse !== "全て" && b.house !== filterHouse) return false;
