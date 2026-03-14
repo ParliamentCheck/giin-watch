@@ -11,8 +11,9 @@ export default function PrivacyPage() {
         </h1>
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
-            textTransform: "uppercase", letterSpacing: 1 }}>アクセス解析ツールについて</h2>
+          <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1.5,
+            borderLeft: "3px solid #333333", paddingLeft: 10 }}>アクセス解析ツールについて</h2>
           <p style={{ lineHeight: 1.9, color: "#888888" }}>
             当サイトでは、Googleによるアクセス解析ツール「Googleアナリティクス」を利用しています。
             Googleアナリティクスはトラフィックデータの収集のためにCookieを使用しております。
@@ -22,8 +23,9 @@ export default function PrivacyPage() {
         </section>
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
-            textTransform: "uppercase", letterSpacing: 1 }}>広告の配信について</h2>
+          <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1.5,
+            borderLeft: "3px solid #333333", paddingLeft: 10 }}>広告の配信について</h2>
           <p style={{ lineHeight: 1.9, color: "#888888" }}>
             当サイトは、第三者配信の広告サービス（Google AdSense等）を利用する予定、または利用しています。
             広告配信事業者は、ユーザーの興味に応じた商品やサービスの広告を表示するため、
@@ -42,8 +44,9 @@ export default function PrivacyPage() {
         </section>
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
-            textTransform: "uppercase", letterSpacing: 1 }}>プライバシーポリシーの変更について</h2>
+          <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1.5,
+            borderLeft: "3px solid #333333", paddingLeft: 10 }}>プライバシーポリシーの変更について</h2>
           <p style={{ lineHeight: 1.9, color: "#888888" }}>
             当サイトは、個人情報に関して適用される日本の法令を遵守するとともに、
             本ポリシーの内容を適宜見直しその改善に努めます。

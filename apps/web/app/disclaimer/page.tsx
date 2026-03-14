@@ -16,8 +16,9 @@ export default function DisclaimerPage() {
         <span id="activity-radar" />
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
-            textTransform: "uppercase", letterSpacing: 1 }}>免責</h2>
+          <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1.5,
+            borderLeft: "3px solid #333333", paddingLeft: 10 }}>免責</h2>
           <p style={{ lineHeight: 1.9, color: "#888888" }}>
             本サイトの情報の正確性・完全性について保証するものではありません。
             自動収集・スクレイピングの性質上、誤情報が入り込んだり、情報が古くなったりする可能性がございます。
@@ -27,8 +28,9 @@ export default function DisclaimerPage() {
         </section>
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
-            textTransform: "uppercase", letterSpacing: 1 }}>無断転載の禁止</h2>
+          <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1.5,
+            borderLeft: "3px solid #333333", paddingLeft: 10 }}>無断転載の禁止</h2>
           <p style={{ lineHeight: 1.9, color: "#888888" }}>
             当サイトで独自に集計・可視化したグラフや活動データ等のコンテンツについて、
             許可なく無断で転載することを禁じます。
@@ -37,8 +39,9 @@ export default function DisclaimerPage() {
         </section>
 
         <section style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
-            textTransform: "uppercase", letterSpacing: 1 }}>データソース</h2>
+          <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
+            textTransform: "uppercase", letterSpacing: 1.5,
+            borderLeft: "3px solid #333333", paddingLeft: 10 }}>データソース</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {[
               { label: "国立国会図書館 国会会議録検索システム", url: "https://kokkai.ndl.go.jp/" },
