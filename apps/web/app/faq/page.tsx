@@ -2,8 +2,9 @@ export const metadata = { title: "データ仕様" };
 
 const sectionStyle = { marginBottom: 32 } as const;
 const h2Style = {
-  fontSize: 15, fontWeight: 700, color: "#888888", marginBottom: 12,
-  textTransform: "uppercase" as const, letterSpacing: 1,
+  fontSize: 13, fontWeight: 700, color: "#333333", marginBottom: 12,
+  textTransform: "uppercase" as const, letterSpacing: 1.5,
+  borderLeft: "3px solid #333333", paddingLeft: 10,
 } as const;
 const pStyle = { lineHeight: 1.9, color: "#888888" } as const;
 
