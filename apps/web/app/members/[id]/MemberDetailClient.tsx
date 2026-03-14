@@ -59,6 +59,7 @@ interface Bill {
   session_number: number;
   house: string;
   source_url: string | null;
+  submitter_ids: string[] | null;
 }
 
 interface Petition {
@@ -125,8 +126,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [questions,  setQuestions]  = useState<Question[]>([]);
   const [committees, setCommittees] = useState<CommitteeMember[]>([]);
   const [votes,      setVotes]      = useState<Vote[]>([]);
-  const [bills,      setBills]      = useState<Bill[]>([]);
-  const [petitions,  setPetitions]  = useState<Petition[]>([]);
+  const [bills,        setBills]        = useState<Bill[]>([]);
+  const [coSponsors,   setCoSponsors]   = useState<{ id: string; name: string; party: string; count: number }[]>([]);
+  const [billsSubTab,  setBillsSubTab]  = useState<"list" | "partners">("list");
+  const [petitions,    setPetitions]    = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
   const [globalMax,  setGlobalMax]  = useState(initialGlobalMax ?? { session: 1, question: 1, bill: 1, petition: 1 });
   useEffect(() => {
@@ -198,7 +201,33 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         setCommittees(deduped);
       }
       if (safe(5)) setVotes(safe(5));
-      if (safe(6)) setBills(safe(6));
+      const billsData: Bill[] = safe(6) || [];
+      setBills(billsData);
+
+      // 共同提出パートナーを集計
+      const countMap: Record<string, number> = {};
+      for (const bill of billsData) {
+        for (const id of (bill.submitter_ids || [])) {
+          if (id !== memberId) countMap[id] = (countMap[id] || 0) + 1;
+        }
+      }
+      const partnerIds = Object.keys(countMap);
+      if (partnerIds.length > 0) {
+        const { data: partnerData } = await supabase
+          .from("members")
+          .select("id,name,party,prev_party")
+          .in("id", partnerIds);
+        const sorted = (partnerData || [])
+          .map((m: any) => ({
+            id: m.id,
+            name: m.name.replace(/\u3000|\s/g, ""),
+            party: m.party === "中道改革連合" && m.prev_party ? m.prev_party : m.party,
+            count: countMap[m.id] || 0,
+          }))
+          .sort((a: any, b: any) => b.count - a.count)
+          .slice(0, 10);
+        setCoSponsors(sorted);
+      }
       if (safe(7)) setKeywords(safe(7));
       const shugiinP = safe(8) || [];
       const sangiinP = safe(9) || [];
@@ -719,37 +748,97 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       {/* 議員立法タブ */}
       {tab === "bills" && (
         <div className="card" style={{ padding: 20 }}>
-          <h3 className="section-title">
-            議員提出法案
-          </h3>
-          <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-            ※ 第208回〜第221回国会の記録に基づく。
-          </p>
-          {bills.length === 0 ? (
-            <div className="empty-state" style={{ padding: "20px 0" }}>
-              議員提出法案の記録がありません。
-            </div>
-          ) : (
-            bills.map((b, i) => (
-              <div key={b.id} style={{ padding: "12px 0",
-                borderBottom: i < bills.length - 1 ? "1px solid #e0e0e0" : "none" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>
-                  {b.title}
+          {/* サブタブ */}
+          <div className="tab-bar-container" style={{ marginBottom: 16,
+            background: `${color}15`, borderColor: `${color}30`, "--tab-hover-bg": `${color}35` } as React.CSSProperties}>
+            {(["list", "partners"] as const).map((st) => (
+              <button key={st} onClick={() => setBillsSubTab(st)}
+                style={{ flex: 1, padding: "8px 0",
+                  ...(billsSubTab === st ? { background: color, color: "#ffffff" } : {}) }}
+                className={`tab-pill${billsSubTab === st ? " active" : ""}`}
+                onMouseEnter={(e) => { if (billsSubTab !== st) (e.currentTarget as HTMLButtonElement).style.background = `${color}35`; }}
+                onMouseLeave={(e) => { if (billsSubTab !== st) (e.currentTarget as HTMLButtonElement).style.background = ""; }}>
+                {st === "list" ? "議員提出法案" : "共同提出パートナー"}
+              </button>
+            ))}
+          </div>
+
+          {/* 議員提出法案 */}
+          {billsSubTab === "list" && (
+            <>
+              <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
+                ※ 第208回〜第221回国会の記録に基づく。
+              </p>
+              {bills.length === 0 ? (
+                <div className="empty-state" style={{ padding: "20px 0" }}>
+                  議員提出法案の記録がありません。
                 </div>
-                <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#555555", alignItems: "center" }}>
-                  <span>{b.submitted_at || "日付不明"}</span>
-                  <span>第{b.session_number}回国会</span>
-                  {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
-                  {b.source_url && (
-                    <a href={b.source_url} target="_blank" rel="noopener noreferrer"
-                      style={{ color: "#333333", textDecoration: "none" }}
-                      onClick={(e) => e.stopPropagation()}>
-                      📄 本文を見る ↗
-                    </a>
-                  )}
+              ) : (
+                bills.map((b, i) => (
+                  <div key={b.id} style={{ padding: "12px 0",
+                    borderBottom: i < bills.length - 1 ? "1px solid #e0e0e0" : "none" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>
+                      {b.title}
+                    </div>
+                    <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#555555", alignItems: "center" }}>
+                      <span>{b.submitted_at || "日付不明"}</span>
+                      <span>第{b.session_number}回国会</span>
+                      {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
+                      {b.source_url && (
+                        <a href={b.source_url} target="_blank" rel="noopener noreferrer"
+                          style={{ color: "#333333", textDecoration: "none" }}
+                          onClick={(e) => e.stopPropagation()}>
+                          📄 本文を見る ↗
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          )}
+
+          {/* 共同提出パートナー */}
+          {billsSubTab === "partners" && (
+            <>
+              <p style={{ fontSize: 11, color: "#888888", marginBottom: 14 }}>
+                共同提出した法案の件数が多い順（上位10名）。
+              </p>
+              {coSponsors.length === 0 ? (
+                <div className="empty-state" style={{ padding: "20px 0" }}>
+                  共同提出パートナーのデータがありません。
                 </div>
-              </div>
-            ))
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {coSponsors.map((p, i) => {
+                    const partyColor = PARTY_COLORS[p.party] || "#7f8c8d";
+                    const isCross = p.party !== member?.party &&
+                      !(member?.party === "中道改革連合" && (p.party === "公明党" || p.party === "立憲民主党"));
+                    return (
+                      <div key={p.id}
+                        onClick={() => router.push(`/members/${encodeURIComponent(p.id)}`)}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+                          background: "#f9f9f9", borderRadius: 8, border: "1px solid #eeeeee",
+                          cursor: "pointer" }}>
+                        <span style={{ fontSize: 12, color: "#aaaaaa", width: 20, textAlign: "right", flexShrink: 0 }}>
+                          {i + 1}
+                        </span>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: partyColor, flexShrink: 0 }} />
+                        <span style={{ fontSize: 14, fontWeight: 600, flex: 1, color: "#1a1a1a" }}>{p.name}</span>
+                        <span style={{ fontSize: 11, color: partyColor, fontWeight: 600, flexShrink: 0 }}>{p.party}</span>
+                        {isCross && (
+                          <span style={{ fontSize: 10, color: "#ffffff", background: "#888888",
+                            borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>超党派</span>
+                        )}
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a", flexShrink: 0 }}>
+                          {p.count}<span style={{ fontSize: 11, fontWeight: 400, color: "#888888", marginLeft: 2 }}>件</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
