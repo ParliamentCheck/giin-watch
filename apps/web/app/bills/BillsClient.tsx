@@ -28,6 +28,16 @@ interface PairStat {
   count: number;
 }
 
+// 中道改革連合の正式結成日。これ以前の法案は前所属政党として集計する
+const CHUDO_FORMATION_DATE = "2026-01-16";
+
+function getEffectiveParty(m: MemberInfo, billDate: string | null): string {
+  if (m.party === "中道改革連合" && m.prev_party && (!billDate || billDate < CHUDO_FORMATION_DATE)) {
+    return m.prev_party;
+  }
+  return m.party;
+}
+
 const PARTY_COLORS: Record<string, string> = {
   "自民党":         "#c0392b",
   "立憲民主党":     "#2980b9",
@@ -86,7 +96,6 @@ export default function BillsClient() {
   const [matrixParties, setMatrixParties] = useState<string[]>([]);
   const [matrix, setMatrix] = useState<Record<string, Record<string, number>>>({});
   const [networkLoading, setNetworkLoading] = useState(true);
-  const [effectivePartyMap, setEffectivePartyMap] = useState<Record<string, string>>({});
   const [selectedPair, setSelectedPair] = useState<{ a: string; b: string } | null>(null);
 
   useEffect(() => {
@@ -111,20 +120,11 @@ export default function BillsClient() {
       setMemberMap(map);
       setLoading(false);
 
-      // ネットワーク計算（同じfetchデータを流用）
-      const effectiveParty: Record<string, string> = {};
-      for (const m of membersRes.data || []) {
-        effectiveParty[m.id] =
-          m.party === "中道改革連合" && m.prev_party ? m.prev_party : m.party;
-      }
-      setEffectivePartyMap(effectiveParty);
-
+      // ネットワーク計算（法案ごとに提出日ベースで政党を判定）
       const pairCount: Record<string, number> = {};
       for (const bill of bills) {
-        const ids = ((bill.submitter_ids || []) as string[]).filter(
-          (id) => effectiveParty[id]
-        );
-        const billParties = [...new Set(ids.map((id) => effectiveParty[id]))];
+        const ids = ((bill.submitter_ids || []) as string[]).filter((id) => map[id]);
+        const billParties = [...new Set(ids.map((id) => getEffectiveParty(map[id], bill.submitted_at)))];
         if (billParties.length < 2) continue;
         for (let i = 0; i < billParties.length; i++) {
           for (let j = i + 1; j < billParties.length; j++) {
@@ -404,10 +404,7 @@ export default function BillsClient() {
           const { a, b } = selectedPair;
           const pairBills = bills.filter((bill) => {
             const ids = (bill.submitter_ids || []).filter((id) => memberMap[id]);
-            const parties = new Set(ids.map((id) => {
-              const m = memberMap[id];
-              return m.party === "中道改革連合" && m.prev_party ? m.prev_party : m.party;
-            }));
+            const parties = new Set(ids.map((id) => getEffectiveParty(memberMap[id], bill.submitted_at)));
             return parties.has(a) && parties.has(b);
           });
           const colorA = PARTY_COLORS[a] || "#7f8c8d";

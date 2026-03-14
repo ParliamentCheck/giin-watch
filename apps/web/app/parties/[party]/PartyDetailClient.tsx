@@ -290,6 +290,12 @@ function PartyDetailContent() {
         </div>
       </div>
 
+      {/* 注記 */}
+      <p style={{ fontSize: 12, color: "#555555", margin: "12px 4px", lineHeight: 1.7 }}>
+        ※ 集計は現在の所属議員を基準としているため、議員の移籍・会派の合流があった場合、過去の活動実績も含めて数値が変動します。
+        <a href="/faq#party-stats-note" style={{ color: "#555555", marginLeft: 4 }}>詳細 ↗</a>
+      </p>
+
       {/* 活動バランス */}
       <div className="card" style={{ padding: "16px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 2 }}>活動バランス</div>
