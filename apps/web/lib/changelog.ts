@@ -7,6 +7,11 @@ export interface ChangelogEntry {
 const changelog: ChangelogEntry[] = [
   {
     date: "2026-03-15",
+    title: "データ品質監査に表示検証を追加",
+    description: "本番ページのJSON-LDとDBの活動数を自動照合する仕組みを追加しました。表示崩れや404エラーを検出した場合にGitHub Issueで通知されます。",
+  },
+  {
+    date: "2026-03-15",
     title: "閣法（内閣提出法案）一覧を追加",
     description: "法案ページ（/bills）に「閣法」タブを追加しました。内閣が提出した法案を会期・院フィルター・タイトル検索で確認できます。",
   },
