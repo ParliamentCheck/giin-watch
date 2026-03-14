@@ -21,6 +21,7 @@ export default function FaqPage() {
           </p>
         </div>
 
+        <div className="card-xl" style={{ fontSize: 13, color: "#888888", lineHeight: 2 }}>
         <section style={sectionStyle}>
           <h2 style={h2Style}>データの収集方法</h2>
           <p style={pStyle}>
@@ -132,7 +133,7 @@ export default function FaqPage() {
           </p>
         </section>
 
-        <section id="wordcloud" style={sectionStyle}>
+        <section id="wordcloud" style={{ marginBottom: 0 }}>
           <h2 style={h2Style}>キーワードについて</h2>
           <p style={pStyle}>
             議員・政党の発言データから形態素解析（MeCab）で名詞を抽出し、出現頻度の高い順に表示しています。
@@ -154,6 +155,7 @@ export default function FaqPage() {
             発言本文はサーバー上で処理後に破棄しており、データベースには保存していません。
           </p>
         </section>
+        </div>
 
       </div>
     </div>
