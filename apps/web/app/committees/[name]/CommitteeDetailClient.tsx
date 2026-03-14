@@ -73,6 +73,9 @@ function CommitteeDetailContent() {
   };
 
   useEffect(() => {
+    // 10秒でスピナーを強制終了するフォールバック
+    const fallbackTimer = setTimeout(() => setLoading(false), 10000);
+
     async function fetchAll() {
       try {
       // 1. 委員会所属情報を取得
@@ -80,19 +83,20 @@ function CommitteeDetailContent() {
         .from("committee_members")
         .select("member_id, name, role")
         .eq("committee", committeeName)
-        .limit(500);
+        .limit(300);
 
       const cmData = cmRes.data || [];
-      const memberIds = cmData.map((c) => c.member_id).filter(Boolean);
+      // 重複を除いたmemberIds（URL長を抑えるため）
+      const memberIds = [...new Set(cmData.map((c) => c.member_id).filter(Boolean))];
 
-      // 2. 議員情報を取得（1委員会の所属数は多くないのでIN句で問題なし）
+      // 2. 議員情報をバッチで取得（50件ずつ、URL長制限を回避）
       const memberMap = new Map<string, { party: string; house: string; district: string }>();
-      if (memberIds.length > 0) {
+      for (let i = 0; i < memberIds.length; i += 50) {
+        const batch = memberIds.slice(i, i + 50);
         const mRes = await supabase
           .from("members")
           .select("id, party, house, district")
-          .in("id", memberIds)
-          .limit(500);
+          .in("id", batch);
         for (const m of mRes.data || []) memberMap.set(m.id, m);
       }
 
@@ -147,9 +151,12 @@ function CommitteeDetailContent() {
       } catch (e) {
         console.error("委員会データ取得エラー:", e);
         setLoading(false);
+      } finally {
+        clearTimeout(fallbackTimer);
       }
     }
     fetchAll();
+    return () => clearTimeout(fallbackTimer);
   }, [committeeName]);
 
   // 役職別
