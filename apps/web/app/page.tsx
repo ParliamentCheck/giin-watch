@@ -197,10 +197,10 @@ export default async function TopPage() {
           <p className="text-sm text-neutral-500 mb-4">
             衆議院・参議院の全議員の発言・質問主意書・委員会活動を収集・公開
           </p>
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-neutral-300/60 bg-neutral-100/40 text-xs text-neutral-700">
+          <a href="/faq#data-period" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-neutral-300/60 bg-neutral-100/40 text-xs text-neutral-700 no-underline hover:border-neutral-400 transition-colors">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-neutral-400 animate-pulse" />
-            収集期間: 2018年〜現在（毎日自動更新）
-          </div>
+            収集期間: 2018年〜現在（詳細はこちら）
+          </a>
           <p className="text-xs mt-3 leading-relaxed max-w-xl mx-auto bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-2.5">
             当サイトは、国会会議録等の公開記録および公開情報から機械的に集計した一部指標を表示します。<br className="hidden sm:block" />
             党務・地元活動・非公開会議等、参照できない活動は含みません。<br className="hidden sm:block" />

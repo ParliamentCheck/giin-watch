@@ -29,7 +29,7 @@ export default function FaqPage() {
           </p>
         </section>
 
-        <section style={sectionStyle}>
+        <section id="data-period" style={sectionStyle}>
           <h2 style={h2Style}>データの更新について</h2>
           <p style={pStyle}>
             データは毎日午前3時に自動収集・更新されます。参議院の採決記録（本会議）は現在開会中の会期分が毎日収集され、過去の会期分は随時追加されます。
