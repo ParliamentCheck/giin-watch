@@ -51,13 +51,13 @@ interface Props {
 }
 
 export default function ActivityTabs({ recentQuestions, committeeActivities, recentPetitions, recentBills }: Props) {
-  const [tab, setTab] = useState<"questions" | "committee" | "petitions" | "bills">("questions");
+  const [tab, setTab] = useState<"questions" | "committee" | "petitions" | "bills">("committee");
 
   const tabs = [
-    { id: "questions" as const, label: "📝 最新の質問主意書" },
     { id: "committee" as const, label: "🏛 直近の委員会活動" },
-    { id: "petitions" as const, label: "📜 最新の請願" },
+    { id: "questions" as const, label: "📝 最新の質問主意書" },
     { id: "bills"     as const, label: "📋 最新の議員立法" },
+    { id: "petitions" as const, label: "📜 最新の請願" },
   ];
 
   return (

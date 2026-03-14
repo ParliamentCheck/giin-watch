@@ -451,8 +451,9 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       </div>
 
       {/* カード注釈 */}
-      <div style={{ fontSize: 11, color: "#888888", marginBottom: 16, padding: "0 4px" }}>
-        ※ 当選回数は現在の所属院におけるものです。
+      <div style={{ fontSize: 11, color: "#888888", marginBottom: 16, padding: "0 4px", lineHeight: 1.7 }}>
+        ※ 当選回数は現在の所属院におけるものです。<br />
+        ※ 与党議員は内閣を通じて政策を実現するため、質問主意書・議員立法の件数は構造的に少なくなる傾向があります。数字の大小が活動の優劣を示すものではありません。
       </div>
 
       {/* タブ */}
