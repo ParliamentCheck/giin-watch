@@ -72,20 +72,19 @@ async function getRecentPetitions() {
 async function getLatestCommitteeActivity() {
   const { data } = await supabase
     .from("speeches")
-    .select("spoken_at, committee, member_id, source_url, members(name)")
+    .select("spoken_at, committee, member_id, source_url")
     .eq("is_procedural", false)
     .order("spoken_at", { ascending: false })
     .limit(500);
 
   if (!data || data.length === 0) return [];
 
-  // 「日付＋委員会」でグルーピング（Map は挿入順を保持するので日付降順になる）
+  // 「日付＋委員会」でグルーピング
   const groupMap = new Map<string, {
     date: string;
     committee: string;
     sourceUrl: string;
     memberIds: Set<string>;
-    memberNames: Map<string, string>;
   }>();
 
   for (const s of data) {
@@ -93,23 +92,31 @@ async function getLatestCommitteeActivity() {
     if (!s.spoken_at || !committee) continue;
     const key = `${s.spoken_at}__${committee}`;
     if (!groupMap.has(key)) {
-      groupMap.set(key, { date: s.spoken_at, committee, sourceUrl: s.source_url || "", memberIds: new Set(), memberNames: new Map() });
+      groupMap.set(key, { date: s.spoken_at, committee, sourceUrl: s.source_url || "", memberIds: new Set() });
     }
-    const group = groupMap.get(key)!;
-    if (s.member_id) {
-      group.memberIds.add(s.member_id);
-      if ((s.members as any)?.name) group.memberNames.set(s.member_id, (s.members as any).name);
-    }
+    if (s.member_id) groupMap.get(key)!.memberIds.add(s.member_id);
   }
 
-  return [...groupMap.values()]
-    .slice(0, 8)
-    .map((g) => ({
-      date: g.date,
-      committee: g.committee,
-      members: [...g.memberIds].map((id) => ({ id, name: g.memberNames.get(id) || "" })),
-      ndlUrl: g.sourceUrl ? g.sourceUrl.replace(/\/\d+$/, "/0") : "",
-    }));
+  const groups = [...groupMap.values()].slice(0, 8);
+
+  // member_id → name をまとめて取得
+  const allIds = [...new Set(groups.flatMap((g) => [...g.memberIds]))];
+  const nameMap = new Map<string, string>();
+  if (allIds.length > 0) {
+    const { data: members } = await supabase
+      .from("members")
+      .select("id, name")
+      .in("id", allIds)
+      .limit(500);
+    for (const m of members || []) nameMap.set(m.id, m.name);
+  }
+
+  return groups.map((g) => ({
+    date: g.date,
+    committee: g.committee,
+    members: [...g.memberIds].map((id) => ({ id, name: nameMap.get(id) || "" })),
+    ndlUrl: g.sourceUrl ? g.sourceUrl.replace(/\/\d+$/, "/0") : "",
+  }));
 }
 
 async function getRecentBills() {
