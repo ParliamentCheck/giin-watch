@@ -129,6 +129,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [bills,        setBills]        = useState<Bill[]>([]);
   const [coSponsors,   setCoSponsors]   = useState<{ id: string; name: string; party: string; count: number }[]>([]);
   const [billsSubTab,  setBillsSubTab]  = useState<"list" | "partners">("list");
+  const [voteFilter,   setVoteFilter]   = useState<"all" | "賛成" | "反対" | "欠席">("all");
   const [petitions,    setPetitions]    = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
   const [globalMax,  setGlobalMax]  = useState(initialGlobalMax ?? { session: 1, question: 1, bill: 1, petition: 1 });
@@ -705,26 +706,48 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             const nay        = votes.filter(v => v.vote === "反対").length;
             const absent     = votes.filter(v => v.vote === "欠席").length;
             const absentRate = votes.length > 0 ? Math.round((absent / votes.length) * 100) : 0;
+            const filteredVotes = voteFilter === "all" ? votes : votes.filter(v => v.vote === voteFilter);
             return (
               <>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  {[
-                    { label: "賛成",   count: `${yea}`,        color: "#22c55e" },
-                    { label: "反対",   count: `${nay}`,        color: "#ef4444" },
-                    { label: "欠席",   count: `${absent}`,     color: "#888888" },
-                    { label: "欠席率", count: `${absentRate}%`, color: absent > 0 ? "#f59e0b" : "#888888" },
-                  ].map(({ label, count, color }) => (
-                    <div key={label} style={{ background: "#f4f4f4", borderRadius: 8, padding: "8px 0", textAlign: "center", flex: 1 }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color }}>{count}</div>
-                      <div style={{ fontSize: 11, color: "#888888" }}>{label}</div>
-                    </div>
-                  ))}
+                  {([
+                    { label: "賛成" as const,  count: `${yea}`,         color: "#22c55e" },
+                    { label: "反対" as const,  count: `${nay}`,         color: "#ef4444" },
+                    { label: "欠席" as const,  count: `${absent}`,      color: "#888888" },
+                    { label: "欠席率",          count: `${absentRate}%`, color: absent > 0 ? "#f59e0b" : "#888888" },
+                  ] as { label: string; count: string; color: string }[]).map(({ label, count, color }) => {
+                    const isFilterable = label === "賛成" || label === "反対" || label === "欠席";
+                    const isActive = voteFilter === label;
+                    return (
+                      <div key={label}
+                        onClick={isFilterable ? () => setVoteFilter(isActive ? "all" : label as "賛成" | "反対" | "欠席") : undefined}
+                        style={{
+                          background: isActive ? color : "#f4f4f4",
+                          borderRadius: 8, padding: "8px 0", textAlign: "center", flex: 1,
+                          cursor: isFilterable ? "pointer" : "default",
+                          border: isActive ? `2px solid ${color}` : "2px solid transparent",
+                          transition: "background 0.15s",
+                        }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
+                        <div style={{ fontSize: 11, color: isActive ? "#ffffffcc" : "#888888" }}>{label}</div>
+                      </div>
+                    );
+                  })}
                 </div>
-                {votes.map((v, i) => {
+                {voteFilter !== "all" && (
+                  <div style={{ fontSize: 12, color: "#555555", marginBottom: 12 }}>
+                    「{voteFilter}」で絞り込み中 — {filteredVotes.length}件
+                    <button onClick={() => setVoteFilter("all")}
+                      style={{ marginLeft: 8, fontSize: 11, color: "#888888", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                      解除
+                    </button>
+                  </div>
+                )}
+                {filteredVotes.map((v, i) => {
                   const voteColor = v.vote === "賛成" ? "#22c55e" : v.vote === "反対" ? "#ef4444" : "#888888";
                   return (
                     <div key={v.id} style={{ padding: "12px 0",
-                      borderBottom: i < votes.length - 1 ? "1px solid #e0e0e0" : "none" }}>
+                      borderBottom: i < filteredVotes.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                         <span style={{ fontSize: 13, color: "#1a1a1a", flex: 1 }}>
                           {v.bill_title}
