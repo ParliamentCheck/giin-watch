@@ -11,13 +11,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import os
 import random
 import re
 import sys
 import time
 from datetime import date, timedelta
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 
 import httpx
 import requests
@@ -31,6 +33,10 @@ logger = logging.getLogger("audit")
 SAMPLE_SIZE = 5
 CHECK_DAYS = 90
 HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
+
+SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "https://www.hataraku-giin.com")
+DISPLAY_DIFF_ABS = 5    # これ以上の絶対差を報告
+DISPLAY_DIFF_PCT = 0.20  # かつ相対差がこれ以上の場合のみ報告
 
 
 # ============================================================
@@ -179,6 +185,88 @@ def check_all_cabinet_posts(client, kantei_names: set[str]) -> list[dict]:
 
 
 # ============================================================
+# 表示検証（DB値 vs 本番ページのJSON-LD）
+# ============================================================
+
+def _extract_json_ld(html: str) -> dict | None:
+    """HTMLの<script type="application/ld+json">からJSONを抽出する。"""
+    match = re.search(r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>', html, re.DOTALL)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(1))
+    except Exception:
+        return None
+
+
+def check_member_display(member: dict) -> dict | None:
+    """
+    議員詳細ページのJSON-LD（SSRで埋め込まれる）とDB値を照合する。
+    - ページが404を返す（is_active=True なのに存在しない）
+    - 活動数（session_count / question_count / bill_count / petition_count）の乖離
+    """
+    mid = member["id"]
+    name = member["name"]
+    url = f"{SITE_BASE_URL}/members/{quote(mid, safe='')}"
+
+    try:
+        resp = httpx.get(url, headers=HEADERS, timeout=30, follow_redirects=True)
+    except Exception as e:
+        logger.warning("ページ取得失敗 (%s): %s", name, e)
+        return None
+
+    if resp.status_code == 404:
+        return {
+            "type": "ページ表示エラー",
+            "member": name,
+            "detail": (
+                f"is_active=True なのに {url} が404を返す。"
+                f"IDエンコード・ルーティング・メンバー登録を確認してください。"
+            ),
+        }
+
+    if resp.status_code != 200:
+        logger.warning("ページ取得失敗 (%s): HTTP %d", name, resp.status_code)
+        return None
+
+    ld = _extract_json_ld(resp.text)
+    if not ld:
+        logger.info("JSON-LD未検出 (%s): スキップ", name)
+        return None
+
+    desc = ld.get("description", "")
+    checks = [
+        ("発言セッション数", "session_count",  r"発言セッション数(\d+)回"),
+        ("質問主意書",       "question_count", r"質問主意書(\d+)件"),
+        ("議員立法",         "bill_count",     r"議員立法(\d+)件"),
+        ("請願",             "petition_count", r"請願(\d+)件"),
+    ]
+
+    diffs = []
+    for label, db_key, pattern in checks:
+        m = re.search(pattern, desc)
+        if not m:
+            continue
+        page_val = int(m.group(1))
+        db_val = member.get(db_key) or 0
+        diff = abs(page_val - db_val)
+        if diff >= DISPLAY_DIFF_ABS and (db_val == 0 or diff / db_val >= DISPLAY_DIFF_PCT):
+            diffs.append(f"{label}: DB={db_val}、ページ={page_val}（差{diff}）")
+
+    if diffs:
+        return {
+            "type": "表示値不整合",
+            "member": name,
+            "detail": (
+                f"本番ページのJSON-LD値がDBと乖離しています。"
+                f"{'; '.join(diffs)}。キャッシュ更新遅延か表示バグの可能性。"
+            ),
+        }
+
+    return None
+
+
+# ============================================================
 # 監査実行
 # ============================================================
 
@@ -189,7 +277,7 @@ def run_audit(sample_size: int = SAMPLE_SIZE) -> list[dict]:
     members = execute_with_retry(
         lambda: (
             client.table("members")
-            .select("id, name, house, cabinet_post")
+            .select("id, name, house, cabinet_post, session_count, question_count, bill_count, petition_count")
             .eq("is_active", True)
             .limit(2000)
         ),
@@ -214,6 +302,15 @@ def run_audit(sample_size: int = SAMPLE_SIZE) -> list[dict]:
     logger.info("官邸閣僚: %d名取得", len(kantei_names))
     findings.extend(check_all_cabinet_posts(client, kantei_names))
 
+    # 表示検証（サンプル議員のページをHTTP取得してJSON-LDと照合）
+    logger.info("表示検証中（%d名）...", len(sample))
+    for member in sample:
+        logger.info("表示チェック: %s", member["name"])
+        finding = check_member_display(member)
+        if finding:
+            findings.append(finding)
+        time.sleep(1.0)  # サーバー負荷軽減
+
     return findings
 
 
@@ -227,7 +324,8 @@ def _build_report(findings: list[dict], sample_size: int) -> str:
         f"## データ品質監査レポート",
         f"",
         f"**実施日**: {today}",
-        f"**発言チェック人数**: {sample_size}名（ランダムサンプリング）",
+        f"**サンプル人数**: {sample_size}名（ランダムサンプリング）",
+        f"**チェック項目**: 発言数（NDL API）・大臣職（官邸）・表示値（本番ページJSON-LD）",
         f"**検出件数**: {len(findings)}件",
         f"",
         f"### 検出された不整合",
@@ -261,7 +359,7 @@ def main(sample_size: int = SAMPLE_SIZE, output_path: str | None = None) -> None
 
         sys.exit(1)
     else:
-        logger.info("✓ 不整合なし（発言チェック%d名・大臣職全員）", sample_size)
+        logger.info("✓ 不整合なし（発言チェック%d名・大臣職全員・表示検証%d名）", sample_size, sample_size)
         sys.exit(0)
 
 
