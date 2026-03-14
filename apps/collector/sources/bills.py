@@ -275,10 +275,138 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
 
 
 # ============================================================
+# 衆議院 閣法
+# ============================================================
+
+def scrape_shugiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
+    """衆議院の閣法（内閣提出法案）を取得する。"""
+    url = SHUGIIN_LIST_URL.format(session=session)
+    logger.info("Fetching Shugiin cabinet bills session %d", session)
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=30)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        logger.warning("Failed session %d: %s", session, exc)
+        return []
+
+    resp.encoding = resp.apparent_encoding or "shift_jis"
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    table = _find_section_table(soup, "閣法")
+    if table is None:
+        logger.warning("Shugiin session %d: 閣法テーブルが見つからない", session)
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for tr in table.find_all("tr"):
+        tds = tr.find_all("td")
+        if len(tds) < 3:
+            continue
+        bill_num_text = tds[1].get_text(strip=True)
+        if not re.fullmatch(r"\d+", bill_num_text):
+            continue
+        title = tds[2].get_text(strip=True)
+        if not title:
+            continue
+        status = tds[3].get_text(strip=True) if len(tds) > 3 else ""
+
+        submitted_at: str | None = None
+        source_url: str | None = None
+        if len(tds) > 4:
+            link = tds[4].find("a")
+            if link and link.get("href"):
+                detail_url = urljoin(url, link["href"])
+                _, submitted_at = _fetch_detail(detail_url, "衆議院")
+                time.sleep(1)
+        if len(tds) > 5:
+            text_link = tds[5].find("a")
+            if text_link and text_link.get("href"):
+                source_url = urljoin(url, text_link["href"])
+
+        rows.append({
+            "id": f"cabinet-shu-{session}-{bill_num_text}",
+            "title": title,
+            "submitter_ids": [],
+            "submitted_at": submitted_at,
+            "session_number": session,
+            "status": status,
+            "house": "衆議院",
+            "source_url": source_url,
+            "bill_type": "閣法",
+        })
+
+    logger.info("Shugiin cabinet bills session %d: %d bills", session, len(rows))
+    return rows
+
+
+# ============================================================
+# 参議院 閣法
+# ============================================================
+
+def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
+    """参議院の閣法（内閣提出法案）を取得する。"""
+    url = SANGIIN_LIST_URL.format(session=session)
+    logger.info("Fetching Sangiin cabinet bills session %d", session)
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=30)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        logger.warning("Failed session %d: %s", session, exc)
+        return []
+
+    resp.encoding = resp.apparent_encoding or "utf-8"
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    table = _find_section_table(soup, "閣法")
+    if table is None:
+        logger.warning("Sangiin session %d: 閣法テーブルが見つからない", session)
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for tr in table.find_all("tr"):
+        tds = tr.find_all("td")
+        if len(tds) < 3:
+            continue
+        bill_num_text = tds[1].get_text(strip=True)
+        if not re.fullmatch(r"\d+", bill_num_text):
+            continue
+
+        title_cell = tds[2]
+        title = title_cell.get_text(strip=True)
+        if not title:
+            continue
+
+        submitter_ids: list[str] = []
+        submitted_at: str | None = None
+        source_url: str | None = None
+        link = title_cell.find("a")
+        if link and link.get("href"):
+            detail_url = urljoin(url, link["href"])
+            source_url = detail_url
+            _, submitted_at = _fetch_detail(detail_url, "参議院")
+            time.sleep(1)
+
+        rows.append({
+            "id": f"cabinet-san-{session}-{bill_num_text}",
+            "title": title,
+            "submitter_ids": [],
+            "submitted_at": submitted_at,
+            "session_number": session,
+            "status": "",
+            "house": "参議院",
+            "source_url": source_url,
+            "bill_type": "閣法",
+        })
+
+    logger.info("Sangiin cabinet bills session %d: %d bills", session, len(rows))
+    return rows
+
+
+# ============================================================
 # メイン
 # ============================================================
 def collect_bills(sessions: list[int] | None = None, daily: bool = False) -> None:
-    """議員立法を収集する。daily=True のときは現在進行中のセッションのみ対象。"""
+    """議員立法・閣法を収集する。daily=True のときは現在進行中のセッションのみ対象。"""
     if daily:
         current = _detect_current_session()
         sessions = [current]
@@ -289,8 +417,10 @@ def collect_bills(sessions: list[int] | None = None, daily: bool = False) -> Non
     total_saved = 0
     for session in sessions:
         for scrape_fn, label in [
-            (scrape_shugiin_bills, f"bills_shu:{session}"),
-            (scrape_sangiin_bills, f"bills_san:{session}"),
+            (scrape_shugiin_bills,           f"bills_shu:{session}"),
+            (scrape_sangiin_bills,           f"bills_san:{session}"),
+            (scrape_shugiin_cabinet_bills,   f"cabinet_shu:{session}"),
+            (scrape_sangiin_cabinet_bills,   f"cabinet_san:{session}"),
         ]:
             rows = scrape_fn(session)
             if rows:

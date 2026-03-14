@@ -13,6 +13,7 @@ interface Bill {
   house: string | null;
   submitter_ids: string[] | null;
   source_url: string | null;
+  bill_type: string | null;
 }
 
 interface MemberInfo {
@@ -81,7 +82,7 @@ function heatmapText(count: number, max: number): string {
 
 export default function BillsClient() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"list" | "network">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "cabinet" | "network">("list");
 
   // 一覧タブ用
   const [bills, setBills] = useState<Bill[]>([]);
@@ -103,9 +104,9 @@ export default function BillsClient() {
       const [billsRes, membersRes] = await Promise.all([
         supabase
           .from("bills")
-          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url")
+          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type")
           .order("submitted_at", { ascending: false })
-          .limit(1000),
+          .limit(2000),
         supabase
           .from("members")
           .select("id,name,party,prev_party")
@@ -162,7 +163,10 @@ export default function BillsClient() {
     fetchData();
   }, []);
 
-  const filtered = bills.filter((b) => {
+  const memberBills   = bills.filter((b) => (b.bill_type ?? "議員立法") === "議員立法");
+  const cabinetBills  = bills.filter((b) => b.bill_type === "閣法");
+
+  const filtered = (activeTab === "cabinet" ? cabinetBills : memberBills).filter((b) => {
     if (filterHouse !== "全て" && b.house !== filterHouse) return false;
     if (search && !isComposing) {
       if (!b.title?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -184,22 +188,26 @@ export default function BillsClient() {
 
         {/* タイトルカード */}
         <div className="card-xl" style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 0 }}>📋 議員立法</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 0 }}>📋 法案</h1>
         </div>
 
         {/* タブ（独立した枠） */}
         <div className="tab-bar-container" style={{ marginBottom: 16 }}>
-          {(["list", "network"] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+          {([
+            { id: "list",    label: "📋 議員立法" },
+            { id: "cabinet", label: "🏛 閣法" },
+            { id: "network", label: "🤝 政党ネットワーク" },
+          ] as const).map((tab) => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               style={{ flex: 1, padding: "10px 0" }}
-              className={`tab-pill${activeTab === tab ? " active" : ""}`}>
-              {tab === "list" ? "一覧" : "🤝 政党ネットワーク"}
+              className={`tab-pill${activeTab === tab.id ? " active" : ""}`}>
+              {tab.label}
             </button>
           ))}
         </div>
 
-        {/* 一覧タブ */}
-        {activeTab === "list" && (
+        {/* 議員立法・閣法 一覧タブ（共通レイアウト） */}
+        {(activeTab === "list" || activeTab === "cabinet") && (
           <div className="card-xl">
             {/* 検索・フィルター（一覧カード最上部） */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -252,7 +260,7 @@ export default function BillsClient() {
                       {b.house && <span className="badge badge-house">{b.house}</span>}
                       {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
                     </div>
-                    {b.submitter_ids && b.submitter_ids.length > 0 && (
+                    {activeTab === "list" && b.submitter_ids && b.submitter_ids.length > 0 && (
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
                         <span style={{ color: "#888888" }}>提出者:</span>
                         {b.submitter_ids.map((id) => {
@@ -266,6 +274,9 @@ export default function BillsClient() {
                           ) : null;
                         })}
                       </div>
+                    )}
+                    {activeTab === "cabinet" && (
+                      <div style={{ fontSize: 12, color: "#888888" }}>内閣提出</div>
                     )}
                   </div>
                 ))}
