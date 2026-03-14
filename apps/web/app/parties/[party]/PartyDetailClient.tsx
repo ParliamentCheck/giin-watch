@@ -266,20 +266,28 @@ function PartyDetailContent() {
       </button>
 
       {/* ヘッダー */}
-      <div className="card-xl" style={{ border: `1px solid ${color}44` }}>
+      <div className="card-xl" style={{ background: color, border: "none", padding: "20px 24px" }}>
         <div className="party-header" style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ width: 16, height: 16, borderRadius: "50%", background: color }} />
-          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#111111", flex: 1 }}>{party}</h1>
+          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#ffffff", flex: 1 }}>{party}</h1>
           {PARTY_URLS[party] && (
             <a href={PARTY_URLS[party]} target="_blank" rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="party-header-link party-official-link"
-              style={{ "--party-color": color } as React.CSSProperties}>
+              style={{
+                display: "inline-block",
+                padding: "8px 16px",
+                background: "rgba(255,255,255,0.2)",
+                border: "1px solid rgba(255,255,255,0.6)",
+                borderRadius: 8,
+                color: "#ffffff",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}>
               公式サイト →
             </a>
           )}
         </div>
-
       </div>
 
       {/* 活動バランス */}
@@ -311,7 +319,7 @@ function PartyDetailContent() {
               { label: "委員会役職",     value: totalRoles,     unit: "件" },
               { label: "議員数",         value: members.length, unit: "名" },
             ].map((item) => (
-              <div key={item.label} style={{ background: "#f8f8f8", borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
+              <div key={item.label} style={{ background: `${color}15`, borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
                   {item.value}
                   <span style={{ fontSize: 11, color: "#555555", marginLeft: 3 }}>{item.unit}</span>
@@ -320,7 +328,7 @@ function PartyDetailContent() {
               </div>
             ))}
             {/* 採決記録 — 3列フル */}
-            <div style={{ gridColumn: "1 / -1", background: "#f8f8f8", borderRadius: 8, padding: "10px 12px" }}>
+            <div style={{ gridColumn: "1 / -1", background: `${color}15`, borderRadius: 8, padding: "10px 12px" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#555555", marginBottom: 8, textAlign: "center" }}>本会議採決記録</div>
               <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
                 {[
@@ -346,11 +354,16 @@ function PartyDetailContent() {
       </div>
 
       {/* タブ */}
-      <div className="tab-bar tab-bar-container" style={{ flexWrap: "wrap" }}>
+      <div className="tab-bar tab-bar-container" style={{ flexWrap: "wrap", background: `${color}15`, borderColor: `${color}30`, "--tab-hover-bg": `${color}35` } as React.CSSProperties}>
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`tab-pill${tab === t.id ? " active" : ""}`}
-            style={{ flex: 1, minWidth: 120, padding: "10px 0" }}>
+            style={{
+              flex: 1, minWidth: 120, padding: "10px 0",
+              ...(tab === t.id ? { background: color, color: "#ffffff" } : {}),
+            }}
+            onMouseEnter={(e) => { if (tab !== t.id) (e.currentTarget as HTMLButtonElement).style.background = `${color}35`; }}
+            onMouseLeave={(e) => { if (tab !== t.id) (e.currentTarget as HTMLButtonElement).style.background = ""; }}>
             {t.label}
           </button>
         ))}
@@ -485,7 +498,7 @@ function PartyDetailContent() {
 
               {/* 衆議院列 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ background: "#e0e0e0", borderRadius: 10, padding: 16, textAlign: "center" }}>
+                <div style={{ background: `${color}35`, borderRadius: 10, padding: 16, textAlign: "center" }}>
                   <div style={{ fontSize: 28, fontWeight: 800, color: "#333333", marginBottom: 4 }}>
                     {shugiin}<span style={{ fontSize: 13, color: "#555555", marginLeft: 4 }}>名</span>
                   </div>
@@ -499,7 +512,7 @@ function PartyDetailContent() {
                     { label: "小選挙区", count: shugiinSenkyoku },
                     { label: "比例",     count: shugiinHirei    },
                   ].map((b) => (
-                    <div key={b.label} style={{ background: "#f0f0f0", borderRadius: 10, padding: "10px 6px", textAlign: "center" }}>
+                    <div key={b.label} style={{ background: `${color}20`, borderRadius: 10, padding: "10px 6px", textAlign: "center" }}>
                       <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
                         {b.count}<span style={{ fontSize: 12, color: "#555555", marginLeft: 3 }}>名</span>
                       </div>
@@ -510,15 +523,15 @@ function PartyDetailContent() {
                     </div>
                   ))}
                 </div>
-                <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex", background: "#e0e0e0" }}>
-                  <div style={{ width: `${shugiinMembers.length > 0 ? shugiinSenkyoku / shugiinMembers.length * 100 : 0}%`, background: "#888888", transition: "width 0.6s ease" }} />
-                  <div style={{ flex: 1, background: "#bbbbbb" }} />
+                <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex", background: `${color}15` }}>
+                  <div style={{ width: `${shugiinMembers.length > 0 ? shugiinSenkyoku / shugiinMembers.length * 100 : 0}%`, background: color, transition: "width 0.6s ease" }} />
+                  <div style={{ flex: 1, background: `${color}55` }} />
                 </div>
               </div>
 
               {/* 参議院列 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ background: "#e0e0e0", borderRadius: 10, padding: 16, textAlign: "center" }}>
+                <div style={{ background: `${color}35`, borderRadius: 10, padding: 16, textAlign: "center" }}>
                   <div style={{ fontSize: 28, fontWeight: 800, color: "#333333", marginBottom: 4 }}>
                     {sangiin}<span style={{ fontSize: 13, color: "#555555", marginLeft: 4 }}>名</span>
                   </div>
@@ -532,7 +545,7 @@ function PartyDetailContent() {
                     { label: "選挙区", count: sangiinSenkyoku },
                     { label: "比例",   count: sangiinHirei    },
                   ].map((b) => (
-                    <div key={b.label} style={{ background: "#f0f0f0", borderRadius: 10, padding: "10px 6px", textAlign: "center" }}>
+                    <div key={b.label} style={{ background: `${color}20`, borderRadius: 10, padding: "10px 6px", textAlign: "center" }}>
                       <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
                         {b.count}<span style={{ fontSize: 12, color: "#555555", marginLeft: 3 }}>名</span>
                       </div>
@@ -543,9 +556,9 @@ function PartyDetailContent() {
                     </div>
                   ))}
                 </div>
-                <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex", background: "#e0e0e0" }}>
-                  <div style={{ width: `${sangiinMembers.length > 0 ? sangiinSenkyoku / sangiinMembers.length * 100 : 0}%`, background: "#333333", transition: "width 0.6s ease" }} />
-                  <div style={{ flex: 1, background: "#999999" }} />
+                <div style={{ height: 8, borderRadius: 4, overflow: "hidden", display: "flex", background: `${color}15` }}>
+                  <div style={{ width: `${sangiinMembers.length > 0 ? sangiinSenkyoku / sangiinMembers.length * 100 : 0}%`, background: color, transition: "width 0.6s ease" }} />
+                  <div style={{ flex: 1, background: `${color}55` }} />
                 </div>
               </div>
 

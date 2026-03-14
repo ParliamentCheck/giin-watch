@@ -189,12 +189,18 @@ def collect_sangiin_committees() -> None:
     member_map: dict[str, str] = {}
     for m in (
         execute_with_retry(
-            lambda: client.table("members").select("id, name").eq("house", "参議院").limit(2000),
+            lambda: client.table("members").select("id, name, ndl_names").eq("house", "参議院").limit(2000),
             label="fetch_sangiin_members",
         ).data or []
     ):
-        key = m["name"].replace(" ", "").replace("　", "").strip()
+        # 漢字名
+        key = re.sub(r"\s+", "", m["name"])
         member_map[key] = m["id"]
+        # ndl_names（ふりがな・旧姓等）もキーに追加
+        for alt in (m.get("ndl_names") or []):
+            alt_key = re.sub(r"\s+", "", alt)
+            if alt_key and alt_key not in member_map:
+                member_map[alt_key] = m["id"]
     logger.info("参議院議員: %d名", len(member_map))
 
     urls = _get_sangiin_urls()
@@ -211,7 +217,7 @@ def collect_sangiin_committees() -> None:
             continue
         logger.info("%s: %d名", committee_name, len(members))
         for m in members:
-            key = m["name"].replace(" ", "").replace("　", "").strip()
+            key = re.sub(r"\s+", "", m["name"])
             all_rows.append({
                 "member_id": member_map.get(key),
                 "name":      m["name"],

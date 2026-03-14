@@ -393,7 +393,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               { label: "議員立法",       value: member.bill_count,                  unit: "件" },
               { label: "請願",           value: member.petition_count,              unit: "件" },
             ].map((item) => (
-              <div key={item.label} style={{ background: "#f8f8f8", borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
+              <div key={item.label} style={{ background: `${color}15`, borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
                   {item.value ?? "—"}
                   {item.value != null && <span style={{ fontSize: 11, color: "#555555", marginLeft: 3 }}>{item.unit}</span>}
@@ -411,7 +411,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       </div>
 
       {/* タブ */}
-      <div className="tab-bar tab-bar-container">
+      <div className="tab-bar tab-bar-container" style={{ background: `${color}15`, borderColor: `${color}30`, "--tab-hover-bg": `${color}35` } as React.CSSProperties}>
         {[
           { id: "committees", label: "🏛 委員会" },
           { id: "speeches",   label: "💬 発言" },
@@ -423,7 +423,12 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`tab-pill${tab === t.id ? " active" : ""}`}
-            style={{ flex: 1, padding: "10px 0" }}>
+            style={{
+              flex: 1, padding: "10px 0",
+              ...(tab === t.id ? { background: color, color: "#ffffff" } : {}),
+            }}
+            onMouseEnter={(e) => { if (tab !== t.id) (e.currentTarget as HTMLButtonElement).style.background = `${color}35`; }}
+            onMouseLeave={(e) => { if (tab !== t.id) (e.currentTarget as HTMLButtonElement).style.background = ""; }}>
             {t.label}
           </button>
         ))}

@@ -81,8 +81,9 @@ function CommitteeDetailContent() {
         .eq("committee", committeeName)
         .limit(500);
 
-      const cmData = cmRes.data || [];
-      const memberIds = cmData.map((c) => c.member_id).filter(Boolean);
+      // member_id が null の孤立行（旧スクレイパーのマッチング失敗行）を除外
+      const cmData = (cmRes.data || []).filter((c) => c.member_id);
+      const memberIds = cmData.map((c) => c.member_id);
 
       if (memberIds.length === 0) {
         setLoading(false);

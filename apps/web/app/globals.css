@@ -225,7 +225,7 @@ body {
   font-weight: 700;
 }
 .tab-pill:hover:not(.active) {
-  background: var(--bg-muted);
+  background: var(--tab-hover-bg, var(--bg-muted));
   color: var(--text-body);
 }
 
