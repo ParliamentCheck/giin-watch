@@ -62,12 +62,10 @@ function PartiesContent() {
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-        {/* タイトルカード */}
         <div className="card-xl" style={{ marginBottom: 16 }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 0 }}>🗳 政党・会派</h1>
         </div>
 
-        {/* リストカード */}
         <div className="card-xl">
           {loading ? (
             <div className="loading-block">
@@ -96,6 +94,7 @@ function PartiesContent() {
             </div>
           )}
         </div>
+
       </div>
     </div>
   );
