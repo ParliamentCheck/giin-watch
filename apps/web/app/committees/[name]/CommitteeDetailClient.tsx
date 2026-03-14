@@ -74,6 +74,7 @@ function CommitteeDetailContent() {
 
   useEffect(() => {
     async function fetchAll() {
+      try {
       // 1. 委員会所属情報を取得
       const cmRes = await supabase
         .from("committee_members")
@@ -143,6 +144,10 @@ function CommitteeDetailContent() {
       setPetitions(allPetitions);
 
       setLoading(false);
+      } catch (e) {
+        console.error("委員会データ取得エラー:", e);
+        setLoading(false);
+      }
     }
     fetchAll();
   }, [committeeName]);

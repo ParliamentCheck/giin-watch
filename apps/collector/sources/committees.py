@@ -102,6 +102,11 @@ def collect_shugiin_committees() -> None:
         time.sleep(1.0)
 
     if all_rows:
+        # null member_id 行は UNIQUE 制約をくぐって毎日蓄積するため、挿入前に削除
+        execute_with_retry(
+            lambda: client.table("committee_members").delete().eq("house", "衆議院").is_("member_id", "null"),
+            label="delete_null_shugiin",
+        )
         batch_upsert("committee_members", all_rows, on_conflict="member_id,committee,role", label="shugiin_committee")
     logger.info("衆院委員会 完了: %d件", len(all_rows))
 
@@ -228,6 +233,11 @@ def collect_sangiin_committees() -> None:
         time.sleep(1.0)
 
     if all_rows:
+        # null member_id 行は UNIQUE 制約をくぐって毎日蓄積するため、挿入前に削除
+        execute_with_retry(
+            lambda: client.table("committee_members").delete().eq("house", "参議院").is_("member_id", "null"),
+            label="delete_null_sangiin",
+        )
         batch_upsert("committee_members", all_rows, on_conflict="member_id,committee,role", label="sangiin_committee")
     logger.info("参院委員会 完了: %d件", len(all_rows))
 
