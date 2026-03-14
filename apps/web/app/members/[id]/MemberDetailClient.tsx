@@ -279,42 +279,25 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
       padding: "24px", maxWidth: 900, margin: "0 auto" }}>
 
-      {/* 戻るボタン + お気に入り */}
+      {/* 戻るボタン */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <button onClick={() => router.back()} className="btn-back" style={{ marginBottom: 0 }}>
           ← 一覧に戻る
         </button>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {member && (
-            <button onClick={() => {
-              const url = `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`;
-              const prompt = `${member.name}（${member.party}・${member.house}・${member.district}）について詳しく教えてください。\n${url}`;
-              navigator.clipboard.writeText(prompt).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              });
-            }}
-              className="btn-back"
-              style={{ marginBottom: 0, fontSize: 12 }}>
-              {copied ? "✓ コピーしました" : "プロンプト作成"}
-            </button>
-          )}
-          {favMsg && <span style={{ fontSize: 12, color: "#ef4444" }}>{favMsg}</span>}
+        {member && (
           <button onClick={() => {
-            if (fav) {
-              removeFavorite(memberId);
-              setFav(false);
-              setFavMsg("");
-            } else {
-              const result = addFavorite(memberId);
-              if (result.ok) { setFav(true); setFavMsg(""); }
-              else { setFavMsg(result.reason || ""); }
-            }
+            const url = `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`;
+            const prompt = `${member.name}（${member.party}・${member.house}・${member.district}）について詳しく教えてください。\n${url}`;
+            navigator.clipboard.writeText(prompt).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            });
           }}
-            className={`fav-btn${fav ? " active" : ""}`}>
-            {fav ? "⭐ 登録済み" : "☆ お気に入り登録"}
+            className="btn-back"
+            style={{ marginBottom: 0, fontSize: 12 }}>
+            {copied ? "✓ コピーしました" : "プロンプト作成"}
           </button>
-        </div>
+        )}
       </div>
 
       {/* ヘッダー */}
@@ -326,9 +309,31 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             👤
           </div>
           <div style={{ flex: 1 }}>
-            <h1 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 800, color: "#111111" }}>
-              {member.name}
-            </h1>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#111111" }}>
+                {member.name}
+              </h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                {favMsg && <span style={{ fontSize: 11, color: "#ef4444" }}>{favMsg}</span>}
+                <button onClick={() => {
+                  if (fav) {
+                    removeFavorite(memberId);
+                    setFav(false);
+                    setFavMsg("");
+                  } else {
+                    const result = addFavorite(memberId);
+                    if (result.ok) { setFav(true); setFavMsg(""); }
+                    else { setFavMsg(result.reason || ""); }
+                  }
+                }}
+                  className={`fav-btn${fav ? " active" : ""}`}
+                  style={fav
+                    ? { background: color, color: "#ffffff", borderColor: color }
+                    : { borderColor: color, color: color }}>
+                  {fav ? "⭐ 登録済み" : "☆ お気に入り登録"}
+                </button>
+              </div>
+            </div>
             <div style={{ fontSize: 13, color: "#555555", marginBottom: 10 }}>
               {!member.is_active && (
                 <span className="badge-inactive">

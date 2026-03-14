@@ -81,34 +81,32 @@ function CommitteeDetailContent() {
         .eq("committee", committeeName)
         .limit(500);
 
-      // member_id が null の孤立行（旧スクレイパーのマッチング失敗行）を除外
-      const cmData = (cmRes.data || []).filter((c) => c.member_id);
-      const memberIds = cmData.map((c) => c.member_id);
-
-      if (memberIds.length === 0) {
-        setLoading(false);
-        return;
-      }
+      const cmData = cmRes.data || [];
+      const memberIds = cmData.map((c) => c.member_id).filter(Boolean);
 
       // 2. 議員情報を取得（1委員会の所属数は多くないのでIN句で問題なし）
-      const mRes = await supabase
-        .from("members")
-        .select("id, party, house, district")
-        .in("id", memberIds)
-        .limit(500);
+      const memberMap = new Map<string, { party: string; house: string; district: string }>();
+      if (memberIds.length > 0) {
+        const mRes = await supabase
+          .from("members")
+          .select("id, party, house, district")
+          .in("id", memberIds)
+          .limit(500);
+        for (const m of mRes.data || []) memberMap.set(m.id, m);
+      }
 
-      const memberMap = new Map((mRes.data || []).map((m) => [m.id, m]));
+      if (cmData.length === 0) { setLoading(false); return; }
 
       // member_id と (name, role) の両方で重複排除（最上位役職を残す）
       const seenById   = new Map<string, CommitteeMember>();
       const seenByName = new Map<string, CommitteeMember>();
       for (const c of cmData) {
-        const m = memberMap.get(c.member_id);
+        const m = c.member_id ? memberMap.get(c.member_id) : undefined;
         const entry: CommitteeMember = {
           member_id: c.member_id,
           name:      c.name,
           role:      c.role || "",
-          party:     m?.party || "不明",
+          party:     m?.party || "",
           house:     m?.house || "",
           district:  m?.district || "",
         };
@@ -272,7 +270,7 @@ function CommitteeDetailContent() {
                     const color = PARTY_COLORS[c.party] || "#7f8c8d";
                     return (
                       <div key={i}
-                        onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
+                        onClick={() => c.member_id && router.push(`/members/${encodeURIComponent(c.member_id)}`)}
                         className="card card-hover"
                         style={{ padding: "12px 16px", "--hover-color": color } as React.CSSProperties}>
                         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 12px" }}>
@@ -292,7 +290,7 @@ function CommitteeDetailContent() {
                     const color = PARTY_COLORS[c.party] || "#7f8c8d";
                     return (
                       <div key={i}
-                        onClick={() => router.push(`/members/${encodeURIComponent(c.member_id)}`)}
+                        onClick={() => c.member_id && router.push(`/members/${encodeURIComponent(c.member_id)}`)}
                         className="card card-hover"
                         style={{ padding: "12px 16px", "--hover-color": color } as React.CSSProperties}>
                         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 12px" }}>
@@ -330,7 +328,7 @@ function CommitteeDetailContent() {
               const color = PARTY_COLORS[m.party] || "#7f8c8d";
               return (
                 <div key={m.member_id}
-                  onClick={() => router.push(`/members/${encodeURIComponent(m.member_id)}`)}
+                  onClick={() => m.member_id && router.push(`/members/${encodeURIComponent(m.member_id)}`)}
                   className="card card-hover"
                   style={{ padding: "12px 16px", "--hover-color": color } as React.CSSProperties}>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 12px" }}>
