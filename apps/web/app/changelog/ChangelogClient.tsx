@@ -37,7 +37,9 @@ export default function ChangelogClient() {
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
 
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>📋 変更履歴</h1>
+        <div className="card-xl" style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: "#111111" }}>📋 変更履歴</h1>
+        </div>
 
         {loading ? (
           <div className="loading-block" style={{ minHeight: 200 }}><div className="loading-spinner" /><span>データを読み込んでいます...</span></div>

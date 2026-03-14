@@ -6,7 +6,9 @@ export default function TermsPage() {
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
 
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>利用規約</h1>
+        <div className="card-xl" style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: "#111111" }}>利用規約</h1>
+        </div>
 
         <div className="card-xl" style={{ fontSize: 13, color: "#888888", lineHeight: 2 }}>
 

@@ -3,17 +3,17 @@ export const metadata = { title: "免責事項" };
 export default function DisclaimerPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
-      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "40px 24px" }}>
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
+      <div style={{ maxWidth: 800, margin: "0 auto" }}>
 
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, color: "#111111" }}>
-          免責事項
-        </h1>
-        <p style={{ fontSize: 13, color: "#888888", marginBottom: 40 }}>
-          データの仕様・集計方法については<a href="/faq" style={{ color: "#333333" }}>データ仕様</a>をご確認ください。
-        </p>
         {/* 旧アンカーリンクの互換性維持 */}
         <span id="activity-radar" />
+        <div className="card-xl" style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: "#111111" }}>免責事項</h1>
+          <p style={{ fontSize: 13, color: "#888888", marginTop: 8, marginBottom: 0 }}>
+            データの仕様・集計方法については<a href="/faq" style={{ color: "#333333" }}>データ仕様</a>をご確認ください。
+          </p>
+        </div>
 
         <section style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,

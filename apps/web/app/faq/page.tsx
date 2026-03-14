@@ -11,15 +11,15 @@ const pStyle = { lineHeight: 1.9, color: "#888888" } as const;
 export default function FaqPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
-      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "40px 24px" }}>
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
+      <div style={{ maxWidth: 800, margin: "0 auto" }}>
 
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, color: "#111111" }}>
-          データ仕様
-        </h1>
-        <p style={{ fontSize: 13, color: "#888888", marginBottom: 40 }}>
-          データの収集方法・集計仕様・各機能の算出方法について説明しています。
-        </p>
+        <div className="card-xl" style={{ marginBottom: 16 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: "#111111" }}>データ仕様</h1>
+          <p style={{ fontSize: 13, color: "#888888", marginTop: 8, marginBottom: 0 }}>
+            データの収集方法・集計仕様・各機能の算出方法について説明しています。
+          </p>
+        </div>
 
         <section style={sectionStyle}>
           <h2 style={h2Style}>データの収集方法</h2>
