@@ -32,10 +32,34 @@ export default function FaqPage() {
         <section id="data-period" style={sectionStyle}>
           <h2 style={h2Style}>データの更新について</h2>
           <p style={pStyle}>
-            データは毎日午前3時に自動収集・更新されます。参議院の採決記録（本会議）は現在開会中の会期分が毎日収集され、過去の会期分は随時追加されます。
+            データは毎日午前3時に自動収集・更新されます。
             国会会議録の登録には1〜2週間のタイムラグがあるため、直近の発言は反映されていない場合があります。
             最新・正確な情報は各公式サイトをご確認ください。
           </p>
+          <table style={{ marginTop: 16, width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
+                <th style={{ textAlign: "left", padding: "6px 12px 6px 0", color: "#555555", fontWeight: 600 }}>データ種別</th>
+                <th style={{ textAlign: "left", padding: "6px 0", color: "#555555", fontWeight: 600 }}>収集範囲</th>
+              </tr>
+            </thead>
+            <tbody style={{ color: "#888888" }}>
+              {[
+                { label: "発言",         range: "第210回〜（2022年〜）" },
+                { label: "質問主意書",   range: "第196回〜（2018年〜）" },
+                { label: "請願",         range: "第196回〜（2018年〜）" },
+                { label: "採決記録",     range: "第208回〜（2022年〜）参議院のみ" },
+                { label: "議員立法",     range: "第208回〜（2022年〜）" },
+                { label: "委員会所属",   range: "現在のスナップショットのみ（累積なし）" },
+                { label: "キーワード",   range: "直近4年分の発言から集計" },
+              ].map((row) => (
+                <tr key={row.label} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                  <td style={{ padding: "8px 12px 8px 0" }}>{row.label}</td>
+                  <td style={{ padding: "8px 0" }}>{row.range}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
 
         <section style={sectionStyle}>
