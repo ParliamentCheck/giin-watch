@@ -300,8 +300,8 @@ function PartyDetailContent() {
       <div className="card" style={{ padding: "16px 20px", marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#333333", marginBottom: 2 }}>活動バランス</div>
         <div style={{ fontSize: 11, color: "#888888", marginBottom: 12, lineHeight: 1.6 }}>
-          各活動の件数から活動の比重・傾向を図示しています。活動量の多さを示すものではありません。
-          <a href="/faq#activity-radar" style={{ color: "#888888", marginLeft: 4 }}>算出方法はこちら ↗</a>
+          各活動の件数から活動の比重・傾向を図示しています。与党は内閣を通じて政策を実現するため、質問主意書・議員立法の件数は構造的に少なくなる傾向があります。数字の大小が活動の優劣を示すものではありません。
+          <a href="/faq#activity-radar" style={{ color: "#888888", marginLeft: 4 }}>チャートの算出方法はこちら ↗</a>
         </div>
         <div className="activity-balance-body" style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div className="activity-balance-radar" style={{ width: 350, flexShrink: 0 }}>
@@ -352,7 +352,7 @@ function PartyDetailContent() {
                 ))}
               </div>
               <div style={{ fontSize: 10, color: "#aaaaaa", marginTop: 8 }}>
-                ※ 第208回〜第221回国会の記録に基づく（参議院のみ最新100件）。
+                ※ 第208回〜第221回国会の記録に基づく（参議院のみ・集計は全件）。
               </div>
             </div>
           </div>

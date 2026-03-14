@@ -126,6 +126,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [questions,  setQuestions]  = useState<Question[]>([]);
   const [committees, setCommittees] = useState<CommitteeMember[]>([]);
   const [votes,      setVotes]      = useState<Vote[]>([]);
+  const [voteStats,  setVoteStats]  = useState<{ yea: number; nay: number; absent: number; total: number } | null>(null);
   const [bills,        setBills]        = useState<Bill[]>([]);
   const [coSponsors,   setCoSponsors]   = useState<{ id: string; name: string; party: string; count: number }[]>([]);
   const [billsSubTab,  setBillsSubTab]  = useState<"list" | "partners">("list");
@@ -174,6 +175,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
         supabase.from("sangiin_petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
           .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
+        supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId),
+        supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "賛成"),
+        supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "反対"),
+        supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "欠席"),
       ]);
 
       const safe = (i: number) => results[i].status === "fulfilled" ? results[i].value.data : null;
@@ -202,6 +207,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         setCommittees(deduped);
       }
       if (safe(5)) setVotes(safe(5));
+      const totalCount  = results[10].status === "fulfilled" ? (results[10].value.count ?? 0) : 0;
+      const yeaCount    = results[11].status === "fulfilled" ? (results[11].value.count ?? 0) : 0;
+      const nayCount    = results[12].status === "fulfilled" ? (results[12].value.count ?? 0) : 0;
+      const absentCount = results[13].status === "fulfilled" ? (results[13].value.count ?? 0) : 0;
+      setVoteStats({ yea: yeaCount, nay: nayCount, absent: absentCount, total: totalCount });
       const billsData: Bill[] = safe(6) || [];
       setBills(billsData);
 
@@ -424,7 +434,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               { label: "委員会所属",     value: clientLoaded ? committees.length : (initialCommitteeCount ?? null), unit: "件" },
               { label: "発言セッション", value: member.session_count,                                                  unit: "回" },
               { label: "質問主意書",     value: member.question_count,                                                 unit: "件" },
-              { label: "採決",           value: clientLoaded ? votes.length : (initialVoteCount ?? null),             unit: "件" },
+              { label: member.house === "衆議院" ? "採決（衆院は非対応）" : "採決", value: member.house === "衆議院" ? undefined : (clientLoaded ? (voteStats?.total ?? votes.length) : (initialVoteCount ?? null)), unit: "件" },
               { label: "議員立法",       value: member.bill_count,                  unit: "件" },
               { label: "請願",           value: member.petition_count,              unit: "件" },
             ].map((item) => (
@@ -688,7 +698,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       {tab === "votes" && (
         <div className="card" style={{ padding: 20 }}>
           <h3 className="section-title">
-            本会議採決記録（参議院・最新100件）
+            本会議採決記録（参議院）
           </h3>
           <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
             ※ 第208回〜第221回国会の記録に基づく（参議院のみ）。
@@ -702,10 +712,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               採決記録がありません。
             </div>
           ) : (() => {
-            const yea        = votes.filter(v => v.vote === "賛成").length;
-            const nay        = votes.filter(v => v.vote === "反対").length;
-            const absent     = votes.filter(v => v.vote === "欠席").length;
-            const absentRate = votes.length > 0 ? Math.round((absent / votes.length) * 100) : 0;
+            const yea        = voteStats?.yea    ?? votes.filter(v => v.vote === "賛成").length;
+            const nay        = voteStats?.nay    ?? votes.filter(v => v.vote === "反対").length;
+            const absent     = voteStats?.absent ?? votes.filter(v => v.vote === "欠席").length;
+            const total      = voteStats?.total  ?? votes.length;
+            const absentRate = total > 0 ? Math.round((absent / total) * 100) : 0;
             const filteredVotes = voteFilter === "all" ? votes : votes.filter(v => v.vote === voteFilter);
             return (
               <>
