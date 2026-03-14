@@ -278,11 +278,13 @@ export default function BillsClient() {
         {activeTab === "network" && (
           <div className="card-xl">
             <p style={{ fontSize: 13, color: "#555555", marginBottom: 12, lineHeight: 1.7 }}>
-              議員立法の共同提出データから、政党間の実務的な協力関係を可視化しています。
-              選挙での対立とは異なる、法律を作る現場の距離感が数字で見えます。
+              議員立法（議員提出法案）を共同提出した回数を、政党ペア別に集計しています。
+            </p>
+            <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 8 }}>
+              ※中道改革連合は前所属政党（公明党・立憲民主党）に分類して集計。
             </p>
             <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 20 }}>
-              ※中道改革連合は前所属政党（公明党・立憲民主党）に分類して集計。
+              ※与党は主に内閣を通じて法案（閣法）を提出するため、議員立法の件数が構造的に少なくなります。このマトリックスは国会活動の全体量を比較するものではありません。
             </p>
 
             {networkLoading ? (
@@ -337,7 +339,7 @@ export default function BillsClient() {
               政党間マトリックス
             </h2>
             <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 12 }}>
-              数字は共同提出した議員立法の件数。色が濃いほど協力関係が強い。セルをクリックで法案一覧を表示。
+              数字は共同提出した議員立法の件数。色が濃いほど件数が多い。セルをクリックで法案一覧を表示。
             </p>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth: 420, width: "100%" }}>
