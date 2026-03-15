@@ -287,36 +287,66 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
 # 衆院閣法スクレイパーは廃止済み（→ モジュール docstring 参照）
 
 
-def _fetch_cabinet_status(meisai_url: str) -> str:
-    """参院 meisai 詳細ページから閣法のステータスを判定する。
+def _fetch_cabinet_detail(meisai_url: str) -> dict[str, Any]:
+    """参院 meisai 詳細ページから閣法の詳細情報を取得する。
 
-    判定ルール:
-      - 「公布」の記述あり → "成立"（公布年月日が記載された法案＝成立済み）
-      - 「未了」の記述あり → "未了"（会期末に廃案）
-      - それ以外          → ""（審議中または未審議）
-
-    注: 参院の議決日の有無で判定する方法もあるが、衆院の議決日と混同しやすいため
-    「公布」の有無を正とする。
+    取得フィールド:
+      status, law_number, promulgated_at,
+      committee_shu, committee_san,
+      vote_date_shu, vote_date_san,
+      vote_result_shu, vote_result_san
     """
+    result: dict[str, Any] = {
+        "status": "", "law_number": None, "promulgated_at": None,
+        "committee_shu": None, "committee_san": None,
+        "vote_date_shu": None, "vote_date_san": None,
+        "vote_result_shu": None, "vote_result_san": None,
+    }
     try:
         resp = requests.get(meisai_url, headers=HEADERS, timeout=30)
         if resp.status_code != 200:
-            return ""
+            return result
         resp.encoding = resp.apparent_encoding or "utf-8"
-        text = resp.text
+        soup = BeautifulSoup(resp.text, "html.parser")
     except requests.RequestException:
-        return ""
+        return result
 
-    soup = BeautifulSoup(text, "html.parser")
-    # 「公布年月日」ラベルの隣セルに日付があれば成立
-    for cell in soup.find_all(["th", "td"]):
-        if "公布" in cell.get_text():
-            nxt = cell.find_next_sibling(["th", "td"])
-            if nxt and nxt.get_text(strip=True):
-                return "成立"
-    if "未了" in text:
-        return "未了"
-    return ""
+    current_house: str | None = None
+
+    for tag in soup.find_all(["h3", "h4", "th", "td", "caption"]):
+        text = tag.get_text(strip=True)
+
+        # 院セクション見出しの検出
+        if "衆議院" in text and tag.name in ["h3", "h4", "caption", "th"]:
+            current_house = "shu"
+        elif "参議院" in text and tag.name in ["h3", "h4", "caption", "th"]:
+            current_house = "san"
+
+        if tag.name != "th":
+            continue
+
+        val_cell = tag.find_next_sibling("td")
+        val = val_cell.get_text(strip=True) if val_cell else ""
+
+        if "公布" in text:
+            if val:
+                result["promulgated_at"] = _parse_jp_date(val)
+                result["status"] = "成立"
+        elif "法律番号" in text:
+            result["law_number"] = val or None
+        elif current_house and "付託委員会" in text:
+            result[f"committee_{current_house}"] = val or None
+        elif current_house and "議決日" in text:
+            parsed = _parse_jp_date(val)
+            if parsed:
+                result[f"vote_date_{current_house}"] = parsed
+        elif current_house and "採決態様" in text:
+            result[f"vote_result_{current_house}"] = val or None
+
+    if not result["status"] and "未了" in soup.get_text():
+        result["status"] = "未了"
+
+    return result
 
 def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
     """参議院の閣法（内閣提出法案）を取得する。"""
@@ -353,13 +383,13 @@ def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
 
         submitted_at: str | None = None
         source_url: str | None = None
-        status = ""
+        detail: dict[str, Any] = {}
         link = title_cell.find("a")
         if link and link.get("href"):
             detail_url = urljoin(url, link["href"])
             source_url = detail_url
             _, submitted_at = _fetch_detail(detail_url, "参議院")
-            status = _fetch_cabinet_status(detail_url)
+            detail = _fetch_cabinet_detail(detail_url)
             time.sleep(1)
 
         rows.append({
@@ -368,10 +398,18 @@ def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
             "submitter_ids": [],
             "submitted_at": submitted_at,
             "session_number": session,
-            "status": status,
+            "status": detail.get("status", ""),
             "house": "参議院",
             "source_url": source_url,
             "bill_type": "閣法",
+            "law_number":     detail.get("law_number"),
+            "promulgated_at": detail.get("promulgated_at"),
+            "committee_shu":  detail.get("committee_shu"),
+            "committee_san":  detail.get("committee_san"),
+            "vote_date_shu":  detail.get("vote_date_shu"),
+            "vote_date_san":  detail.get("vote_date_san"),
+            "vote_result_shu": detail.get("vote_result_shu"),
+            "vote_result_san": detail.get("vote_result_san"),
         })
 
     logger.info("Sangiin cabinet bills session %d: %d bills", session, len(rows))
