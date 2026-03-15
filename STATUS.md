@@ -115,37 +115,35 @@
 
 ---
 
-## 4. 取得できているデータでできること / できないこと
+## 4. データの特性と制約（事実）
 
-### できること（今のデータで表示可能）
+### テーブル間の結合キー
 
-| 分析 | 使うデータ |
-|-----|----------|
-| 議員の発言セッション数推移 | speeches（spoken_at 別集計） |
-| 質問主意書の傾向・時系列 | questions / sangiin_questions |
-| 議員立法の共同提出パートナー分析 | bills.submitter_ids |
-| 政党間の共同立法ネットワーク | bills.submitter_ids × members.party |
-| 参院議員の採決賛否記録 | votes |
-| 政党別採決一致率 | votes × members.party |
-| 委員会の構成・委員長/理事 | committee_members |
-| 閣法の成立状況・付託委員会 | bills（bill_type="閣法"） |
-| 閣法の委員会審議に関わった議員（近似） | bills × speeches |
-| 議員の発言キーワード傾向 | member_keywords |
-| 政党の活動比重の比較 | members 集計値 × committee_members |
-| 閣法の採決態様（全会一致か否か） | bills.vote_result_shu/san（収録済み・未表示） |
-| 成立した閣法の法律番号・公布日 | bills.law_number/promulgated_at（収録済み・未表示） |
-
-### できないこと（データの限界）
-
-| 分析 | 理由 |
+| 結合 | キー |
 |-----|------|
-| 衆院議員の採決賛否 | 衆院は個人別投票記録を公開していない |
-| 特定閣法のみの審議者を特定 | 発言本文をDBに保存していないため委員会名でしか絞れない |
-| 議員の委員会役職の累積履歴 | committee_members は現時点スナップショットのみ |
-| 法案提出時点の所属政党 | members.party は現在の政党のみ保持（変遷なし） |
-| 議員写真 | 著作権・肖像権リスクのため非実装 |
-| 党務・地元活動・非公開会議 | 公開情報に含まれないため取得不可 |
-| 議員の発言内容・詳細 | 本文はDBに保存しない設計 |
+| speeches → members | `speeches.member_id = members.id` |
+| bills → members | `bills.submitter_ids` 配列に `members.id` を含む（議員立法のみ） |
+| bills → speeches | `bills.committee_shu/san` と `speeches.committee` の文字列照合 + `bills.session_number = speeches.session_number` |
+| votes → members | `votes.member_id = members.id` |
+| petitions → members | `petitions.introducer_ids` 配列に `members.id` を含む |
+
+### 収録されているが現在UIで未表示のフィールド
+
+| フィールド | テーブル | 内容 |
+|-----------|---------|------|
+| `vote_result_shu` | bills | 衆院採決態様（賛成多数・全会一致 等） |
+| `vote_result_san` | bills | 参院採決態様 |
+| `law_number` | bills | 法律番号（成立法案のみ） |
+| `promulgated_at` | bills | 公布日（成立法案のみ） |
+
+### データの構造的特性
+
+- **speeches**: 発言本文は保存しない。`committee`・`spoken_at`・`session_number` のメタデータのみ
+- **committee_members**: 現時点のスナップショットのみ。過去の役職履歴は持たない
+- **members.party**: 現在の所属政党のみ。過去の政党変遷は記録しない（ただし `prev_party` で中道改革連合メンバーの旧所属政党のみ保持）
+- **votes**: 参議院のみ。衆議院は個人別投票記録を公開していないため収録なし
+- **bills（閣法）**: `committee_shu/san` と `speeches.committee` は文字列照合のため、同委員会・同会期の発言全体が紐づく（法案単位の絞り込みは不可）
+- **speeches の member_id=NULL**: 約108,000件。NDL APIの表記と members.name が一致しない発言者
 
 ---
 
