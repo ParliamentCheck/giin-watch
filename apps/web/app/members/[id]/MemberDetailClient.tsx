@@ -595,8 +595,8 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                         flex: 1, background: isActive ? color : "#f4f4f4",
                         borderRadius: 8, padding: "8px 16px", textAlign: "center", cursor: "pointer",
                       }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
-                      <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888" }}>{label}</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
+                      <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888", whiteSpace: "nowrap" }}>{label}</div>
                     </div>
                   );
                 })}
@@ -731,7 +731,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             const nay        = voteStats?.nay    ?? votes.filter(v => v.vote === "反対").length;
             const absent     = voteStats?.absent ?? votes.filter(v => v.vote === "欠席").length;
             const total      = voteStats?.total  ?? votes.length;
-            const absentRate = total > 0 ? Math.round((absent / total) * 100) : 0;
+            const absentRate = total > 0 ? (absent / total * 100).toFixed(1) : "0.0";
             const filteredVotes = voteFilter === "all" ? votes : votes.filter(v => v.vote === voteFilter);
             return (
               <>
@@ -754,8 +754,8 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                           border: isActive ? `2px solid ${color}` : "2px solid transparent",
                           transition: "background 0.15s",
                         }}>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
-                        <div style={{ fontSize: 11, color: isActive ? "#ffffffcc" : "#888888" }}>{label}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
+                        <div style={{ fontSize: 11, color: isActive ? "#ffffffcc" : "#888888", whiteSpace: "nowrap" }}>{label}</div>
                       </div>
                     );
                   })}

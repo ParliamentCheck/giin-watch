@@ -338,16 +338,16 @@ function PartyDetailContent() {
               <div style={{ fontSize: 13, fontWeight: 700, color: "#555555", marginBottom: 8, textAlign: "center" }}>本会議採決記録</div>
               <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
                 {[
-                  { label: "賛成率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.yes    / voteStats.total * 100) : null, unit: "%" },
-                  { label: "反対率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.no     / voteStats.total * 100) : null, unit: "%" },
-                  { label: "欠席率", value: voteStats && voteStats.total > 0 ? Math.round(voteStats.absent / voteStats.total * 100) : null, unit: "%" },
+                  { label: "賛成率", value: voteStats && voteStats.total > 0 ? (voteStats.yes    / voteStats.total * 100).toFixed(1) : null, unit: "%" },
+                  { label: "反対率", value: voteStats && voteStats.total > 0 ? (voteStats.no     / voteStats.total * 100).toFixed(1) : null, unit: "%" },
+                  { label: "欠席率", value: voteStats && voteStats.total > 0 ? (voteStats.absent / voteStats.total * 100).toFixed(1) : null, unit: "%" },
                 ].map((s) => (
                   <div key={s.label}>
                     <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
                       {s.value != null ? s.value : "–"}
                       {s.value != null && <span style={{ fontSize: 11, color: "#555555", marginLeft: 3 }}>{s.unit}</span>}
                     </div>
-                    <div style={{ fontSize: 10, color: "#888888" }}>{s.label}</div>
+                    <div style={{ fontSize: 10, color: "#888888", whiteSpace: "nowrap" }}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -510,7 +510,7 @@ function PartyDetailContent() {
                   </div>
                   <div style={{ fontSize: 12, color: "#555555" }}>衆議院</div>
                   <div style={{ fontSize: 11, color: "#888888", marginTop: 4 }}>
-                    {members.length > 0 ? Math.round(shugiin / members.length * 100) : 0}%
+                    {members.length > 0 ? (shugiin / members.length * 100).toFixed(1) : "0.0"}%
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -524,7 +524,7 @@ function PartyDetailContent() {
                       </div>
                       <div style={{ fontSize: 11, color: "#555555" }}>{b.label}</div>
                       <div style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
-                        {shugiinMembers.length > 0 ? Math.round(b.count / shugiinMembers.length * 100) : 0}%
+                        {shugiinMembers.length > 0 ? (b.count / shugiinMembers.length * 100).toFixed(1) : "0.0"}%
                       </div>
                     </div>
                   ))}
@@ -543,7 +543,7 @@ function PartyDetailContent() {
                   </div>
                   <div style={{ fontSize: 12, color: "#555555" }}>参議院</div>
                   <div style={{ fontSize: 11, color: "#888888", marginTop: 4 }}>
-                    {members.length > 0 ? Math.round(sangiin / members.length * 100) : 0}%
+                    {members.length > 0 ? (sangiin / members.length * 100).toFixed(1) : "0.0"}%
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -557,7 +557,7 @@ function PartyDetailContent() {
                       </div>
                       <div style={{ fontSize: 11, color: "#555555" }}>{b.label}</div>
                       <div style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
-                        {sangiinMembers.length > 0 ? Math.round(b.count / sangiinMembers.length * 100) : 0}%
+                        {sangiinMembers.length > 0 ? (b.count / sangiinMembers.length * 100).toFixed(1) : "0.0"}%
                       </div>
                     </div>
                   ))}
@@ -584,7 +584,7 @@ function PartyDetailContent() {
                     <div style={{ display: "flex", justifyContent: "space-between",
                       fontSize: 12, color: "#888888", marginBottom: 4 }}>
                       <span>{b.label}</span>
-                      <span style={{ color: color, fontWeight: 700 }}>{b.count}名（{Math.round(pct)}%）</span>
+                      <span style={{ color: color, fontWeight: 700 }}>{b.count}名（{pct.toFixed(1)}%）</span>
                     </div>
                     <div className="progress-bar" style={{ height: 8 }}>
                       <div className="progress-fill" style={{ width: `${pct}%`, background: color }} />

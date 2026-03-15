@@ -255,7 +255,7 @@ export default function BillsClient() {
     審議中: currentListBills.filter(b => classifyStatus(b.status) === "審議中").length,
   };
   const rateBase = statusCounts.成立 + statusCounts.廃案;
-  const passRate = rateBase > 0 ? Math.round((statusCounts.成立 / rateBase) * 100) : null;
+  const passRate = rateBase > 0 ? (statusCounts.成立 / rateBase * 100).toFixed(1) : null;
 
   const maxCount = Math.max(
     1,
@@ -321,9 +321,9 @@ export default function BillsClient() {
                           flex: 1, background: isActive ? color : "#f4f4f4",
                           borderRadius: 8, padding: "8px 16px", textAlign: "center",
                           cursor: "pointer", outline: isActive ? `2px solid ${color}` : "none",
-                        }}>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
-                        <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888" }}>{label}</div>
+                        }} className="stat-card">
+                        <div style={{ fontSize: 15, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
+                        <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888", whiteSpace: "nowrap" }}>{label}</div>
                       </div>
                     );
                   })}
@@ -331,9 +331,9 @@ export default function BillsClient() {
                     <div style={{
                       flex: 1, background: "#f4f4f4",
                       borderRadius: 8, padding: "8px 16px", textAlign: "center",
-                    }}>
-                      <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b" }}>{passRate}%</div>
-                      <div style={{ fontSize: 11, color: "#888888" }}>成立率</div>
+                    }} className="stat-card">
+                      <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b" }}>{passRate}%</div>
+                      <div style={{ fontSize: 11, color: "#888888", whiteSpace: "nowrap" }}>成立率</div>
                     </div>
                   )}
                 </div>
@@ -644,8 +644,8 @@ export default function BillsClient() {
                       borderRadius: 8, padding: "8px 16px", textAlign: "center",
                       cursor: "pointer", outline: isActive ? `2px solid ${color}` : "none",
                     }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
-                    <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888" }}>{label}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
+                    <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888", whiteSpace: "nowrap" }}>{label}</div>
                   </div>
                 );
               })}
@@ -654,8 +654,8 @@ export default function BillsClient() {
                   flex: 1, background: "#f4f4f4",
                   borderRadius: 8, padding: "8px 16px", textAlign: "center",
                 }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b" }}>{passRate}%</div>
-                  <div style={{ fontSize: 11, color: "#888888" }}>成立率</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b" }}>{passRate}%</div>
+                  <div style={{ fontSize: 11, color: "#888888", whiteSpace: "nowrap" }}>成立率</div>
                 </div>
               )}
             </div>

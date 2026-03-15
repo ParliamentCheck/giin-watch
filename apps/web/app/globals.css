@@ -464,6 +464,8 @@ body {
   .resp-pad      { padding: 16px !important; }
   .resp-gap-sm   { gap: 8px !important; }
   .resp-hide     { display: none !important; }
+  .stat-card     { padding: 6px 8px !important; }
+  .card, .card-xl { padding-left: 14px !important; padding-right: 14px !important; }
 
   .summary-grid  { grid-template-columns: repeat(2, 1fr) !important; }
   .tab-bar       { flex-wrap: wrap !important; }
