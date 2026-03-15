@@ -70,30 +70,16 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
             continue
 
         text = soup.get_text()
-        lines = [l.strip() for l in text.split("\n") if l.strip()]
 
-        current_post = ""
-        for line in lines:
-            # ナビゲーションヘッダー（「閣僚名簿」「副大臣名簿」等）を除外
-            if "名簿" in line:
-                continue
-            name_match = re.match(r"^(.+?)（([ぁ-んァ-ンー\s　]+)）$", line)
-            if name_match:
-                name = name_match.group(1).replace("\u3000", " ").strip()
-                if current_post:
-                    results.append({
-                        "name": name,
-                        "post": current_post,
-                        "category": category,
-                    })
-                    logger.info(f"  {current_post}: {name}")
-                current_post = ""
-            else:
-                if ("大臣" in line or "長官" in line or "担当" in line or
-                    "副大臣" in line or "政務官" in line or "補佐官" in line):
-                    # 最初の役職行のみ使用（兼任・追加担当で上書きしない）
-                    if not current_post and not line.startswith("兼"):
-                        current_post = line
+        # 「役職  姓 名（ふりがな）」形式でマッチ（姓名はスペース区切り）
+        matches = re.findall(
+            r"([^\n\s　]{2,30}(?:大臣|長官|補佐官|政務官))\s{1,4}([^\s　（]{1,6})\s{1,4}([^\s　（]{1,6})\s*（([ぁ-んァ-ンー\s　]+)）",
+            text,
+        )
+        for post, sei, mei, _ in matches:
+            name = sei + mei
+            results.append({"name": name, "post": post, "category": category})
+            logger.info(f"  {post}: {name}")
 
     return results
 
