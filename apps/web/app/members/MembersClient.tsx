@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { getFavorites, addFavorite, removeFavorite } from "../../lib/favorites";
+import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 
 interface Member {
   id: string;
@@ -55,6 +56,7 @@ function MembersContent() {
   const searchParams = useSearchParams();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [inputValue, setInputValue] = useState("");
   const [favIds, setFavIds] = useState<string[]>([]);
   const isComposing = useRef(false);
@@ -73,6 +75,7 @@ function MembersContent() {
   useEffect(() => { setFavIds(getFavorites()); }, []);
 
   const updateUrl = (q: string, house: string, party: string, sort: string) => {
+    setPage(1);
     const params = new URLSearchParams();
     if (q)     params.set("q",     q);
     if (house) params.set("house", house);
@@ -190,7 +193,7 @@ function MembersContent() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {sorted.map((m) => {
+          {sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((m) => {
             const color = PARTY_COLORS[m.party] || "#7f8c8d";
             return (
               <div key={m.id}
@@ -230,6 +233,7 @@ function MembersContent() {
           })}
         </div>
       )}
+      <Paginator total={sorted.length} page={page} onPage={(p) => { setPage(p); window.scrollTo(0, 0); }} />
       </div>
       </div>
     </div>

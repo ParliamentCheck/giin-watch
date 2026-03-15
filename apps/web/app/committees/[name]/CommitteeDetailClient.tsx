@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
@@ -57,6 +58,7 @@ function CommitteeDetailContent() {
   const searchParams = useSearchParams();
   const pathname     = usePathname();
   const [members,   setMembers]   = useState<CommitteeMember[]>([]);
+  const [membersPage, setMembersPage] = useState(1);
   const [petitions, setPetitions] = useState<Petition[]>([]);
   const [loading,   setLoading]   = useState(true);
   const tab = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
@@ -67,6 +69,7 @@ function CommitteeDetailContent() {
   };
   const sortBy = searchParams.get("sort") ?? "role";
   const setSortBy = (s: string) => {
+    setMembersPage(1);
     const p = new URLSearchParams(searchParams.toString());
     p.set("sort", s);
     router.replace(`${pathname}?${p.toString()}`);
@@ -336,7 +339,7 @@ function CommitteeDetailContent() {
             ))}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {sorted.map((m) => {
+            {sorted.slice((membersPage - 1) * PAGE_SIZE, membersPage * PAGE_SIZE).map((m) => {
               const color = PARTY_COLORS[m.party] || "#7f8c8d";
               return (
                 <div key={m.member_id}
@@ -353,6 +356,7 @@ function CommitteeDetailContent() {
               );
             })}
           </div>
+          <Paginator total={sorted.length} page={membersPage} onPage={(p) => { setMembersPage(p); window.scrollTo(0, 0); }} />
         </div>
       )}
 

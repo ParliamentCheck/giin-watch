@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
@@ -79,6 +80,7 @@ function PartyDetailContent() {
   useEffect(() => { document.title = `${party} | はたらく議員`; }, [party]);
 
   const [members,    setMembers]    = useState<Member[]>([]);
+  const [membersPage, setMembersPage] = useState(1);
   const [chairs,     setChairs]     = useState<CommitteeRole[]>([]);
   const [keywords,   setKeywords]   = useState<KeywordData[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -95,6 +97,7 @@ function PartyDetailContent() {
   };
   const sortBy = searchParams.get("sort") ?? "session_count";
   const setSortBy = (s: string) => {
+    setMembersPage(1);
     const p = new URLSearchParams(searchParams.toString());
     p.set("sort", s);
     router.replace(`${pathname}?${p.toString()}`);
@@ -402,7 +405,7 @@ function PartyDetailContent() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {sorted.map((m) => (
+            {sorted.slice((membersPage - 1) * PAGE_SIZE, membersPage * PAGE_SIZE).map((m) => (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
                 className="card card-hover"
@@ -420,6 +423,7 @@ function PartyDetailContent() {
               </div>
             ))}
           </div>
+          <Paginator total={sorted.length} page={membersPage} onPage={(p) => { setMembersPage(p); window.scrollTo(0, 0); }} />
         </div>
       )}
 

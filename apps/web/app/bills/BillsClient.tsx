@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
+import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 
 interface Bill {
   id: string;
@@ -118,6 +119,7 @@ export default function BillsClient() {
   const [isComposing, setIsComposing] = useState(false);
   const [filterHouse, setFilterHouse] = useState<string>("全て");
   const [statusFilter, setStatusFilter] = useState<StatusCategory | "all">("all");
+  const [billsPage, setBillsPage] = useState(1);
 
   // 閣法 × 発言：展開中の法案ID → { members, meetingUrl }
   const [expandedBillId, setExpandedBillId] = useState<string | null>(null);
@@ -316,7 +318,7 @@ export default function BillsClient() {
                   ] as { label: StatusCategory; count: number; color: string }[]).map(({ label, count, color }) => {
                     const isActive = statusFilter === label;
                     return (
-                      <div key={label} onClick={() => setStatusFilter(isActive ? "all" : label)}
+                      <div key={label} onClick={() => { setStatusFilter(isActive ? "all" : label); setBillsPage(1); }}
                         style={{
                           flex: 1, background: isActive ? color : "#f4f4f4",
                           borderRadius: 8, padding: "8px 16px", textAlign: "center",
@@ -377,7 +379,7 @@ export default function BillsClient() {
                   <div className="empty-state">該当する法案がありません。</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {filtered.map((b) => (
+                    {filtered.slice((billsPage - 1) * PAGE_SIZE, billsPage * PAGE_SIZE).map((b) => (
                       <div key={b.id} className="card" style={{ padding: "16px 20px" }}>
                         <div style={{ marginBottom: 8 }}>
                           {b.source_url ? (
@@ -416,6 +418,7 @@ export default function BillsClient() {
                     ))}
                   </div>
                 )}
+                <Paginator total={filtered.length} page={billsPage} onPage={(p) => { setBillsPage(p); window.scrollTo(0, 0); }} />
               </div>
             )}
 
@@ -639,7 +642,7 @@ export default function BillsClient() {
               ] as { label: StatusCategory; count: number; color: string }[]).map(({ label, count, color }) => {
                 const isActive = statusFilter === label;
                 return (
-                  <div key={label} onClick={() => setStatusFilter(isActive ? "all" : label)}
+                  <div key={label} onClick={() => { setStatusFilter(isActive ? "all" : label); setBillsPage(1); }}
                     style={{
                       flex: 1, background: isActive ? color : "#f4f4f4",
                       borderRadius: 8, padding: "8px 16px", textAlign: "center",
@@ -694,7 +697,7 @@ export default function BillsClient() {
               <div className="empty-state">該当する法案がありません。</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {filtered.map((b) => {
+                {filtered.slice((billsPage - 1) * PAGE_SIZE, billsPage * PAGE_SIZE).map((b) => {
                   const canExpand = !!(b.committee_san && b.session_number);
                   const isExpanded = expandedBillId === b.id;
                   const cached = deliberatorCache[b.id];
@@ -790,6 +793,7 @@ export default function BillsClient() {
                 })}
               </div>
             )}
+            <Paginator total={filtered.length} page={billsPage} onPage={(p) => { setBillsPage(p); window.scrollTo(0, 0); }} />
           </div>
         )}
 

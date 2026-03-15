@@ -6,6 +6,7 @@ import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
 import ActivityRadar from "../../components/ActivityRadar";
 import { isFavorite, addFavorite, removeFavorite } from "../../../lib/favorites";
+import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
 
 interface Member {
   id: string;
@@ -149,6 +150,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   };
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
   const [petitionFilter, setPetitionFilter] = useState<"採択" | "不採択" | "審査未了" | "all">("all");
+  const [speechPage,   setSpeechPage]   = useState(1);
+  const [questionPage, setQuestionPage] = useState(1);
+  const [votePage,     setVotePage]     = useState(1);
+  const [billPage,     setBillPage]     = useState(1);
   const [fav,        setFav]        = useState(false);
   const [favMsg,     setFavMsg]     = useState("");
   const [copied,     setCopied]     = useState(false);
@@ -524,7 +529,8 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               発言データがまだありません。
             </div>
           ) : (
-            sessionGroups.map((sg) => {
+            <>
+            {sessionGroups.slice((speechPage - 1) * PAGE_SIZE, speechPage * PAGE_SIZE).map((sg) => {
               const key      = `${sg.spoken_at}_${sg.committee}`;
               const isOpen   = expanded.has(key);
               return (
@@ -564,7 +570,9 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                   )}
                 </div>
               );
-            })
+            })}
+            <Paginator total={sessionGroups.length} page={speechPage} onPage={(p) => { setSpeechPage(p); window.scrollTo(0, 0); }} />
+            </>
           )}
         </div>
       )}
@@ -678,9 +686,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               質問主意書の提出記録がありません。
             </div>
           ) : (
-            questions.map((q, i) => (
+            <>
+            {questions.slice((questionPage - 1) * PAGE_SIZE, questionPage * PAGE_SIZE).map((q, i, arr) => (
               <div key={q.id} style={{ padding: "14px 0",
-                borderBottom: i < questions.length - 1 ? "1px solid #e0e0e0" : "none" }}>
+                borderBottom: i < arr.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                 <div style={{ display: "flex", justifyContent: "space-between",
                   alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", flex: 1 }}>
@@ -705,7 +714,9 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                   </a>
                 </div>
               </div>
-            ))
+            ))}
+            <Paginator total={questions.length} page={questionPage} onPage={(p) => { setQuestionPage(p); window.scrollTo(0, 0); }} />
+            </>
           )}
         </div>
       )}
@@ -770,11 +781,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                     </button>
                   </div>
                 )}
-                {filteredVotes.map((v, i) => {
+                {filteredVotes.slice((votePage - 1) * PAGE_SIZE, votePage * PAGE_SIZE).map((v, i, arr) => {
                   const voteColor = v.vote === "賛成" ? "#22c55e" : v.vote === "反対" ? "#ef4444" : "#888888";
                   return (
                     <div key={v.id} style={{ padding: "12px 0",
-                      borderBottom: i < filteredVotes.length - 1 ? "1px solid #e0e0e0" : "none" }}>
+                      borderBottom: i < arr.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                         <span style={{ fontSize: 13, color: "#1a1a1a", flex: 1 }}>
                           {v.bill_title}
@@ -789,6 +800,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                     </div>
                   );
                 })}
+                <Paginator total={filteredVotes.length} page={votePage} onPage={(p) => { setVotePage(p); window.scrollTo(0, 0); }} />
               </>
             );
           })()}
@@ -824,9 +836,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                   議員提出法案の記録がありません。
                 </div>
               ) : (
-                bills.map((b, i) => (
+                <>
+                {bills.slice((billPage - 1) * PAGE_SIZE, billPage * PAGE_SIZE).map((b, i, arr) => (
                   <div key={b.id} style={{ padding: "12px 0",
-                    borderBottom: i < bills.length - 1 ? "1px solid #e0e0e0" : "none" }}>
+                    borderBottom: i < arr.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>
                       {b.title}
                     </div>
@@ -843,7 +856,9 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                       )}
                     </div>
                   </div>
-                ))
+                ))}
+                <Paginator total={bills.length} page={billPage} onPage={(p) => { setBillPage(p); window.scrollTo(0, 0); }} />
+                </>
               )}
             </>
           )}
