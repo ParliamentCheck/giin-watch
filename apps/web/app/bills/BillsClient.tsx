@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 interface Bill {
@@ -90,9 +90,24 @@ function heatmapText(count: number, max: number): string {
 }
 
 export default function BillsClient() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"member" | "cabinet">("member");
-  const [memberSubTab, setMemberSubTab] = useState<"list" | "network">("list");
+  const router      = useRouter();
+  const pathname    = usePathname();
+  const searchParams = useSearchParams();
+
+  const activeTab    = (searchParams.get("tab") ?? "member") as "member" | "cabinet";
+  const memberSubTab = (searchParams.get("sub") ?? "list") as "list" | "network";
+
+  const setActiveTab = (tab: "member" | "cabinet") => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", tab);
+    p.delete("sub");
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+  };
+  const setMemberSubTab = (sub: "list" | "network") => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("sub", sub);
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+  };
 
   // 一覧タブ用
   const [bills, setBills] = useState<Bill[]>([]);
