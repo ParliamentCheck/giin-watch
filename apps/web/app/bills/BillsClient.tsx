@@ -127,19 +127,26 @@ export default function BillsClient() {
 
   useEffect(() => {
     async function fetchData() {
-      const [billsRes, membersRes] = await Promise.all([
+      const [memberBillsRes, cabinetBillsRes, membersRes] = await Promise.all([
         supabase
           .from("bills")
           .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type")
+          .eq("bill_type", "議員立法")
           .order("submitted_at", { ascending: false })
-          .limit(2000),
+          .limit(1000),
+        supabase
+          .from("bills")
+          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type")
+          .eq("bill_type", "閣法")
+          .order("submitted_at", { ascending: false })
+          .limit(1000),
         supabase
           .from("members")
           .select("id,name,party,prev_party")
           .limit(2000),
       ]);
 
-      const bills = billsRes.data || [];
+      const bills = [...(memberBillsRes.data || []), ...(cabinetBillsRes.data || [])];
       setBills(bills);
 
       const map: Record<string, MemberInfo> = {};
