@@ -72,6 +72,12 @@ jobs:
         timeout-minutes: 10
         run: python apps/collector/sources/votes.py --mode daily
 
+      - name: 議員立法・閣法収集（日次）
+        id: bills
+        continue-on-error: true
+        timeout-minutes: 30
+        run: python apps/collector/sources/bills.py --daily
+
       - name: 委員会所属収集
         id: committees
         continue-on-error: true
@@ -98,6 +104,7 @@ jobs:
           echo "| 質問主意書 | ${{ steps.questions.outcome }} |"
           echo "| 請願収集 | ${{ steps.petitions.outcome }} |"
           echo "| 採決記録 | ${{ steps.votes.outcome }} |"
+          echo "| 議員立法・閣法 | ${{ steps.bills.outcome }} |"
           echo "| 委員会所属 | ${{ steps.committees.outcome }} |"
           echo "| キーワード更新 | ${{ steps.keywords.outcome }} |"
 

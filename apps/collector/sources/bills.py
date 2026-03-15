@@ -357,9 +357,9 @@ def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
     resp.encoding = resp.apparent_encoding or "utf-8"
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    table = _find_section_table(soup, "閣法")
+    table = _find_section_table(soup, "内閣提出")
     if table is None:
-        logger.warning("Sangiin session %d: 閣法テーブルが見つからない", session)
+        logger.warning("Sangiin session %d: 内閣提出テーブルが見つからない", session)
         return []
 
     rows: list[dict[str, Any]] = []
@@ -434,8 +434,12 @@ def collect_bills(sessions: list[int] | None = None, daily: bool = False) -> Non
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--daily", action="store_true", help="現在進行中の国会回次のみ収集")
+    args = parser.parse_args()
     try:
-        collect_bills()
+        collect_bills(daily=args.daily)
     except Exception:
         logger.exception("Bill collection failed")
         sys.exit(1)
