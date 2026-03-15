@@ -196,23 +196,29 @@ def main():
     time.sleep(2)
     sangiin = scrape_sangiin()
 
-    if shugiin:
+    if len(shugiin) >= 400:
         execute_with_retry(
             lambda: client.table("members").update({"is_active": False}).eq("house", "衆議院"),
             label="reset_shugiin",
         )
         register_members(shugiin)
     else:
-        logger.warning("衆院スクレイプ失敗 — is_active をリセットしません")
+        raise RuntimeError(
+            f"衆院スクレイピング件数が異常 ({len(shugiin)}名、期待値 400名以上) — "
+            "is_active をリセットしません。衆院サイトの構造変更の可能性があります。"
+        )
 
-    if sangiin:
+    if len(sangiin) >= 200:
         execute_with_retry(
             lambda: client.table("members").update({"is_active": False}).eq("house", "参議院"),
             label="reset_sangiin",
         )
         register_members(sangiin)
     else:
-        logger.warning("参院スクレイプ失敗 — is_active をリセットしません")
+        raise RuntimeError(
+            f"参院スクレイピング件数が異常 ({len(sangiin)}名、期待値 200名以上) — "
+            "is_active をリセットしません。参院サイトの構造変更の可能性があります。"
+        )
 
     shugiin_count = execute_with_retry(
         lambda: client.table('members').select('id', count='exact').eq('house', '衆議院'),

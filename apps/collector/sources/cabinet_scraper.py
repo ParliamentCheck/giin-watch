@@ -117,6 +117,11 @@ def main():
     # 名簿スクレイピング
     posts = scrape_meibo(cabinet_num)
     logger.info(f"取得した役職数: {len(posts)}")
+    if len(posts) < 10:
+        raise RuntimeError(
+            f"スクレイピング件数が異常に少ない ({len(posts)}件) — "
+            "官邸サイトの構造変更の可能性があります。cabinet_scraper.py を確認してください。"
+        )
 
     # 議員マップ構築
     member_map = build_member_map(client)
@@ -147,6 +152,11 @@ def main():
     logger.info(f"完了: マッチ{matched}名 / 未マッチ{len(unmatched)}名")
     if unmatched:
         logger.warning(f"未マッチ一覧:\n" + "\n".join(unmatched))
+    if matched < 5:
+        raise RuntimeError(
+            f"議員名マッチング件数が異常に少ない ({matched}名) — "
+            "議員データとの不整合またはスクレイピング異常の可能性があります。"
+        )
 
 
 if __name__ == "__main__":
