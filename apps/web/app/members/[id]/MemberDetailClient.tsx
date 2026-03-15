@@ -1,12 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
 import ActivityRadar from "../../components/ActivityRadar";
 import { isFavorite, addFavorite, removeFavorite } from "../../../lib/favorites";
 import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
+import { usePagination } from "../../../hooks/usePagination";
 
 interface Member {
   id: string;
@@ -141,19 +142,16 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [loading,       setLoading]       = useState(!initialMember);
   const [clientLoaded,  setClientLoaded]  = useState(false);
   const searchParams = useSearchParams();
-  const pathname     = usePathname();
+  const { page: listPage, setPage: setListPage } = usePagination();
   const tab          = searchParams.get("tab") ?? "committees";
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
-    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+    p.delete("page");
+    router.replace(`${window.location.pathname}?${p.toString()}`, { scroll: false });
   };
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
   const [petitionFilter, setPetitionFilter] = useState<"採択" | "不採択" | "審査未了" | "all">("all");
-  const [speechPage,   setSpeechPage]   = useState(1);
-  const [questionPage, setQuestionPage] = useState(1);
-  const [votePage,     setVotePage]     = useState(1);
-  const [billPage,     setBillPage]     = useState(1);
   const [fav,        setFav]        = useState(false);
   const [favMsg,     setFavMsg]     = useState("");
   const [copied,     setCopied]     = useState(false);
@@ -530,7 +528,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             </div>
           ) : (
             <>
-            {sessionGroups.slice((speechPage - 1) * PAGE_SIZE, speechPage * PAGE_SIZE).map((sg) => {
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ color: "#888888", fontSize: 13 }}>{sessionGroups.length}件</span>
+              <Paginator total={sessionGroups.length} page={listPage} onPage={setListPage} variant="top" />
+            </div>
+            {sessionGroups.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE).map((sg) => {
               const key      = `${sg.spoken_at}_${sg.committee}`;
               const isOpen   = expanded.has(key);
               return (
@@ -571,7 +573,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                 </div>
               );
             })}
-            <Paginator total={sessionGroups.length} page={speechPage} onPage={(p) => { setSpeechPage(p); window.scrollTo(0, 0); }} />
+            <Paginator total={sessionGroups.length} page={listPage} onPage={setListPage} variant="bottom" />
             </>
           )}
         </div>
@@ -687,7 +689,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             </div>
           ) : (
             <>
-            {questions.slice((questionPage - 1) * PAGE_SIZE, questionPage * PAGE_SIZE).map((q, i, arr) => (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ color: "#888888", fontSize: 13 }}>{questions.length}件</span>
+              <Paginator total={questions.length} page={listPage} onPage={setListPage} variant="top" />
+            </div>
+            {questions.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE).map((q, i, arr) => (
               <div key={q.id} style={{ padding: "14px 0",
                 borderBottom: i < arr.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                 <div style={{ display: "flex", justifyContent: "space-between",
@@ -715,7 +721,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                 </div>
               </div>
             ))}
-            <Paginator total={questions.length} page={questionPage} onPage={(p) => { setQuestionPage(p); window.scrollTo(0, 0); }} />
+            <Paginator total={questions.length} page={listPage} onPage={setListPage} variant="bottom" />
             </>
           )}
         </div>
@@ -781,7 +787,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                     </button>
                   </div>
                 )}
-                {filteredVotes.slice((votePage - 1) * PAGE_SIZE, votePage * PAGE_SIZE).map((v, i, arr) => {
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <span style={{ color: "#888888", fontSize: 13 }}>{filteredVotes.length}件</span>
+                  <Paginator total={filteredVotes.length} page={listPage} onPage={setListPage} variant="top" />
+                </div>
+                {filteredVotes.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE).map((v, i, arr) => {
                   const voteColor = v.vote === "賛成" ? "#22c55e" : v.vote === "反対" ? "#ef4444" : "#888888";
                   return (
                     <div key={v.id} style={{ padding: "12px 0",
@@ -800,7 +810,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                     </div>
                   );
                 })}
-                <Paginator total={filteredVotes.length} page={votePage} onPage={(p) => { setVotePage(p); window.scrollTo(0, 0); }} />
+                <Paginator total={filteredVotes.length} page={listPage} onPage={setListPage} variant="bottom" />
               </>
             );
           })()}
@@ -837,7 +847,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                 </div>
               ) : (
                 <>
-                {bills.slice((billPage - 1) * PAGE_SIZE, billPage * PAGE_SIZE).map((b, i, arr) => (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <span style={{ color: "#888888", fontSize: 13 }}>{bills.length}件</span>
+                  <Paginator total={bills.length} page={listPage} onPage={setListPage} variant="top" />
+                </div>
+                {bills.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE).map((b, i, arr) => (
                   <div key={b.id} style={{ padding: "12px 0",
                     borderBottom: i < arr.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", marginBottom: 4 }}>
@@ -857,7 +871,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                     </div>
                   </div>
                 ))}
-                <Paginator total={bills.length} page={billPage} onPage={(p) => { setBillPage(p); window.scrollTo(0, 0); }} />
+                <Paginator total={bills.length} page={listPage} onPage={setListPage} variant="bottom" />
                 </>
               )}
             </>

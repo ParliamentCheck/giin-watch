@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { getFavorites, addFavorite, removeFavorite } from "../../lib/favorites";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
+import { usePagination } from "../../hooks/usePagination";
 
 interface Member {
   id: string;
@@ -56,7 +57,6 @@ function MembersContent() {
   const searchParams = useSearchParams();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [inputValue, setInputValue] = useState("");
   const [favIds, setFavIds] = useState<string[]>([]);
   const isComposing = useRef(false);
@@ -66,6 +66,7 @@ function MembersContent() {
   const selectedHouse = searchParams.get("house")  || "";
   const selectedParty = searchParams.get("party")  || "";
   const sortKey       = (searchParams.get("sort")  || "name") as SortKey;
+  const { page, setPage } = usePagination();
 
   // URLのsearchと入力欄を同期（クリア時など）
   useEffect(() => {
@@ -74,13 +75,13 @@ function MembersContent() {
 
   useEffect(() => { setFavIds(getFavorites()); }, []);
 
-  const updateUrl = (q: string, house: string, party: string, sort: string) => {
-    setPage(1);
+  const updateUrl = (q: string, house: string, party: string, sort: string, p = 1) => {
     const params = new URLSearchParams();
     if (q)     params.set("q",     q);
     if (house) params.set("house", house);
     if (party) params.set("party", party);
     if (sort && sort !== "name") params.set("sort", sort);
+    if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     router.replace(qs ? `/members?${qs}` : "/members", { scroll: false });
   };
@@ -184,7 +185,10 @@ function MembersContent() {
 
       {/* リストカード */}
       <div className="card-xl">
-        <p style={{ color: "#888888", marginBottom: 12, fontSize: 13 }}>{sorted.length}名表示中</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <span style={{ color: "#888888", fontSize: 13 }}>{sorted.length}名</span>
+          <Paginator total={sorted.length} page={page} onPage={setPage} variant="top" />
+        </div>
 
       {loading ? (
         <div className="loading-block">
@@ -233,7 +237,7 @@ function MembersContent() {
           })}
         </div>
       )}
-      <Paginator total={sorted.length} page={page} onPage={(p) => { setPage(p); window.scrollTo(0, 0); }} />
+      <Paginator total={sorted.length} page={page} onPage={setPage} variant="bottom" />
       </div>
       </div>
     </div>

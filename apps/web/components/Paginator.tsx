@@ -6,9 +6,10 @@ interface Props {
   total: number;
   page: number;
   onPage: (p: number) => void;
+  variant?: "top" | "bottom";
 }
 
-export default function Paginator({ total, page, onPage }: Props) {
+export default function Paginator({ total, page, onPage, variant = "top" }: Props) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (totalPages <= 1) return null;
 
@@ -21,36 +22,86 @@ export default function Paginator({ total, page, onPage }: Props) {
     }
   }
 
+  if (variant === "bottom") {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center",
+        gap: 4, padding: "16px 0" }}>
+        <button
+          onClick={() => onPage(page - 1)}
+          disabled={page === 1}
+          style={{
+            minWidth: 32, minHeight: 32, padding: "0 8px",
+            background: page === 1 ? "#f4f4f4" : "#ffffff",
+            border: "1px solid #dddddd", borderRadius: 8,
+            color: page === 1 ? "#cccccc" : "#333333",
+            fontSize: 13, cursor: page === 1 ? "default" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+          ‹
+        </button>
+        {pages.map((p, i) =>
+          p === "…" ? (
+            <span key={`e${i}`} style={{ minWidth: 16, minHeight: 32,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 12, color: "#aaaaaa" }}>…</span>
+          ) : (
+            <button key={p} onClick={() => onPage(p as number)}
+              style={{
+                minWidth: 32, minHeight: 32, padding: "0 4px",
+                background: p === page ? "#1a1a1a" : "#ffffff",
+                border: `1px solid ${p === page ? "#1a1a1a" : "#dddddd"}`,
+                borderRadius: 8,
+                color: p === page ? "#ffffff" : "#333333",
+                fontSize: 12, fontWeight: p === page ? 700 : 400,
+                cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+              {p}
+            </button>
+          )
+        )}
+        <button
+          onClick={() => onPage(page + 1)}
+          disabled={page === totalPages}
+          style={{
+            minWidth: 32, minHeight: 32, padding: "0 8px",
+            background: page === totalPages ? "#f4f4f4" : "#ffffff",
+            border: "1px solid #dddddd", borderRadius: 8,
+            color: page === totalPages ? "#cccccc" : "#333333",
+            fontSize: 13, cursor: page === totalPages ? "default" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+          ›
+        </button>
+      </div>
+    );
+  }
+
+  // variant="top": 右寄せ・最小スタイル
   return (
-    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 4, marginTop: 16, flexWrap: "wrap" }}>
-      <button
-        onClick={() => onPage(page - 1)} disabled={page === 1}
-        style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #dddddd",
-          background: "none", cursor: page === 1 ? "default" : "pointer",
-          color: page === 1 ? "#cccccc" : "#555555", fontSize: 13 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginLeft: "auto" }}>
+      <button onClick={() => onPage(page - 1)} disabled={page === 1}
+        style={{ background: "none", border: "none", cursor: page === 1 ? "default" : "pointer",
+          color: page === 1 ? "#cccccc" : "#555555", fontSize: 13, padding: "0 4px" }}>
         ‹
       </button>
       {pages.map((p, i) =>
         p === "…" ? (
-          <span key={`ellipsis-${i}`} style={{ fontSize: 13, color: "#aaaaaa", padding: "0 4px" }}>…</span>
+          <span key={`e${i}`} style={{ fontSize: 12, color: "#aaaaaa", padding: "0 2px" }}>…</span>
         ) : (
           <button key={p} onClick={() => onPage(p as number)}
-            style={{ padding: "4px 10px", borderRadius: 6, fontSize: 13,
-              border: p === page ? "1px solid #1a1a1a" : "1px solid #dddddd",
-              background: p === page ? "#1a1a1a" : "none",
-              color: p === page ? "#ffffff" : "#555555",
-              cursor: "pointer", minWidth: 32 }}>
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12,
+              color: p === page ? "#1a1a1a" : "#888888",
+              fontWeight: p === page ? 800 : 400, padding: "0 4px" }}>
             {p}
           </button>
         )
       )}
-      <button
-        onClick={() => onPage(page + 1)} disabled={page === totalPages}
-        style={{ padding: "4px 10px", borderRadius: 6, border: "1px solid #dddddd",
-          background: "none", cursor: page === totalPages ? "default" : "pointer",
-          color: page === totalPages ? "#cccccc" : "#555555", fontSize: 13 }}>
+      <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+        style={{ background: "none", border: "none", cursor: page === totalPages ? "default" : "pointer",
+          color: page === totalPages ? "#cccccc" : "#555555", fontSize: 13, padding: "0 4px" }}>
         ›
       </button>
-    </div>
+    </span>
   );
 }

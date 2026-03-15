@@ -2,8 +2,9 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
+import { usePagination } from "../../../hooks/usePagination";
 
 interface CommitteeMember {
   member_id: string;
@@ -56,23 +57,22 @@ function CommitteeDetailContent() {
   useEffect(() => { document.title = `${committeeName} | はたらく議員`; }, [committeeName]);
 
   const searchParams = useSearchParams();
-  const pathname     = usePathname();
   const [members,   setMembers]   = useState<CommitteeMember[]>([]);
-  const [membersPage, setMembersPage] = useState(1);
   const [petitions, setPetitions] = useState<Petition[]>([]);
   const [loading,   setLoading]   = useState(true);
   const tab = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
-    router.replace(`${pathname}?${p.toString()}`);
+    router.replace(`${window.location.pathname}?${p.toString()}`);
   };
   const sortBy = searchParams.get("sort") ?? "role";
+  const { page: membersPage, setPage: setMembersPage, clearPage } = usePagination();
   const setSortBy = (s: string) => {
-    setMembersPage(1);
     const p = new URLSearchParams(searchParams.toString());
     p.set("sort", s);
-    router.replace(`${pathname}?${p.toString()}`);
+    router.replace(`${window.location.pathname}?${p.toString()}`);
+    clearPage();
   };
 
   useEffect(() => {
@@ -327,6 +327,10 @@ function CommitteeDetailContent() {
       {/* 議員一覧タブ */}
       {tab === "members" && (
         <div className="card" style={{ padding: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 13, color: "#888888" }}>{sorted.length}名</span>
+            <Paginator total={sorted.length} page={membersPage} onPage={setMembersPage} variant="top" />
+          </div>
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {[
               { value: "role", label: "役職順" },
@@ -356,7 +360,7 @@ function CommitteeDetailContent() {
               );
             })}
           </div>
-          <Paginator total={sorted.length} page={membersPage} onPage={(p) => { setMembersPage(p); window.scrollTo(0, 0); }} />
+          <Paginator total={sorted.length} page={membersPage} onPage={setMembersPage} variant="bottom" />
         </div>
       )}
 

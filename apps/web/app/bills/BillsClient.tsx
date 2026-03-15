@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
+import { usePagination } from "../../hooks/usePagination";
 
 interface Bill {
   id: string;
@@ -36,11 +37,10 @@ const CHUDO_FORMATION_DATE = "2026-01-16";
 
 type StatusCategory = "成立" | "廃案" | "審議中";
 
-function classifyStatus(status: string | null): StatusCategory | null {
+function classifyStatus(status: string | null): StatusCategory {
   if (status === "成立") return "成立";
   if (status === "未了" || status === "撤回") return "廃案";
-  if (!status || status === "") return null;
-  return "審議中"; // 閉会中審査・審議中・本院議了 など
+  return "審議中"; // null・空・閉会中審査・審議中・本院議了 など
 }
 
 function getEffectiveParty(m: MemberInfo, billDate: string | null): string {
@@ -98,11 +98,13 @@ export default function BillsClient() {
 
   const activeTab    = (searchParams.get("tab") ?? "member") as "member" | "cabinet";
   const memberSubTab = (searchParams.get("sub") ?? "list") as "list" | "network";
+  const { page: billsPage, setPage: setBillsPage } = usePagination();
 
   const setActiveTab = (tab: "member" | "cabinet") => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", tab);
     p.delete("sub");
+    p.delete("page");
     router.replace(`${pathname}?${p.toString()}`, { scroll: false });
   };
   const setMemberSubTab = (sub: "list" | "network") => {
@@ -119,33 +121,7 @@ export default function BillsClient() {
   const [isComposing, setIsComposing] = useState(false);
   const [filterHouse, setFilterHouse] = useState<string>("全て");
   const [statusFilter, setStatusFilter] = useState<StatusCategory | "all">("all");
-  const [billsPage, setBillsPage] = useState(1);
 
-  // 閣法 × 発言：展開中の法案ID → { members, meetingUrl }
-  const [expandedBillId, setExpandedBillId] = useState<string | null>(null);
-  const [deliberatorCache, setDeliberatorCache] = useState<Record<string, { members: string[]; meetingUrl: string | null }>>({});
-  const [deliberatorLoading, setDeliberatorLoading] = useState(false);
-
-  async function fetchDeliberators(billId: string, sessionNumber: number, committee: string) {
-    if (deliberatorCache[billId]) {
-      setExpandedBillId(expandedBillId === billId ? null : billId);
-      return;
-    }
-    if (expandedBillId === billId) { setExpandedBillId(null); return; }
-    setExpandedBillId(billId);
-    setDeliberatorLoading(true);
-    const { data } = await supabase
-      .from("speeches")
-      .select("member_id,source_url")
-      .eq("session_number", sessionNumber)
-      .eq("committee", committee)
-      .limit(500);
-    const members = [...new Set((data || []).map((d: { member_id: string | null }) => d.member_id).filter(Boolean) as string[])];
-    const firstUrl = (data || []).find((d: { source_url: string | null }) => d.source_url)?.source_url ?? null;
-    const meetingUrl = firstUrl ? firstUrl.replace(/\/\d+$/, "/0") : null;
-    setDeliberatorCache((prev) => ({ ...prev, [billId]: { members, meetingUrl } }));
-    setDeliberatorLoading(false);
-  }
 
   // ネットワークタブ用
   const [topPairs, setTopPairs] = useState<PairStat[]>([]);
@@ -367,8 +343,9 @@ export default function BillsClient() {
                     style={{ flex: 1, minWidth: 200, borderRadius: 8, padding: "8px 14px" }}
                   />
                 </div>
-                <p style={{ color: "#555555", fontSize: 13, marginBottom: 12 }}>
-                  {loading ? "読み込み中..." : `${filtered.length} 件`}
+                <p style={{ color: "#555555", fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span>{loading ? "読み込み中..." : `${filtered.length} 件`}</span>
+                  {!loading && <Paginator total={filtered.length} page={billsPage} onPage={setBillsPage} variant="top" />}
                 </p>
                 {loading ? (
                   <div className="loading-block">
@@ -418,7 +395,9 @@ export default function BillsClient() {
                     ))}
                   </div>
                 )}
-                <Paginator total={filtered.length} page={billsPage} onPage={(p) => { setBillsPage(p); window.scrollTo(0, 0); }} />
+                {!loading && filtered.length > PAGE_SIZE && (
+                  <Paginator total={filtered.length} page={billsPage} onPage={setBillsPage} variant="bottom" />
+                )}
               </div>
             )}
 
@@ -685,8 +664,9 @@ export default function BillsClient() {
                 style={{ flex: 1, minWidth: 200, borderRadius: 8, padding: "8px 14px" }}
               />
             </div>
-            <p style={{ color: "#555555", fontSize: 13, marginBottom: 12 }}>
-              {loading ? "読み込み中..." : `${filtered.length} 件`}
+            <p style={{ color: "#555555", fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>{loading ? "読み込み中..." : `${filtered.length} 件`}</span>
+              {!loading && <Paginator total={filtered.length} page={billsPage} onPage={setBillsPage} variant="top" />}
             </p>
             {loading ? (
               <div className="loading-block">
@@ -698,11 +678,6 @@ export default function BillsClient() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {filtered.slice((billsPage - 1) * PAGE_SIZE, billsPage * PAGE_SIZE).map((b) => {
-                  const canExpand = !!(b.committee_san && b.session_number);
-                  const isExpanded = expandedBillId === b.id;
-                  const cached = deliberatorCache[b.id];
-                  const deliberators = cached?.members || [];
-                  const meetingUrl = cached?.meetingUrl ?? null;
                   return (
                     <div key={b.id} className="card" style={{ padding: "16px 20px" }}>
                       <div style={{ marginBottom: 8 }}>
@@ -728,72 +703,13 @@ export default function BillsClient() {
                         {b.committee_san && (
                           <span style={{ fontSize: 12, color: "#888888" }}>· {b.committee_san}</span>
                         )}
-                        {canExpand && (
-                          <button
-                            onClick={() => fetchDeliberators(b.id, b.session_number!, b.committee_san!)}
-                            style={{
-                              marginLeft: "auto", fontSize: 11, color: "#555555",
-                              background: "none", border: "1px solid #dddddd",
-                              borderRadius: 6, padding: "3px 10px", cursor: "pointer",
-                            }}>
-                            {isExpanded ? "▲ 閉じる" : "👤 審議議員"}
-                          </button>
-                        )}
                       </div>
-                      {isExpanded && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eeeeee" }}>
-                          {deliberatorLoading && !deliberatorCache[b.id] ? (
-                            <span style={{ fontSize: 12, color: "#888888" }}>読み込み中...</span>
-                          ) : deliberators.length === 0 ? (
-                            <span style={{ fontSize: 12, color: "#aaaaaa" }}>発言データなし</span>
-                          ) : (
-                            <>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                                <span style={{ fontSize: 11, color: "#aaaaaa" }}>
-                                  第{b.session_number}回国会 {b.committee_san} で発言記録がある議員（{deliberators.length}人）
-                                </span>
-                                {meetingUrl && (
-                                  <a href={meetingUrl} target="_blank" rel="noopener noreferrer"
-                                    style={{
-                                      fontSize: 11, color: "#555555",
-                                      border: "1px solid #dddddd", borderRadius: 6,
-                                      padding: "2px 8px", textDecoration: "none",
-                                      whiteSpace: "nowrap",
-                                    }}>
-                                    会議録テキスト ↗
-                                  </a>
-                                )}
-                              </div>
-                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                {deliberators.map((id) => {
-                                  const m = memberMap[id];
-                                  return m ? (
-                                    <span key={id}
-                                      onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
-                                      style={{
-                                        fontSize: 12, cursor: "pointer",
-                                        color: PARTY_COLORS[m.party] || "#555555",
-                                        background: "#f9f9f9",
-                                        border: `1px solid ${PARTY_COLORS[m.party] || "#dddddd"}`,
-                                        borderRadius: 4, padding: "2px 8px",
-                                      }}>
-                                      {m.name}
-                                    </span>
-                                  ) : (
-                                    <span key={id} style={{ fontSize: 11, color: "#aaaaaa" }}>{id}</span>
-                                  );
-                                })}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
             )}
-            <Paginator total={filtered.length} page={billsPage} onPage={(p) => { setBillsPage(p); window.scrollTo(0, 0); }} />
+            <Paginator total={filtered.length} page={billsPage} onPage={setBillsPage} variant="bottom" />
           </div>
         )}
 

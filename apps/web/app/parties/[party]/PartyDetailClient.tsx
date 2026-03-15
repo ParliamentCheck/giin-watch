@@ -2,11 +2,12 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
-import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
 import ActivityRadar from "../../components/ActivityRadar";
 import { PARTY_COLORS } from "../../../lib/partyColors";
+import { usePagination } from "../../../hooks/usePagination";
 
 interface Member {
   id: string;
@@ -80,7 +81,6 @@ function PartyDetailContent() {
   useEffect(() => { document.title = `${party} | はたらく議員`; }, [party]);
 
   const [members,    setMembers]    = useState<Member[]>([]);
-  const [membersPage, setMembersPage] = useState(1);
   const [chairs,     setChairs]     = useState<CommitteeRole[]>([]);
   const [keywords,   setKeywords]   = useState<KeywordData[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -88,19 +88,19 @@ function PartyDetailContent() {
   const [radarGlobalMax, setRadarGlobalMax] = useState({ session: 1, question: 1, bill: 1, petition: 1, role: 1 });
   const [voteStats, setVoteStats] = useState<{ total: number; yes: number; no: number; absent: number } | null>(null);
   const searchParams = useSearchParams();
-  const pathname     = usePathname();
   const tab          = searchParams.get("tab") ?? "breakdown";
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
-    router.replace(`${pathname}?${p.toString()}`);
+    router.replace(`${window.location.pathname}?${p.toString()}`);
   };
   const sortBy = searchParams.get("sort") ?? "session_count";
+  const { page: membersPage, setPage: setMembersPage, clearPage } = usePagination();
   const setSortBy = (s: string) => {
-    setMembersPage(1);
     const p = new URLSearchParams(searchParams.toString());
     p.set("sort", s);
-    router.replace(`${pathname}?${p.toString()}`);
+    router.replace(`${window.location.pathname}?${p.toString()}`);
+    clearPage();
   };
 
   useEffect(() => {
@@ -385,6 +385,10 @@ function PartyDetailContent() {
       {/* 議員一覧タブ */}
       {tab === "members" && (
         <div className="card" style={{ padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 13, color: "#888888" }}>{sorted.length}名</span>
+            <Paginator total={sorted.length} page={membersPage} onPage={setMembersPage} variant="top" />
+          </div>
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {[
               { value: "session_count",  label: "発言順" },
@@ -423,7 +427,7 @@ function PartyDetailContent() {
               </div>
             ))}
           </div>
-          <Paginator total={sorted.length} page={membersPage} onPage={(p) => { setMembersPage(p); window.scrollTo(0, 0); }} />
+          <Paginator total={sorted.length} page={membersPage} onPage={setMembersPage} variant="bottom" />
         </div>
       )}
 
