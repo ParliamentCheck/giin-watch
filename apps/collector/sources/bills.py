@@ -1,11 +1,18 @@
 """
-はたらく議員 — 議員立法スクレイパー
-衆議院・参議院から議員提出法案データを取得して bills テーブルに保存する。
+はたらく議員 — 議員立法・閣法スクレイパー
+衆議院・参議院から議員提出法案と閣法データを取得して bills テーブルに保存する。
 
 データソース:
   衆院一覧: https://www.shugiin.go.jp/internet/itdb_gian.nsf/html/gian/kaiji{session}.htm
   参院一覧: https://www.sangiin.go.jp/japanese/joho1/kousei/gian/{session}/gian.htm
   提出者・日付: 各法案の「経過」詳細ページから取得
+
+閣法の取得方針:
+  閣法は衆参両院のサイトに同一法案が掲載されるが、参議院の詳細ページ（meisai）に
+  衆参両院の委員会付託・採決情報が集約されるため、参議院サイトのみを正とする。
+  衆議院側の閣法（cabinet-shu-*）は取得しない。
+  衆院ページにHTML法律案があるが当サイトでは法律案本文は取得対象外であり、
+  参院ページにPDF版があるため衆院HTMLの取得理由もない。
 """
 
 from __future__ import annotations
@@ -275,73 +282,9 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
 
 
 # ============================================================
-# 衆議院 閣法
-# ============================================================
-
-def scrape_shugiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
-    """衆議院の閣法（内閣提出法案）を取得する。"""
-    url = SHUGIIN_LIST_URL.format(session=session)
-    logger.info("Fetching Shugiin cabinet bills session %d", session)
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
-        resp.raise_for_status()
-    except requests.RequestException as exc:
-        logger.warning("Failed session %d: %s", session, exc)
-        return []
-
-    resp.encoding = resp.apparent_encoding or "shift_jis"
-    soup = BeautifulSoup(resp.text, "html.parser")
-
-    table = _find_section_table(soup, "閣法")
-    if table is None:
-        logger.warning("Shugiin session %d: 閣法テーブルが見つからない", session)
-        return []
-
-    rows: list[dict[str, Any]] = []
-    for tr in table.find_all("tr"):
-        tds = tr.find_all("td")
-        if len(tds) < 3:
-            continue
-        bill_num_text = tds[1].get_text(strip=True)
-        if not re.fullmatch(r"\d+", bill_num_text):
-            continue
-        title = tds[2].get_text(strip=True)
-        if not title:
-            continue
-        status = tds[3].get_text(strip=True) if len(tds) > 3 else ""
-
-        submitted_at: str | None = None
-        source_url: str | None = None
-        if len(tds) > 4:
-            link = tds[4].find("a")
-            if link and link.get("href"):
-                detail_url = urljoin(url, link["href"])
-                _, submitted_at = _fetch_detail(detail_url, "衆議院")
-                time.sleep(1)
-        if len(tds) > 5:
-            text_link = tds[5].find("a")
-            if text_link and text_link.get("href"):
-                source_url = urljoin(url, text_link["href"])
-
-        rows.append({
-            "id": f"cabinet-shu-{session}-{bill_num_text}",
-            "title": title,
-            "submitter_ids": [],
-            "submitted_at": submitted_at,
-            "session_number": session,
-            "status": status,
-            "house": "衆議院",
-            "source_url": source_url,
-            "bill_type": "閣法",
-        })
-
-    logger.info("Shugiin cabinet bills session %d: %d bills", session, len(rows))
-    return rows
-
-
-# ============================================================
 # 参議院 閣法
 # ============================================================
+# 衆院閣法スクレイパーは廃止済み（→ モジュール docstring 参照）
 
 def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
     """参議院の閣法（内閣提出法案）を取得する。"""
@@ -417,10 +360,9 @@ def collect_bills(sessions: list[int] | None = None, daily: bool = False) -> Non
     total_saved = 0
     for session in sessions:
         for scrape_fn, label in [
-            (scrape_shugiin_bills,           f"bills_shu:{session}"),
-            (scrape_sangiin_bills,           f"bills_san:{session}"),
-            (scrape_shugiin_cabinet_bills,   f"cabinet_shu:{session}"),
-            (scrape_sangiin_cabinet_bills,   f"cabinet_san:{session}"),
+            (scrape_shugiin_bills,         f"bills_shu:{session}"),
+            (scrape_sangiin_bills,         f"bills_san:{session}"),
+            (scrape_sangiin_cabinet_bills, f"cabinet_san:{session}"),
         ]:
             rows = scrape_fn(session)
             if rows:
