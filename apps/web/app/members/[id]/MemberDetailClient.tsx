@@ -148,6 +148,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
     router.replace(`${pathname}?${p.toString()}`, { scroll: false });
   };
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
+  const [petitionFilter, setPetitionFilter] = useState<"採択" | "不採択" | "審査未了" | "all">("all");
   const [fav,        setFav]        = useState(false);
   const [favMsg,     setFavMsg]     = useState("");
   const [copied,     setCopied]     = useState(false);
@@ -581,17 +582,24 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             const rejected   = petitions.filter(p => p.result?.split("\n")[0].trim() === "不採択").length;
             const pending    = petitions.filter(p => !p.result || p.result.trim() === "" || p.result.includes("審査未了")).length;
             return (
-              <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-                {[
-                  { label: "採択",    count: adopted,  color: "#22c55e" },
-                  { label: "不採択",  count: rejected, color: "#ef4444" },
-                  { label: "審査未了", count: pending,  color: "#888888" },
-                ].map(({ label, count, color }) => (
-                  <div key={label} style={{ background: "#f4f4f4", borderRadius: 8, padding: "8px 16px", textAlign: "center", minWidth: 72 }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color }}>{count}</div>
-                    <div style={{ fontSize: 11, color: "#888888" }}>{label}</div>
-                  </div>
-                ))}
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                {([
+                  { label: "採択"    as const, count: adopted,  color: "#22c55e" },
+                  { label: "不採択"  as const, count: rejected, color: "#ef4444" },
+                  { label: "審査未了" as const, count: pending,  color: "#888888" },
+                ] as { label: "採択" | "不採択" | "審査未了"; count: number; color: string }[]).map(({ label, count, color }) => {
+                  const isActive = petitionFilter === label;
+                  return (
+                    <div key={label} onClick={() => setPetitionFilter(isActive ? "all" : label)}
+                      style={{
+                        flex: 1, background: isActive ? color : "#f4f4f4",
+                        borderRadius: 8, padding: "8px 16px", textAlign: "center", cursor: "pointer",
+                      }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
+                      <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888" }}>{label}</div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })()}
@@ -600,13 +608,19 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               請願の紹介議員記録がありません。
             </div>
           ) : (
-            petitions.map((p, i) => {
+            petitions.filter((p) => {
+              if (petitionFilter === "all") return true;
+              const r = p.result?.split("\n")[0].trim() ?? "";
+              if (petitionFilter === "採択") return r.startsWith("採択");
+              if (petitionFilter === "不採択") return r === "不採択";
+              return !p.result || p.result.trim() === "" || p.result.includes("審査未了");
+            }).map((p, i, arr) => {
               const resultClean = p.result?.split("\n")[0].trim() ?? null;
               const resultColor = resultClean?.startsWith("採択") ? "#22c55e"
                 : resultClean === "不採択" ? "#ef4444" : "#555555";
               return (
                 <div key={p.id} style={{ padding: "14px 0",
-                  borderBottom: i < petitions.length - 1 ? "1px solid #e0e0e0" : "none" }}>
+                  borderBottom: i < arr.length - 1 ? "1px solid #e0e0e0" : "none" }}>
                   <div style={{ display: "flex", justifyContent: "space-between",
                     alignItems: "flex-start", gap: 12, marginBottom: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", flex: 1 }}>

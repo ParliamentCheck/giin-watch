@@ -32,6 +32,15 @@ interface PairStat {
 // 中道改革連合の正式結成日。これ以前の法案は前所属政党として集計する
 const CHUDO_FORMATION_DATE = "2026-01-16";
 
+type StatusCategory = "成立" | "廃案" | "審議中";
+
+function classifyStatus(status: string | null): StatusCategory | null {
+  if (status === "成立") return "成立";
+  if (status === "未了" || status === "撤回") return "廃案";
+  if (!status || status === "") return null;
+  return "審議中"; // 閉会中審査・審議中・本院議了 など
+}
+
 function getEffectiveParty(m: MemberInfo, billDate: string | null): string {
   if (m.party === "中道改革連合" && m.prev_party && (!billDate || billDate < CHUDO_FORMATION_DATE)) {
     return m.prev_party;
@@ -92,6 +101,7 @@ export default function BillsClient() {
   const [search, setSearch] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [filterHouse, setFilterHouse] = useState<string>("全て");
+  const [statusFilter, setStatusFilter] = useState<StatusCategory | "all">("all");
 
   // ネットワークタブ用
   const [topPairs, setTopPairs] = useState<PairStat[]>([]);
@@ -181,11 +191,21 @@ export default function BillsClient() {
   const currentListBills = activeTab === "cabinet" ? cabinetBills : memberBills;
   const filtered = currentListBills.filter((b) => {
     if (filterHouse !== "全て" && b.house !== filterHouse) return false;
+    if (statusFilter !== "all" && classifyStatus(b.status) !== statusFilter) return false;
     if (search && !isComposing) {
       if (!b.title?.toLowerCase().includes(search.toLowerCase())) return false;
     }
     return true;
   });
+
+  // ステータス別件数（院フィルター・検索は無視して全件から集計）
+  const statusCounts = {
+    成立:   currentListBills.filter(b => classifyStatus(b.status) === "成立").length,
+    廃案:   currentListBills.filter(b => classifyStatus(b.status) === "廃案").length,
+    審議中: currentListBills.filter(b => classifyStatus(b.status) === "審議中").length,
+  };
+  const rateBase = statusCounts.成立 + statusCounts.廃案;
+  const passRate = rateBase > 0 ? Math.round((statusCounts.成立 / rateBase) * 100) : null;
 
   const maxCount = Math.max(
     1,
@@ -237,6 +257,45 @@ export default function BillsClient() {
                     </button>
                   ))}
                 </div>
+                {/* ステータスカード */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  {([
+                    { label: "成立"   as const, count: statusCounts.成立,   color: "#22c55e" },
+                    { label: "廃案"   as const, count: statusCounts.廃案,   color: "#ef4444" },
+                    { label: "審議中" as const, count: statusCounts.審議中, color: "#888888" },
+                  ] as { label: StatusCategory; count: number; color: string }[]).map(({ label, count, color }) => {
+                    const isActive = statusFilter === label;
+                    return (
+                      <div key={label} onClick={() => setStatusFilter(isActive ? "all" : label)}
+                        style={{
+                          flex: 1, background: isActive ? color : "#f4f4f4",
+                          borderRadius: 8, padding: "8px 16px", textAlign: "center",
+                          cursor: "pointer", outline: isActive ? `2px solid ${color}` : "none",
+                        }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
+                        <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888" }}>{label}</div>
+                      </div>
+                    );
+                  })}
+                  {passRate !== null && (
+                    <div style={{
+                      flex: 1, background: "#f4f4f4",
+                      borderRadius: 8, padding: "8px 16px", textAlign: "center",
+                    }}>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b" }}>{passRate}%</div>
+                      <div style={{ fontSize: 11, color: "#888888" }}>成立率</div>
+                    </div>
+                  )}
+                </div>
+                {statusFilter !== "all" && (
+                  <div style={{ fontSize: 12, color: "#555555", marginBottom: 12 }}>
+                    「{statusFilter}」で絞り込み中 — {filtered.length}件
+                    <button onClick={() => setStatusFilter("all")}
+                      style={{ marginLeft: 8, fontSize: 11, color: "#888888", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                      解除
+                    </button>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
                   {["全て", "衆議院", "参議院"].map((h) => (
                     <button key={h} onClick={() => setFilterHouse(h)}
@@ -520,6 +579,45 @@ export default function BillsClient() {
         {/* 閣法タブ */}
         {activeTab === "cabinet" && (
           <div className="card-xl">
+            {/* ステータスカード */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              {([
+                { label: "成立"   as const, count: statusCounts.成立,   color: "#22c55e" },
+                { label: "廃案"   as const, count: statusCounts.廃案,   color: "#ef4444" },
+                { label: "審議中" as const, count: statusCounts.審議中, color: "#888888" },
+              ] as { label: StatusCategory; count: number; color: string }[]).map(({ label, count, color }) => {
+                const isActive = statusFilter === label;
+                return (
+                  <div key={label} onClick={() => setStatusFilter(isActive ? "all" : label)}
+                    style={{
+                      flex: 1, background: isActive ? color : "#f4f4f4",
+                      borderRadius: 8, padding: "8px 16px", textAlign: "center",
+                      cursor: "pointer", outline: isActive ? `2px solid ${color}` : "none",
+                    }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: isActive ? "#ffffff" : color }}>{count}</div>
+                    <div style={{ fontSize: 11, color: isActive ? "#ffffff" : "#888888" }}>{label}</div>
+                  </div>
+                );
+              })}
+              {passRate !== null && (
+                <div style={{
+                  flex: 1, background: "#f4f4f4",
+                  borderRadius: 8, padding: "8px 16px", textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#f59e0b" }}>{passRate}%</div>
+                  <div style={{ fontSize: 11, color: "#888888" }}>成立率</div>
+                </div>
+              )}
+            </div>
+            {statusFilter !== "all" && (
+              <div style={{ fontSize: 12, color: "#555555", marginBottom: 12 }}>
+                「{statusFilter}」で絞り込み中 — {filtered.length}件
+                <button onClick={() => setStatusFilter("all")}
+                  style={{ marginLeft: 8, fontSize: 11, color: "#888888", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                  解除
+                </button>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
               {["全て", "衆議院", "参議院"].map((h) => (
                 <button key={h} onClick={() => setFilterHouse(h)}
