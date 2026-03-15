@@ -212,7 +212,8 @@ export default function BillsClient() {
 
   const currentListBills = activeTab === "cabinet" ? cabinetBills : memberBills;
   const filtered = currentListBills.filter((b) => {
-    if (filterHouse !== "全て" && b.house !== filterHouse) return false;
+    // 院フィルターは議員立法タブのみ適用（閣法は参院のみのため不要）
+    if (activeTab === "member" && filterHouse !== "全て" && b.house !== filterHouse) return false;
     if (statusFilter !== "all" && classifyStatus(b.status) !== statusFilter) return false;
     if (search && !isComposing) {
       if (!b.title?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -641,12 +642,6 @@ export default function BillsClient() {
               </div>
             )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-              {["全て", "衆議院", "参議院"].map((h) => (
-                <button key={h} onClick={() => setFilterHouse(h)}
-                  className={`filter-btn${filterHouse === h ? " active" : ""}`}>
-                  {h}
-                </button>
-              ))}
               <input
                 type="text"
                 placeholder="法案名を検索..."
