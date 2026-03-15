@@ -189,8 +189,8 @@ function FormerMembersContent() {
                     {m.name}
                   </span>
                   {/* 政党バッジ */}
-                  <span className="badge badge-party" style={{ "--party-color": color } as React.CSSProperties}>
-                    {m.party}
+                  <span className="badge badge-party" style={{ "--party-color": "#aaaaaa" } as React.CSSProperties}>
+                    元{m.party}
                   </span>
                   {/* 院・選挙区・期数 */}
                   <span style={{ color: "#555555", fontSize: 12, whiteSpace: "nowrap" }}>

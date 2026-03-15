@@ -7,10 +7,11 @@ interface Props {
   id: string;
   name: string;
   party: string;
+  isFormer?: boolean;
 }
 
-export default function MemberChip({ id, name, party }: Props) {
-  const color = partyColor(party);
+export default function MemberChip({ id, name, party, isFormer = false }: Props) {
+  const color = isFormer ? "#aaaaaa" : partyColor(party);
   return (
     <Link
       href={`/members/${encodeURIComponent(id)}`}

@@ -28,6 +28,7 @@ interface MemberInfo {
   name: string;
   party: string;
   prev_party: string | null;
+  is_active: boolean;
 }
 
 interface PairStat {
@@ -203,7 +204,7 @@ export default function BillsClient() {
           .limit(1000),
         supabase
           .from("members")
-          .select("id,name,party,prev_party")
+          .select("id,name,party,prev_party,is_active")
           .limit(2000),
       ]);
 
@@ -777,7 +778,7 @@ export default function BillsClient() {
                                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                                       <span style={{ fontSize: 11, fontWeight: 700, color: "#555555" }}>{label}</span>
                                       <span style={{ fontSize: 11, color: "#aaaaaa" }}>
-                                        {h.committee}{h.voteDate ? `（${h.voteDate}）` : ""} · 発言{h.members.length + h.unmatched.length}人
+                                        {h.committee}{h.voteDate ? `（${h.voteDate}）` : ""} · 発言{h.members.length}人
                                       </span>
                                       {h.meetingUrl && (
                                         <a href={h.meetingUrl} target="_blank" rel="noopener noreferrer"
@@ -791,36 +792,14 @@ export default function BillsClient() {
                                         </a>
                                       )}
                                     </div>
-                                    {h.members.length === 0 && h.unmatched.length === 0 ? (
+                                    {h.members.length === 0 ? (
                                       <span style={{ fontSize: 12, color: "#aaaaaa" }}>発言データなし</span>
                                     ) : (
                                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                         {h.members.map((id) => {
                                           const m = memberMap[id];
-                                          return m ? (
-                                            <span key={id}
-                                              onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
-                                              style={{
-                                                fontSize: 12, cursor: "pointer",
-                                                color: PARTY_COLORS[m.party] || "#555555",
-                                                background: "#f9f9f9",
-                                                border: `1px solid ${PARTY_COLORS[m.party] || "#dddddd"}`,
-                                                borderRadius: 4, padding: "2px 8px",
-                                              }}>
-                                              {m.name}
-                                            </span>
-                                          ) : null;
+                                          return m ? <MemberChip key={id} id={id} name={m.name} party={m.party} isFormer={!m.is_active} /> : null;
                                         })}
-                                        {h.unmatched.map((name) => (
-                                          <span key={name} style={{
-                                            fontSize: 12, color: "#888888",
-                                            background: "#f4f4f4",
-                                            border: "1px solid #dddddd",
-                                            borderRadius: 4, padding: "2px 8px",
-                                          }}>
-                                            {name}
-                                          </span>
-                                        ))}
                                       </div>
                                     )}
                                   </div>

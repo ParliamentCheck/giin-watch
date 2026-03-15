@@ -390,8 +390,8 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               )}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span className="badge badge-party" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, "--party-color": color } as React.CSSProperties}>
-                🗳 {member.party}
+              <span className="badge badge-party" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, "--party-color": member.is_active ? color : "#aaaaaa" } as React.CSSProperties}>
+                🗳 {member.is_active ? member.party : `元${member.party}`}
               </span>
               {showFaction && (
                 <span className="badge badge-house" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
