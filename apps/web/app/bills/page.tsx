@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import BillsClient from "./BillsClient";
 
 export const metadata: Metadata = {
@@ -12,5 +13,9 @@ export const metadata: Metadata = {
 };
 
 export default function BillsPage() {
-  return <BillsClient />;
+  return (
+    <Suspense>
+      <BillsClient />
+    </Suspense>
+  );
 }
