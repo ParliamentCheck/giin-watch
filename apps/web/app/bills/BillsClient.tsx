@@ -807,6 +807,9 @@ export default function BillsClient() {
                               })}
                             </div>
                           )}
+                          <p style={{ fontSize: 11, color: "#b45309", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 6, padding: "6px 10px", marginTop: 10 }}>
+                            ※ 付託委員会で同会期中に発言した議員を表示しています。この法案のみを審議した議員ではありません。
+                          </p>
                         </div>
                       )}
                     </div>
