@@ -230,6 +230,9 @@ export default async function TopPage() {
               <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
             </div>
           ))}
+          <p className="col-span-2 sm:col-span-4 text-[10px] text-neutral-400 text-center -mt-2">
+            ※ 発言・議員立法 2022年〜 / 質問主意書・請願 2018年〜
+          </p>
         </section>
 
         {/* ── メインナビゲーション ────────────────────────────── */}

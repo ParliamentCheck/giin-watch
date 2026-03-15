@@ -333,6 +333,10 @@ function PartyDetailContent() {
                 <div style={{ fontSize: 10, color: "#888888" }}>{item.label}</div>
               </div>
             ))}
+            {/* 集計期間注釈 */}
+            <div style={{ gridColumn: "1 / -1", fontSize: 10, color: "#aaaaaa", lineHeight: 1.7 }}>
+              ※ 集計期間：発言・議員立法 第210回〜（2022年〜） / 質問主意書・請願 第196回〜（2018年〜） / 委員会役職 現在のスナップショット
+            </div>
             {/* 採決記録 — 3列フル */}
             <div style={{ gridColumn: "1 / -1", background: `${color}15`, borderRadius: 8, padding: "10px 12px" }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#555555", marginBottom: 8, textAlign: "center" }}>本会議採決記録</div>

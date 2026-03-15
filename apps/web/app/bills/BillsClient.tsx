@@ -337,6 +337,7 @@ export default function BillsClient() {
                     </div>
                   )}
                 </div>
+                <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 12 }}>※ 第208回〜（2022年〜）の記録に基づく</div>
                 {statusFilter !== "all" && (
                   <div style={{ fontSize: 12, color: "#555555", marginBottom: 12 }}>
                     「{statusFilter}」で絞り込み中 — {filtered.length}件
@@ -659,6 +660,7 @@ export default function BillsClient() {
                 </div>
               )}
             </div>
+            <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 12 }}>※ 第208回〜（2022年〜）の記録に基づく</div>
             {statusFilter !== "all" && (
               <div style={{ fontSize: 12, color: "#555555", marginBottom: 12 }}>
                 「{statusFilter}」で絞り込み中 — {filtered.length}件
