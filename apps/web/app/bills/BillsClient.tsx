@@ -82,7 +82,8 @@ function heatmapText(count: number, max: number): string {
 
 export default function BillsClient() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"list" | "cabinet" | "network">("list");
+  const [activeTab, setActiveTab] = useState<"member" | "cabinet">("member");
+  const [memberSubTab, setMemberSubTab] = useState<"list" | "network">("list");
 
   // 一覧タブ用
   const [bills, setBills] = useState<Bill[]>([]);
@@ -163,23 +164,22 @@ export default function BillsClient() {
     fetchData();
   }, []);
 
-  const memberBills   = bills.filter((b) => (b.bill_type ?? "議員立法") === "議員立法");
-  const cabinetBills  = bills
+  const memberBills = bills.filter((b) => (b.bill_type ?? "議員立法") === "議員立法");
+  const cabinetBills = bills
     .filter((b) => b.bill_type === "閣法")
     .sort((a, b) => {
       const sd = (b.session_number ?? 0) - (a.session_number ?? 0);
       if (sd !== 0) return sd;
-      // 同一回次内は submitted_at 降順（null は後ろ）
       if (a.submitted_at && b.submitted_at) return b.submitted_at.localeCompare(a.submitted_at);
       if (a.submitted_at) return -1;
       if (b.submitted_at) return 1;
-      // IDの末尾番号降順
       const na = parseInt(a.id.split("-").pop() ?? "0");
       const nb = parseInt(b.id.split("-").pop() ?? "0");
       return nb - na;
     });
 
-  const filtered = (activeTab === "cabinet" ? cabinetBills : memberBills).filter((b) => {
+  const currentListBills = activeTab === "cabinet" ? cabinetBills : memberBills;
+  const filtered = currentListBills.filter((b) => {
     if (filterHouse !== "全て" && b.house !== filterHouse) return false;
     if (search && !isComposing) {
       if (!b.title?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -204,12 +204,11 @@ export default function BillsClient() {
           <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 0 }}>📋 法案</h1>
         </div>
 
-        {/* タブ（独立した枠） */}
+        {/* トップタブ：議員立法 / 閣法 */}
         <div className="tab-bar-container" style={{ marginBottom: 16 }}>
           {([
-            { id: "list",    label: "📋 議員立法" },
+            { id: "member",  label: "📋 議員立法" },
             { id: "cabinet", label: "🏛 閣法" },
-            { id: "network", label: "🤝 政党ネットワーク" },
           ] as const).map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               style={{ flex: 1, padding: "10px 0" }}
@@ -219,10 +218,308 @@ export default function BillsClient() {
           ))}
         </div>
 
-        {/* 議員立法・閣法 一覧タブ（共通レイアウト） */}
-        {(activeTab === "list" || activeTab === "cabinet") && (
+        {/* 議員立法タブ */}
+        {activeTab === "member" && (
+          <>
+            {/* 法案一覧 */}
+            {memberSubTab === "list" && (
+              <div className="card-xl">
+                {/* サブタブ */}
+                <div className="tab-bar-container" style={{ marginBottom: 16 }}>
+                  {([
+                    { id: "list",    label: "法案一覧" },
+                    { id: "network", label: "🤝 政党ネットワーク" },
+                  ] as const).map((tab) => (
+                    <button key={tab.id} onClick={() => setMemberSubTab(tab.id)}
+                      style={{ flex: 1, padding: "8px 0", fontSize: 13 }}
+                      className={`tab-pill${memberSubTab === tab.id ? " active" : ""}`}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                  {["全て", "衆議院", "参議院"].map((h) => (
+                    <button key={h} onClick={() => setFilterHouse(h)}
+                      className={`filter-btn${filterHouse === h ? " active" : ""}`}>
+                      {h}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    placeholder="法案名を検索..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onCompositionStart={() => setIsComposing(true)}
+                    onCompositionEnd={(e) => { setIsComposing(false); setSearch((e.target as HTMLInputElement).value); }}
+                    className="input-field"
+                    style={{ flex: 1, minWidth: 200, borderRadius: 8, padding: "8px 14px" }}
+                  />
+                </div>
+                <p style={{ color: "#555555", fontSize: 13, marginBottom: 12 }}>
+                  {loading ? "読み込み中..." : `${filtered.length} 件`}
+                </p>
+                {loading ? (
+                  <div className="loading-block">
+                    <div className="loading-spinner" />
+                    <span>データを読み込んでいます...</span>
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="empty-state">該当する法案がありません。</div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {filtered.map((b) => (
+                      <div key={b.id} className="card" style={{ padding: "16px 20px" }}>
+                        <div style={{ marginBottom: 8 }}>
+                          {b.source_url ? (
+                            <a href={b.source_url} target="_blank" rel="noopener noreferrer"
+                              style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a",
+                                textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>
+                              {b.title}
+                              <span style={{ marginLeft: 4, color: "#aaaaaa", fontSize: 11 }}>↗</span>
+                            </a>
+                          ) : (
+                            <span style={{ color: "#888888", fontWeight: 600, fontSize: 14 }}>{b.title}</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#555555", marginBottom: 8 }}>
+                          {b.submitted_at && <span>{b.submitted_at}</span>}
+                          {b.session_number && <span>第{b.session_number}回国会</span>}
+                          {b.house && <span className="badge badge-house">{b.house}</span>}
+                          {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
+                        </div>
+                        {b.submitter_ids && b.submitter_ids.length > 0 && (
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
+                            <span style={{ color: "#888888" }}>提出者:</span>
+                            {b.submitter_ids.map((id) => {
+                              const m = memberMap[id];
+                              return m ? (
+                                <span key={id}
+                                  onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
+                                  className="link-underline-hover">
+                                  {m.name}
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 政党ネットワーク */}
+            {memberSubTab === "network" && (
+              <>
+                <div className="card-xl">
+                  {/* サブタブ */}
+                  <div className="tab-bar-container" style={{ marginBottom: 16 }}>
+                    {([
+                      { id: "list",    label: "法案一覧" },
+                      { id: "network", label: "🤝 政党ネットワーク" },
+                    ] as const).map((tab) => (
+                      <button key={tab.id} onClick={() => setMemberSubTab(tab.id)}
+                        style={{ flex: 1, padding: "8px 0", fontSize: 13 }}
+                        className={`tab-pill${memberSubTab === tab.id ? " active" : ""}`}>
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p style={{ fontSize: 13, color: "#555555", marginBottom: 12, lineHeight: 1.7 }}>
+                    議員立法（議員提出法案）を共同提出した回数を、政党ペア別に集計しています。
+                  </p>
+                  <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 8 }}>
+                    ※中道改革連合は前所属政党（公明党・立憲民主党）に分類して集計。
+                  </p>
+                  <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 20 }}>
+                    ※与党は主に内閣を通じて法案（閣法）を提出するため、議員立法の件数が構造的に少なくなります。このマトリックスは国会活動の全体量を比較するものではありません。
+                  </p>
+
+                  {networkLoading ? (
+                    <div className="loading-block">
+                      <div className="loading-spinner" />
+                      <span>データを集計しています...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <h2 style={{ fontSize: 15, fontWeight: 700, color: "#333333", marginBottom: 10 }}>
+                        共同提出の多い政党ペア TOP10
+                      </h2>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {topPairs.map(({ a, b, count }, i) => {
+                          const colorA = PARTY_COLORS[a] || "#7f8c8d";
+                          const colorB = PARTY_COLORS[b] || "#7f8c8d";
+                          return (
+                            <div key={`${a}-${b}`}
+                              style={{ display: "flex", alignItems: "center", gap: 10,
+                                padding: "10px 14px", background: "#f9f9f9", borderRadius: 8,
+                                border: "1px solid #eeeeee" }}>
+                              <span style={{ fontSize: 13, color: "#aaaaaa", width: 22, textAlign: "right", flexShrink: 0 }}>
+                                {i + 1}
+                              </span>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" }}>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorA, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 14, fontWeight: 600, color: colorA }}>{a}</span>
+                                </span>
+                                <span style={{ fontSize: 13, color: "#aaaaaa" }}>×</span>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorB, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 14, fontWeight: 600, color: colorB }}>{b}</span>
+                                </span>
+                              </div>
+                              <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", flexShrink: 0 }}>
+                                {count}<span style={{ fontSize: 11, fontWeight: 400, color: "#888888", marginLeft: 2 }}>法案</span>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* マトリックス */}
+                {!networkLoading && (
+                  <div className="card-xl" style={{ marginTop: 16 }}>
+                    <h2 style={{ fontSize: 15, fontWeight: 700, color: "#333333", marginBottom: 6 }}>
+                      政党間マトリックス
+                    </h2>
+                    <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 12 }}>
+                      数字は共同提出した議員立法の件数。色が濃いほど件数が多い。セルをクリックで法案一覧を表示。
+                    </p>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth: 420, width: "100%" }}>
+                        <thead>
+                          <tr>
+                            <th style={{ width: 44, padding: "6px 4px", position: "sticky", left: 0, background: "#ffffff", zIndex: 2 }} />
+                            {matrixParties.map((p) => (
+                              <th key={p} style={{ padding: "6px 4px", textAlign: "center",
+                                fontWeight: 700, color: PARTY_COLORS[p] || "#555",
+                                fontSize: 12, whiteSpace: "nowrap", minWidth: 48,
+                                position: "sticky", top: 0, background: "#ffffff", zIndex: 1 }}>
+                                {PARTY_SHORT[p] ?? p}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {matrixParties.map((row) => (
+                            <tr key={row}>
+                              <td style={{ padding: "6px 6px", fontWeight: 700,
+                                color: PARTY_COLORS[row] || "#555", fontSize: 12,
+                                whiteSpace: "nowrap", textAlign: "right",
+                                position: "sticky", left: 0, background: "#ffffff", zIndex: 1 }}>
+                                {PARTY_SHORT[row] ?? row}
+                              </td>
+                              {matrixParties.map((col) => {
+                                const same = row === col;
+                                const count = same ? 0 : (matrix[row]?.[col] || 0);
+                                const isSelected = selectedPair &&
+                                  ((selectedPair.a === row && selectedPair.b === col) ||
+                                   (selectedPair.a === col && selectedPair.b === row));
+                                return (
+                                  <td key={col}
+                                    onClick={() => {
+                                      if (same || count === 0) return;
+                                      if (isSelected) { setSelectedPair(null); return; }
+                                      setSelectedPair({ a: row, b: col });
+                                    }}
+                                    style={{
+                                      padding: "8px 4px", textAlign: "center",
+                                      background: isSelected ? "#1a1a1a" : same ? "#eeeeee" : heatmapBg(count, maxCount),
+                                      color: isSelected ? "#ffffff" : same ? "#cccccc" : heatmapText(count, maxCount),
+                                      fontWeight: count > 0 ? 700 : 400,
+                                      border: isSelected ? "2px solid #1a1a1a" : "1px solid #eeeeee",
+                                      borderRadius: 4,
+                                      cursor: count > 0 && !same ? "pointer" : "default",
+                                    }}>
+                                    {same ? "—" : count > 0 ? count : ""}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* ドリルダウン */}
+                {selectedPair && (() => {
+                  const { a, b } = selectedPair;
+                  const pairBills = bills.filter((bill) => {
+                    const ids = (bill.submitter_ids || []).filter((id) => memberMap[id]);
+                    const parties = new Set(ids.map((id) => getEffectiveParty(memberMap[id], bill.submitted_at)));
+                    return parties.has(a) && parties.has(b);
+                  });
+                  const colorA = PARTY_COLORS[a] || "#7f8c8d";
+                  const colorB = PARTY_COLORS[b] || "#7f8c8d";
+                  return (
+                    <div className="card-xl" style={{ marginTop: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: colorA }}>{a}</span>
+                        <span style={{ color: "#aaaaaa" }}>×</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: colorB }}>{b}</span>
+                        <span style={{ fontSize: 13, color: "#888888" }}>の共同提出法案（{pairBills.length}件）</span>
+                        <button onClick={() => setSelectedPair(null)}
+                          style={{ marginLeft: "auto", fontSize: 12, color: "#888888", background: "none",
+                            border: "1px solid #dddddd", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>
+                          閉じる
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {pairBills.map((b) => (
+                          <div key={b.id} className="card" style={{ padding: "14px 18px" }}>
+                            <div style={{ marginBottom: 6 }}>
+                              {b.source_url ? (
+                                <a href={b.source_url} target="_blank" rel="noopener noreferrer"
+                                  style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a",
+                                    textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>
+                                  {b.title}
+                                  <span style={{ marginLeft: 4, color: "#aaaaaa", fontSize: 11 }}>↗</span>
+                                </a>
+                              ) : (
+                                <span style={{ fontWeight: 600, fontSize: 13, color: "#555555" }}>{b.title}</span>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "#555555", marginBottom: 6 }}>
+                              {b.submitted_at && <span>{b.submitted_at}</span>}
+                              {b.session_number && <span>第{b.session_number}回国会</span>}
+                              {b.house && <span className="badge badge-house">{b.house}</span>}
+                              {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
+                            </div>
+                            {b.submitter_ids && b.submitter_ids.length > 0 && (
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
+                                <span style={{ color: "#888888" }}>提出者:</span>
+                                {b.submitter_ids.map((id) => {
+                                  const m = memberMap[id];
+                                  return m ? (
+                                    <span key={id}
+                                      onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
+                                      className="link-underline-hover">
+                                      {m.name}
+                                    </span>
+                                  ) : null;
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </>
+        )}
+
+        {/* 閣法タブ */}
+        {activeTab === "cabinet" && (
           <div className="card-xl">
-            {/* 検索・フィルター（一覧カード最上部） */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
               {["全て", "衆議院", "参議院"].map((h) => (
                 <button key={h} onClick={() => setFilterHouse(h)}
@@ -273,221 +570,13 @@ export default function BillsClient() {
                       {b.house && <span className="badge badge-house">{b.house}</span>}
                       {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
                     </div>
-                    {activeTab === "list" && b.submitter_ids && b.submitter_ids.length > 0 && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
-                        <span style={{ color: "#888888" }}>提出者:</span>
-                        {b.submitter_ids.map((id) => {
-                          const m = memberMap[id];
-                          return m ? (
-                            <span key={id}
-                              onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
-                              className="link-underline-hover">
-                              {m.name}
-                            </span>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-                    {activeTab === "cabinet" && (
-                      <div style={{ fontSize: 12, color: "#888888" }}>内閣提出</div>
-                    )}
+                    <div style={{ fontSize: 12, color: "#888888" }}>内閣提出</div>
                   </div>
                 ))}
               </div>
             )}
           </div>
         )}
-
-        {/* 政党ネットワークタブ：説明 + TOP10 */}
-        {activeTab === "network" && (
-          <div className="card-xl">
-            <p style={{ fontSize: 13, color: "#555555", marginBottom: 12, lineHeight: 1.7 }}>
-              議員立法（議員提出法案）を共同提出した回数を、政党ペア別に集計しています。
-            </p>
-            <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 8 }}>
-              ※中道改革連合は前所属政党（公明党・立憲民主党）に分類して集計。
-            </p>
-            <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 20 }}>
-              ※与党は主に内閣を通じて法案（閣法）を提出するため、議員立法の件数が構造的に少なくなります。このマトリックスは国会活動の全体量を比較するものではありません。
-            </p>
-
-            {networkLoading ? (
-              <div className="loading-block">
-                <div className="loading-spinner" />
-                <span>データを集計しています...</span>
-              </div>
-            ) : (
-              <>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: "#333333", marginBottom: 10 }}>
-                  共同提出の多い政党ペア TOP10
-                </h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {topPairs.map(({ a, b, count }, i) => {
-                    const colorA = PARTY_COLORS[a] || "#7f8c8d";
-                    const colorB = PARTY_COLORS[b] || "#7f8c8d";
-                    return (
-                      <div key={`${a}-${b}`}
-                        style={{ display: "flex", alignItems: "center", gap: 10,
-                          padding: "10px 14px", background: "#f9f9f9", borderRadius: 8,
-                          border: "1px solid #eeeeee" }}>
-                        <span style={{ fontSize: 13, color: "#aaaaaa", width: 22, textAlign: "right", flexShrink: 0 }}>
-                          {i + 1}
-                        </span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorA, flexShrink: 0 }} />
-                            <span style={{ fontSize: 14, fontWeight: 600, color: colorA }}>{a}</span>
-                          </span>
-                          <span style={{ fontSize: 13, color: "#aaaaaa" }}>×</span>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorB, flexShrink: 0 }} />
-                            <span style={{ fontSize: 14, fontWeight: 600, color: colorB }}>{b}</span>
-                          </span>
-                        </div>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", flexShrink: 0 }}>
-                          {count}<span style={{ fontSize: 11, fontWeight: 400, color: "#888888", marginLeft: 2 }}>法案</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 政党ネットワークタブ：マトリックス */}
-        {activeTab === "network" && !networkLoading && (
-          <div className="card-xl" style={{ marginTop: 16 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#333333", marginBottom: 6 }}>
-              政党間マトリックス
-            </h2>
-            <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 12 }}>
-              数字は共同提出した議員立法の件数。色が濃いほど件数が多い。セルをクリックで法案一覧を表示。
-            </p>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth: 420, width: "100%" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: 44, padding: "6px 4px", position: "sticky", left: 0, background: "#ffffff", zIndex: 2 }} />
-                        {matrixParties.map((p) => (
-                          <th key={p} style={{ padding: "6px 4px", textAlign: "center",
-                            fontWeight: 700, color: PARTY_COLORS[p] || "#555",
-                            fontSize: 12, whiteSpace: "nowrap", minWidth: 48,
-                            position: "sticky", top: 0, background: "#ffffff", zIndex: 1 }}>
-                            {PARTY_SHORT[p] ?? p}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {matrixParties.map((row) => (
-                        <tr key={row}>
-                          <td style={{ padding: "6px 6px", fontWeight: 700,
-                            color: PARTY_COLORS[row] || "#555", fontSize: 12,
-                            whiteSpace: "nowrap", textAlign: "right",
-                            position: "sticky", left: 0, background: "#ffffff", zIndex: 1 }}>
-                            {PARTY_SHORT[row] ?? row}
-                          </td>
-                          {matrixParties.map((col) => {
-                            const same = row === col;
-                            const count = same ? 0 : (matrix[row]?.[col] || 0);
-                            const isSelected = selectedPair &&
-                              ((selectedPair.a === row && selectedPair.b === col) ||
-                               (selectedPair.a === col && selectedPair.b === row));
-                            return (
-                              <td key={col}
-                                onClick={() => {
-                                  if (same || count === 0) return;
-                                  if (isSelected) { setSelectedPair(null); return; }
-                                  setSelectedPair({ a: row, b: col });
-                                }}
-                                style={{
-                                  padding: "8px 4px", textAlign: "center",
-                                  background: isSelected ? "#1a1a1a" : same ? "#eeeeee" : heatmapBg(count, maxCount),
-                                  color: isSelected ? "#ffffff" : same ? "#cccccc" : heatmapText(count, maxCount),
-                                  fontWeight: count > 0 ? 700 : 400,
-                                  border: isSelected ? "2px solid #1a1a1a" : "1px solid #eeeeee",
-                                  borderRadius: 4,
-                                  cursor: count > 0 && !same ? "pointer" : "default",
-                                }}>
-                                {same ? "—" : count > 0 ? count : ""}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-          </div>
-        )}
-
-        {/* ドリルダウン：選択ペアの法案一覧 */}
-        {activeTab === "network" && selectedPair && (() => {
-          const { a, b } = selectedPair;
-          const pairBills = bills.filter((bill) => {
-            const ids = (bill.submitter_ids || []).filter((id) => memberMap[id]);
-            const parties = new Set(ids.map((id) => getEffectiveParty(memberMap[id], bill.submitted_at)));
-            return parties.has(a) && parties.has(b);
-          });
-          const colorA = PARTY_COLORS[a] || "#7f8c8d";
-          const colorB = PARTY_COLORS[b] || "#7f8c8d";
-          return (
-            <div className="card-xl" style={{ marginTop: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: colorA }}>{a}</span>
-                <span style={{ color: "#aaaaaa" }}>×</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: colorB }}>{b}</span>
-                <span style={{ fontSize: 13, color: "#888888" }}>の共同提出法案（{pairBills.length}件）</span>
-                <button onClick={() => setSelectedPair(null)}
-                  style={{ marginLeft: "auto", fontSize: 12, color: "#888888", background: "none",
-                    border: "1px solid #dddddd", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>
-                  閉じる
-                </button>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {pairBills.map((b) => (
-                  <div key={b.id} className="card" style={{ padding: "14px 18px" }}>
-                    <div style={{ marginBottom: 6 }}>
-                      {b.source_url ? (
-                        <a href={b.source_url} target="_blank" rel="noopener noreferrer"
-                          style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a",
-                            textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>
-                          {b.title}
-                          <span style={{ marginLeft: 4, color: "#aaaaaa", fontSize: 11 }}>↗</span>
-                        </a>
-                      ) : (
-                        <span style={{ fontWeight: 600, fontSize: 13, color: "#555555" }}>{b.title}</span>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "#555555", marginBottom: 6 }}>
-                      {b.submitted_at && <span>{b.submitted_at}</span>}
-                      {b.session_number && <span>第{b.session_number}回国会</span>}
-                      {b.house && <span className="badge badge-house">{b.house}</span>}
-                      {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
-                    </div>
-                    {b.submitter_ids && b.submitter_ids.length > 0 && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
-                        <span style={{ color: "#888888" }}>提出者:</span>
-                        {b.submitter_ids.map((id) => {
-                          const m = memberMap[id];
-                          return m ? (
-                            <span key={id}
-                              onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
-                              className="link-underline-hover">
-                              {m.name}
-                            </span>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
 
       </div>
     </div>
