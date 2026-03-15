@@ -286,6 +286,38 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
 # ============================================================
 # 衆院閣法スクレイパーは廃止済み（→ モジュール docstring 参照）
 
+
+def _fetch_cabinet_status(meisai_url: str) -> str:
+    """参院 meisai 詳細ページから閣法のステータスを判定する。
+
+    判定ルール:
+      - 「公布」の記述あり → "成立"（公布年月日が記載された法案＝成立済み）
+      - 「未了」の記述あり → "未了"（会期末に廃案）
+      - それ以外          → ""（審議中または未審議）
+
+    注: 参院の議決日の有無で判定する方法もあるが、衆院の議決日と混同しやすいため
+    「公布」の有無を正とする。
+    """
+    try:
+        resp = requests.get(meisai_url, headers=HEADERS, timeout=30)
+        if resp.status_code != 200:
+            return ""
+        resp.encoding = resp.apparent_encoding or "utf-8"
+        text = resp.text
+    except requests.RequestException:
+        return ""
+
+    soup = BeautifulSoup(text, "html.parser")
+    # 「公布年月日」ラベルの隣セルに日付があれば成立
+    for cell in soup.find_all(["th", "td"]):
+        if "公布" in cell.get_text():
+            nxt = cell.find_next_sibling(["th", "td"])
+            if nxt and nxt.get_text(strip=True):
+                return "成立"
+    if "未了" in text:
+        return "未了"
+    return ""
+
 def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
     """参議院の閣法（内閣提出法案）を取得する。"""
     url = SANGIIN_LIST_URL.format(session=session)
@@ -319,14 +351,15 @@ def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
         if not title:
             continue
 
-        submitter_ids: list[str] = []
         submitted_at: str | None = None
         source_url: str | None = None
+        status = ""
         link = title_cell.find("a")
         if link and link.get("href"):
             detail_url = urljoin(url, link["href"])
             source_url = detail_url
             _, submitted_at = _fetch_detail(detail_url, "参議院")
+            status = _fetch_cabinet_status(detail_url)
             time.sleep(1)
 
         rows.append({
@@ -335,7 +368,7 @@ def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
             "submitter_ids": [],
             "submitted_at": submitted_at,
             "session_number": session,
-            "status": "",
+            "status": status,
             "house": "参議院",
             "source_url": source_url,
             "bill_type": "閣法",
