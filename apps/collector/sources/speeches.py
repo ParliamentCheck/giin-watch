@@ -178,6 +178,7 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
             row = {
                 "id": speech_id,
                 "member_id": member_id,
+                "speaker_name": speaker_normalized if house else None,
                 "spoken_at": spoken_at if spoken_at else None,
                 "committee": committee,
                 "session_number": session_number,
@@ -187,11 +188,11 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
             rows.append(row)
 
         if rows:
-            # member_id が members テーブルに存在しない行は除外
-            valid_rows = [r for r in rows if r["member_id"] is not None]
+            # 院が特定できた発言のみ保存（政府参考人など院不明の発言は除外）
+            valid_rows = [r for r in rows if r["speaker_name"] is not None]
             orphan_count = len(rows) - len(valid_rows)
             if orphan_count > 0:
-                logger.debug("Skipped %d speeches with unknown member_id", orphan_count)
+                logger.debug("Skipped %d speeches with no house affiliation", orphan_count)
 
             if valid_rows:
                 batch_upsert("speeches", valid_rows, on_conflict="id", label="speeches")

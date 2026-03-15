@@ -99,22 +99,22 @@ async function getLatestCommitteeActivity() {
 
   const groups = [...groupMap.values()].slice(0, 8);
 
-  // member_id → name をまとめて取得
+  // member_id → name, party をまとめて取得
   const allIds = [...new Set(groups.flatMap((g) => [...g.memberIds]))];
-  const nameMap = new Map<string, string>();
+  const memberMap = new Map<string, { name: string; party: string }>();
   if (allIds.length > 0) {
     const { data: members } = await supabase
       .from("members")
-      .select("id, name")
+      .select("id, name, party")
       .in("id", allIds)
       .limit(500);
-    for (const m of members || []) nameMap.set(m.id, m.name);
+    for (const m of members || []) memberMap.set(m.id, { name: m.name, party: m.party });
   }
 
   return groups.map((g) => ({
     date: g.date,
     committee: g.committee,
-    members: [...g.memberIds].map((id) => ({ id, name: nameMap.get(id) || "" })),
+    members: [...g.memberIds].map((id) => ({ id, name: memberMap.get(id)?.name || "", party: memberMap.get(id)?.party || "" })),
     ndlUrl: g.sourceUrl ? g.sourceUrl.replace(/\/\d+$/, "/0") : "",
   }));
 }
@@ -133,16 +133,16 @@ async function getRecentBills() {
 
   const membersRes = await supabase
     .from("members")
-    .select("id, name")
+    .select("id, name, party")
     .in("id", allIds.slice(0, 100));
 
-  const memberMap: Record<string, string> = {};
-  for (const m of membersRes.data || []) memberMap[m.id] = m.name;
+  const memberMap: Record<string, { name: string; party: string }> = {};
+  for (const m of membersRes.data || []) memberMap[m.id] = { name: m.name, party: m.party };
 
   return bills.map((b: any) => ({
     ...b,
     submitters: (b.submitter_ids || [])
-      .map((id: string) => memberMap[id] ? { id, name: memberMap[id] } : null)
+      .map((id: string) => memberMap[id] ? { id, name: memberMap[id].name, party: memberMap[id].party } : null)
       .filter(Boolean),
   }));
 }

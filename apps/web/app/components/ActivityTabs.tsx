@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import MemberChip from "../../components/MemberChip";
 
 interface Question {
   id: string;
@@ -16,7 +17,7 @@ interface Question {
 interface CommitteeActivity {
   date: string;
   committee: string;
-  members: { id: string; name: string }[];
+  members: { id: string; name: string; party: string }[];
   ndlUrl: string;
 }
 
@@ -40,7 +41,7 @@ interface Bill {
   status: string | null;
   house: string | null;
   source_url: string | null;
-  submitters: { id: string; name: string }[];
+  submitters: { id: string; name: string; party: string }[];
 }
 
 interface Props {
@@ -102,13 +103,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                 )}
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6">
-                <Link href={`/members/${encodeURIComponent(q.member_id)}`}
-                  className="hover:text-neutral-500 transition-colors">
-                  {q.members?.name}
-                </Link>
-                <span className="text-neutral-600">·</span>
-                <span>{q.members?.party}</span>
-                <span className="text-neutral-600">·</span>
+                {q.members && <MemberChip id={q.member_id} name={q.members.name} party={q.members.party} />}
                 <span className="tabular-nums">{q.submitted_at}</span>
               </div>
             </div>
@@ -138,10 +133,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {c.members.map((m) => (
-                  <Link key={m.id} href={`/members/${encodeURIComponent(m.id)}`}
-                    className="text-xs text-neutral-700 bg-neutral-100/60 px-2 py-0.5 rounded hover:bg-neutral-200/60 transition-colors">
-                    {m.name}
-                  </Link>
+                  <MemberChip key={m.id} id={m.id} name={m.name} party={m.party} />
                 ))}
               </div>
             </div>
@@ -185,20 +177,11 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                   </>
                 )}
                 {b.submitters.length > 0 && (
-                  <>
-                    <span className="text-neutral-400">·</span>
-                    <span className="flex flex-wrap gap-x-1">
-                      {b.submitters.map((s: { id: string; name: string }, i: number) => (
-                        <span key={s.id}>
-                          <Link href={`/members/${encodeURIComponent(s.id)}`}
-                            className="hover:text-neutral-700 transition-colors">
-                            {s.name}
-                          </Link>
-                          {i < b.submitters.length - 1 && "、"}
-                        </span>
-                      ))}
-                    </span>
-                  </>
+                  <span className="flex flex-wrap gap-1">
+                    {b.submitters.map((s) => (
+                      <MemberChip key={s.id} id={s.id} name={s.name} party={s.party} />
+                    ))}
+                  </span>
                 )}
               </div>
             </div>

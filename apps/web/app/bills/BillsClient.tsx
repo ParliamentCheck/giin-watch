@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
+import MemberChip from "../../components/MemberChip";
 
 interface Bill {
   id: string;
@@ -17,6 +18,9 @@ interface Bill {
   source_url: string | null;
   bill_type: string | null;
   committee_san: string | null;
+  vote_date_san: string | null;
+  committee_shu: string | null;
+  vote_date_shu: string | null;
 }
 
 interface MemberInfo {
@@ -122,6 +126,58 @@ export default function BillsClient() {
   const [filterHouse, setFilterHouse] = useState<string>("全て");
   const [statusFilter, setStatusFilter] = useState<StatusCategory | "all">("all");
 
+  interface HouseDeliberation {
+    committee: string;
+    voteDate: string;
+    members: string[];
+    unmatched: string[];
+    meetingUrl: string | null;
+  }
+
+  // 閣法 × 発言：展開中の法案ID → { shu, san }
+  const [expandedBillId, setExpandedBillId] = useState<string | null>(null);
+  const [deliberatorCache, setDeliberatorCache] = useState<Record<string, { shu: HouseDeliberation | null; san: HouseDeliberation | null }>>({});
+  const [deliberatorLoading, setDeliberatorLoading] = useState(false);
+
+  async function fetchHouse(sessionNumber: number, committee: string, voteDate: string | null): Promise<HouseDeliberation | null> {
+    if (!committee) return null;
+    let query = supabase
+      .from("speeches")
+      .select("member_id,speaker_name,source_url")
+      .eq("session_number", sessionNumber)
+      .eq("committee", committee)
+      .limit(500);
+    if (voteDate) query = query.eq("spoken_at", voteDate);
+    const { data } = await query;
+    const rows = data || [];
+    const members = [...new Set(rows.map((d: { member_id: string | null }) => d.member_id).filter(Boolean) as string[])];
+    const unmatched = [...new Set(
+      rows
+        .filter((d: { member_id: string | null; speaker_name: string | null }) => !d.member_id && d.speaker_name)
+        .map((d: { speaker_name: string | null }) => d.speaker_name as string)
+    )];
+    const firstUrl = rows.find((d: { source_url: string | null }) => d.source_url)?.source_url ?? null;
+    const meetingUrl = firstUrl ? firstUrl.replace(/\/\d+$/, "/0") : null;
+    return { committee, voteDate: voteDate ?? "", members, unmatched, meetingUrl };
+  }
+
+  async function fetchDeliberators(bill: Bill) {
+    const billId = bill.id;
+    if (deliberatorCache[billId]) {
+      setExpandedBillId(expandedBillId === billId ? null : billId);
+      return;
+    }
+    if (expandedBillId === billId) { setExpandedBillId(null); return; }
+    setExpandedBillId(billId);
+    setDeliberatorLoading(true);
+    const sessionNumber = bill.session_number!;
+    const [shu, san] = await Promise.all([
+      bill.committee_shu ? fetchHouse(sessionNumber, bill.committee_shu, bill.vote_date_shu ?? null) : null,
+      bill.committee_san ? fetchHouse(sessionNumber, bill.committee_san, bill.vote_date_san ?? null) : null,
+    ]);
+    setDeliberatorCache((prev) => ({ ...prev, [billId]: { shu, san } }));
+    setDeliberatorLoading(false);
+  }
 
   // ネットワークタブ用
   const [topPairs, setTopPairs] = useState<PairStat[]>([]);
@@ -135,13 +191,13 @@ export default function BillsClient() {
       const [memberBillsRes, cabinetBillsRes, membersRes] = await Promise.all([
         supabase
           .from("bills")
-          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type,committee_san")
+          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type,committee_san,vote_date_san,committee_shu,vote_date_shu")
           .eq("bill_type", "議員立法")
           .order("submitted_at", { ascending: false })
           .limit(1000),
         supabase
           .from("bills")
-          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type,committee_san")
+          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type,committee_san,vote_date_san,committee_shu,vote_date_shu")
           .eq("bill_type", "閣法")
           .order("submitted_at", { ascending: false })
           .limit(1000),
@@ -377,17 +433,10 @@ export default function BillsClient() {
                           {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
                         </div>
                         {b.submitter_ids && b.submitter_ids.length > 0 && (
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
-                            <span style={{ color: "#888888" }}>提出者:</span>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                             {b.submitter_ids.map((id) => {
                               const m = memberMap[id];
-                              return m ? (
-                                <span key={id}
-                                  onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
-                                  className="link-underline-hover">
-                                  {m.name}
-                                </span>
-                              ) : null;
+                              return m ? <MemberChip key={id} id={id} name={m.name} party={m.party} /> : null;
                             })}
                           </div>
                         )}
@@ -584,17 +633,10 @@ export default function BillsClient() {
                               {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
                             </div>
                             {b.submitter_ids && b.submitter_ids.length > 0 && (
-                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12 }}>
-                                <span style={{ color: "#888888" }}>提出者:</span>
+                              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                 {b.submitter_ids.map((id) => {
                                   const m = memberMap[id];
-                                  return m ? (
-                                    <span key={id}
-                                      onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
-                                      className="link-underline-hover">
-                                      {m.name}
-                                    </span>
-                                  ) : null;
+                                  return m ? <MemberChip key={id} id={id} name={m.name} party={m.party} /> : null;
                                 })}
                               </div>
                             )}
@@ -678,6 +720,9 @@ export default function BillsClient() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {filtered.slice((billsPage - 1) * PAGE_SIZE, billsPage * PAGE_SIZE).map((b) => {
+                  const canExpand = !!((b.committee_shu || b.committee_san) && b.session_number);
+                  const isExpanded = expandedBillId === b.id;
+                  const cached = deliberatorCache[b.id];
                   return (
                     <div key={b.id} className="card" style={{ padding: "16px 20px" }}>
                       <div style={{ marginBottom: 8 }}>
@@ -703,7 +748,88 @@ export default function BillsClient() {
                         {b.committee_san && (
                           <span style={{ fontSize: 12, color: "#888888" }}>· {b.committee_san}</span>
                         )}
+                        {canExpand && (
+                          <button
+                            onClick={() => fetchDeliberators(b)}
+                            style={{
+                              marginLeft: "auto", fontSize: 11, color: "#555555",
+                              background: "none", border: "1px solid #dddddd",
+                              borderRadius: 6, padding: "3px 10px", cursor: "pointer",
+                            }}>
+                            {isExpanded ? "▲ 閉じる" : "👤 発言議員"}
+                          </button>
+                        )}
                       </div>
+                      {isExpanded && (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eeeeee" }}>
+                          {deliberatorLoading && !cached ? (
+                            <span style={{ fontSize: 12, color: "#888888" }}>読み込み中...</span>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                              {([
+                                { key: "shu", label: "衆議院" },
+                                { key: "san", label: "参議院" },
+                              ] as const).map(({ key, label }) => {
+                                const h = cached?.[key];
+                                if (!h) return null;
+                                return (
+                                  <div key={key}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                                      <span style={{ fontSize: 11, fontWeight: 700, color: "#555555" }}>{label}</span>
+                                      <span style={{ fontSize: 11, color: "#aaaaaa" }}>
+                                        {h.committee}{h.voteDate ? `（${h.voteDate}）` : ""} · 発言{h.members.length + h.unmatched.length}人
+                                      </span>
+                                      {h.meetingUrl && (
+                                        <a href={h.meetingUrl} target="_blank" rel="noopener noreferrer"
+                                          style={{
+                                            fontSize: 11, color: "#555555",
+                                            border: "1px solid #dddddd", borderRadius: 6,
+                                            padding: "2px 8px", textDecoration: "none",
+                                            whiteSpace: "nowrap",
+                                          }}>
+                                          会議録テキスト ↗
+                                        </a>
+                                      )}
+                                    </div>
+                                    {h.members.length === 0 && h.unmatched.length === 0 ? (
+                                      <span style={{ fontSize: 12, color: "#aaaaaa" }}>発言データなし</span>
+                                    ) : (
+                                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                        {h.members.map((id) => {
+                                          const m = memberMap[id];
+                                          return m ? (
+                                            <span key={id}
+                                              onClick={() => router.push(`/members/${encodeURIComponent(id)}`)}
+                                              style={{
+                                                fontSize: 12, cursor: "pointer",
+                                                color: PARTY_COLORS[m.party] || "#555555",
+                                                background: "#f9f9f9",
+                                                border: `1px solid ${PARTY_COLORS[m.party] || "#dddddd"}`,
+                                                borderRadius: 4, padding: "2px 8px",
+                                              }}>
+                                              {m.name}
+                                            </span>
+                                          ) : null;
+                                        })}
+                                        {h.unmatched.map((name) => (
+                                          <span key={name} style={{
+                                            fontSize: 12, color: "#888888",
+                                            background: "#f4f4f4",
+                                            border: "1px solid #dddddd",
+                                            borderRadius: 4, padding: "2px 8px",
+                                          }}>
+                                            {name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

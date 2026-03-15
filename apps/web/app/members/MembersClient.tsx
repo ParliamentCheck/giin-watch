@@ -104,7 +104,8 @@ function MembersContent() {
   const parties = Array.from(new Set(members.map((m) => m.party))).sort();
 
   const filtered = members.filter((m) => {
-    if (search        && !m.name.includes(search) && !m.district.includes(search)) return false;
+    const norm = (s: string) => s.replace(/[\s\u3000]+/g, "");
+    if (search && !norm(m.name).includes(norm(search)) && !m.district.includes(search)) return false;
     if (selectedHouse && m.house  !== selectedHouse) return false;
     if (selectedParty && m.party  !== selectedParty) return false;
     return true;
