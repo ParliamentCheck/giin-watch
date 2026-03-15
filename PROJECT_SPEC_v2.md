@@ -64,6 +64,7 @@ develop → push → Vercel preview
 | session_count | integer | 発言セッション数 |
 | question_count | integer | 質問主意書数（questions＋sangiin_questionsの合算） |
 | bill_count | integer | 議員立法提出数（billsテーブルから集計） |
+| petition_count | integer | 請願紹介数（petitions＋sangiin_petitionsから集計） |
 | keywords | jsonb | ワードクラウド用キーワード |
 | keywords_updated_at | timestamptz | キーワード最終更新日時 |
 | cabinet_post | text | 内閣役職（大臣・副大臣・政務官等） |
@@ -152,19 +153,30 @@ petitionsテーブルと同じ構造。house は 参議院（固定）。
 
 **注**: 衆議院は個人別の投票記録を公開していないため参議院のみ収集。
 
-#### bills（議員立法）
+#### bills（議員立法・閣法）
 | カラム | 型 | 説明 |
 |-------|---|------|
-| id | text PK | |
+| id | text PK | 議員立法: `bill-shu-{session}-{num}` / 閣法: `cabinet-san-{session}-{num}` |
 | title | text | 法案名 |
-| submitter_ids | text[] | 提出者のmember_id配列 |
+| submitter_ids | text[] | 提出者のmember_id配列（閣法は空配列） |
 | submitted_at | date | 提出日 |
 | session_number | integer | 国会回次 |
-| status | text | 状態（審議中 / 可決 / 廃案 等） |
+| status | text | 状態（成立 / 廃案 / 審議中 等） |
 | house | text | 衆議院 / 参議院 |
 | source_url | text | 各院サイトへのリンク |
+| bill_type | text | `議員立法` / `閣法`（デフォルト: 議員立法） |
+| committee_shu | text | 衆議院付託委員会名（閣法のみ） |
+| committee_san | text | 参議院付託委員会名（閣法のみ） |
+| vote_date_shu | date | 衆議院採決日（閣法のみ） |
+| vote_date_san | date | 参議院採決日（閣法のみ） |
+| vote_result_shu | text | 衆議院採決態様（賛成多数・全会一致 等）（閣法のみ） |
+| vote_result_san | text | 参議院採決態様（閣法のみ） |
+| law_number | text | 法律番号（成立時のみ） |
+| promulgated_at | date | 公布日（成立時のみ） |
 
-**データソース**: 衆議院サイト + 参議院サイトの法案一覧ページ → 経過情報ページを個別クロール。
+**データソース**:
+- 議員立法: 衆議院サイト + 参議院サイトの法案一覧ページ → 経過情報ページを個別クロール
+- 閣法: 参議院サイトを正として収集（衆参両院に掲載される閣法は参院meisaiページに衆参両院の委員会・採決情報が集約されるため）
 
 #### committee_members（委員会所属）
 | カラム | 型 | 説明 |
@@ -374,7 +386,7 @@ SESSION_MAX = {
 /committees              委員会一覧（検索・フィルター）
 /committees/[name]       委員会詳細（委員長理事・議員一覧・請願）?tab= ?sort= でURL共有可
 /votes                   政党別採決一致率マトリクス（会期プルダウン・?session= でURL共有可）
-/bills                   議員立法一覧（院フィルター・タイトル検索・政党ネットワーク分析）
+/bills                   法案一覧（📋議員立法タブ・🏛閣法タブ・🤝政党ネットワークタブ）
 /favorites               お気に入り議員（活動タイムライン・最大10名）
 /cabinet                 現内閣（役職順）
 /about                   サイトについて
@@ -477,7 +489,7 @@ const setTab = (t: string) => {
 
 #### 議員立法ページの政党ネットワーク分析（/bills 政党ネットワークタブ）
 
-`/bills` ページに「一覧」「🤝 政党ネットワーク」の2タブ構成。
+`/bills` ページに「📋 議員立法」「🏛 閣法」「🤝 政党ネットワーク」の3タブ構成。
 
 政党ネットワークタブの内容：
 - **TOP10ランキングカード**: 共同提出件数の多い政党ペアを上位10位まで表示
@@ -1050,7 +1062,14 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 ### データ・機能
 - 採決データのバックフィル範囲（第208回以前に遡るか）
+- 閣法の `vote_result_shu/san`（採決態様）・`law_number`・`promulgated_at` の表示（DB収録済み・UI未表示）
 - 前議員ページに採決・立法タブを表示するか
+- `former_members_review.md` の「要確認」214名の手動判定後の追加登録
+
+### 閣法の発言議員表示の制約
+- 現在の「発言議員」は「付託委員会×会期で発言した議員」であり、特定法案のみを審議した議員ではない
+- speech本文はDBに保存していないため、法案名での絞り込みは不可
+- この制約はUIの注釈で明示済み
 
 ### 運用
 - PARTY_MAPの定期見直しタイミング（選挙後・会派変更後等）

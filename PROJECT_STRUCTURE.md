@@ -1,114 +1,127 @@
 # はたらく議員 — プロジェクト構成
 
+> 最終更新: 2026-03-16
+
 ## ディレクトリ全体像
 
 ```
 giin-watch/
-│
 ├── .github/
 │   └── workflows/
-│       ├── collect.yml       # 日次自動収集（UTC 18:00）
-│       └── backfill.yml      # 手動バックフィル
+│       ├── collect.yml          # 日次自動収集（UTC 18:00 = JST 3:00）
+│       ├── backfill.yml         # 手動バックフィル（年・タスク選択）
+│       ├── cleanup.yml          # 手動クリーンアップ（truncate-speeches 等）
+│       └── keyword-full-rebuild.yml  # キーワード全件再構築
 │
 ├── apps/
-│   ├── web/                  # Next.js フロントエンド
+│   ├── web/                     # Next.js フロントエンド
 │   │   ├── app/
-│   │   │   ├── page.tsx                      # トップ（ダッシュボード）
-│   │   │   ├── layout.tsx                    # 共通レイアウト
+│   │   │   ├── page.tsx                       # トップ（統計・最新活動・政党バーチャート・更新履歴）
+│   │   │   ├── layout.tsx                     # 共通レイアウト（metadata・JSON-LD）
+│   │   │   ├── sitemap.ts                     # sitemap.xml 動的生成
+│   │   │   ├── robots.ts                      # robots.txt
 │   │   │   ├── members/
-│   │   │   │   ├── page.tsx                  # 現職議員一覧
-│   │   │   │   ├── former/page.tsx           # 前議員一覧
-│   │   │   │   └── [id]/page.tsx             # 議員詳細
-│   │   │   ├── cabinet/page.tsx              # 内閣一覧
+│   │   │   │   ├── page.tsx / MembersClient.tsx          # 現職議員一覧
+│   │   │   │   ├── former/page.tsx / FormerMembersClient.tsx  # 前議員一覧
+│   │   │   │   └── [id]/page.tsx / MemberDetailClient.tsx    # 議員詳細
+│   │   │   ├── cabinet/page.tsx / CabinetClient.tsx      # 現内閣（役職順）
 │   │   │   ├── parties/
-│   │   │   │   ├── page.tsx                  # 政党・会派一覧
-│   │   │   │   └── [party]/page.tsx          # 政党詳細
+│   │   │   │   ├── page.tsx / PartiesClient.tsx           # 政党・会派一覧
+│   │   │   │   └── [party]/page.tsx / PartyDetailClient.tsx  # 政党詳細
 │   │   │   ├── committees/
-│   │   │   │   ├── page.tsx                  # 委員会一覧
-│   │   │   │   └── [name]/page.tsx           # 委員会詳細
-│   │   │   ├── favorites/page.tsx            # お気に入り議員（マイダッシュボード）
-│   │   │   ├── changelog/page.tsx            # 更新履歴
-│   │   │   ├── about/page.tsx                # サイトについて（仕様書）
-│   │   │   ├── disclaimer/page.tsx           # 免責事項
-│   │   │   ├── privacy/page.tsx              # プライバシーポリシー
-│   │   │   ├── terms/page.tsx                # 利用規約
-│   │   │   ├── contact/page.tsx              # お問い合わせ
-│   │   │   └── components/
-│   │   │       ├── GlobalNav.tsx             # ナビゲーション
-│   │   │       ├── GlobalFooter.tsx          # フッター
-│   │   │       ├── WordCloud.tsx             # ワードクラウド表示
-│   │   │       ├── ElectionSafeMode.tsx      # 選挙期間中の制限表示
-│   │   │       └── MaintenanceBanner.tsx     # メンテナンスバナー
+│   │   │   │   ├── page.tsx / CommitteesClient.tsx        # 委員会一覧
+│   │   │   │   └── [name]/page.tsx / CommitteeDetailClient.tsx # 委員会詳細
+│   │   │   ├── bills/page.tsx / BillsClient.tsx           # 議員立法・閣法・政党ネットワーク
+│   │   │   ├── votes/page.tsx / VotesClient.tsx           # 政党別採決一致率
+│   │   │   ├── favorites/page.tsx / FavoritesClient.tsx   # お気に入り議員
+│   │   │   ├── changelog/page.tsx / ChangelogClient.tsx   # 更新履歴
+│   │   │   ├── about/                         # サイトについて
+│   │   │   ├── disclaimer/                    # 免責事項（レーダーチャート説明含む）
+│   │   │   ├── privacy/                       # プライバシーポリシー
+│   │   │   ├── terms/                         # 利用規約
+│   │   │   └── contact/                       # お問い合わせ（Googleフォーム）
+│   │   │
+│   │   ├── components/
+│   │   │   ├── GlobalNav.tsx                  # ヘッダーナビゲーション
+│   │   │   ├── GlobalFooter.tsx               # フッター
+│   │   │   └── MemberChip.tsx                 # 議員リンクチップ（前議員はグレー表示）
+│   │   │
+│   │   ├── app/components/
+│   │   │   ├── ActivityTabs.tsx               # トップページ活動タブ
+│   │   │   ├── ActivityRadar.tsx              # 活動バランスレーダーチャート
+│   │   │   └── WordCloud.tsx                  # ワードクラウド（d3-cloud）
 │   │   │
 │   │   └── lib/
-│   │       ├── supabase.ts   # Supabase クライアント
-│   │       ├── favorites.ts  # お気に入り管理（localStorage）
-│   │       ├── queries.ts    # 共通クエリ関数
-│   │       └── types.ts      # TypeScript 型定義
+│   │       ├── supabase.ts                    # Supabase クライアント
+│   │       ├── favorites.ts                   # お気に入り管理（localStorage）
+│   │       ├── partyColors.ts                 # 政党カラー定義
+│   │       └── changelog.ts                   # 更新履歴データ
 │   │
-│   └── collector/            # データ収集スクリプト（Python）
-│       ├── config.py         # 共通定数
-│       ├── db.py             # get_client / execute_with_retry / batch_upsert
-│       ├── utils.py          # make_member_id / is_procedural_speech 等
-│       ├── run_daily.py      # 日次収集オーケストレーター
-│       ├── run_backfill.py   # バックフィルオーケストレーター（--task 引数）
+│   └── collector/               # データ収集スクリプト（Python）
+│       ├── config.py            # 共通定数（SESSION_MAX・PARTY_MAP 等）
+│       ├── db.py                # get_client / execute_with_retry / batch_upsert
+│       ├── utils.py             # make_member_id / is_procedural_speech 等
+│       ├── run_daily.py         # 日次収集オーケストレーター
+│       ├── run_backfill.py      # バックフィルオーケストレーター（--task 引数）
 │       ├── sources/
-│       │   ├── members.py          # 議員登録
-│       │   ├── speeches.py         # NDL API 発言収集
-│       │   ├── questions.py        # 質問主意書（衆院+参院）
-│       │   ├── committees.py       # 委員会所属（衆院+参院）
-│       │   ├── votes.py            # 参院採決記録（backfillのみ）
-│       │   ├── bills.py            # 議員立法
-│       │   ├── keywords.py         # ワードクラウド構築
-│       │   └── cabinet_scraper.py  # 内閣役職（首相官邸スクレイピング）
+│       │   ├── members.py             # 議員登録（衆院・参院スクレイピング）
+│       │   ├── speeches.py            # NDL API 発言収集（メタデータのみ・本文破棄）
+│       │   ├── questions.py           # 質問主意書（衆院 + 参院）
+│       │   ├── petitions.py           # 請願（衆院 + 参院）
+│       │   ├── committees.py          # 委員会所属（衆院 + 参院）
+│       │   ├── votes.py               # 参院採決記録（衆院は個人別非公開）
+│       │   ├── bills.py               # 議員立法 + 閣法（参院サイトを正として収集）
+│       │   ├── keywords.py            # ワードクラウド構築（MeCab形態素解析）
+│       │   └── cabinet_scraper.py     # 内閣役職データ（首相官邸スクレイピング）
 │       └── processors/
-│           ├── scoring.py    # スコア再計算
-│           └── cleanup.py    # speeches 上限削除
+│           ├── scoring.py             # speech_count / session_count / question_count / bill_count / petition_count 再計算
+│           ├── cleanup.py             # speeches 上限削除・各種検証タスク
+│           └── audit.py              # データ品質監査（日次自動実行・不整合時GitHub Issue作成）
+│
+├── scripts/
+│   ├── register_missing_former_members.py  # bills/speeches に登場する前議員の一括登録
+│   └── （その他一回限りの移行スクリプト）
+│
+├── supabase/
+│   └── migrations/              # DBスキーマ変更履歴
+│
+├── former_members_review.md     # 前議員候補の手動判定リスト（要確認214名）
+├── PROJECT_SPEC_v2.md           # 技術仕様書（詳細）
+├── PROJECT_STRUCTURE.md         # 本ファイル
+└── STATUS.md                    # 現在のデータ状況・機能一覧
 ```
 
 ## スタック
 
-- **フロントエンド**: Next.js + TypeScript + Tailwind CSS v4
-- **DB**: Supabase（PostgreSQL）無料プラン 500MB
-- **データ収集**: Python（`apps/collector/`）
-- **CI/CD**: GitHub Actions（`.github/workflows/`）
-- **ホスティング**: Vercel
+| レイヤー | 技術 |
+|---------|------|
+| フロントエンド | Next.js + TypeScript + Tailwind CSS v4 |
+| DB | Supabase（PostgreSQL）無料プラン 500MB |
+| データ収集 | Python（`apps/collector/`） |
+| CI/CD | GitHub Actions |
+| ホスティング | Vercel |
 
-## 自動収集の仕組み
+## 日次ジョブの収集順序（collect.yml）
 
-GitHub Actions（`collect.yml`）が UTC 18:00（JST 03:00）に毎日実行。
-手動バックフィルは `backfill.yml` から `--task` 引数を指定して実行。
-
-日次ジョブの収集順序：
-1. 議員登録
-2. 発言収集（NDL API）
-3. スコア再計算
-4. 内閣役職
-5. 議員立法（現在セッションのみ）
-6. 質問主意書（進行中セッションのみ）
-7. 委員会所属
-8. キーワード（直近7日の発言者のみ）
-9. speeches 上限削除
+1. 議員登録（members.py）
+2. 発言収集（speeches.py）
+3. スコア再計算（scoring.py）
+4. 内閣役職（cabinet_scraper.py）
+5. 質問主意書（questions.py）
+6. 請願（petitions.py）
+7. 採決記録（votes.py --mode daily）
+8. 委員会所属（committees.py）
+9. キーワード更新（keywords.py --mode daily）
+10. speeches 上限チェック（cleanup.py）
+11. データ品質監査（audit.py）
 
 ## アーキテクチャ方針
 
 - 新機能はコンポーネントとして作る
-- 既存コードは修正が必要になったタイミングで切り出す
 - 動いているものへの大規模リファクタリングは行わない
-
-## お気に入り議員機能
-
-ユーザーが任意の議員を最大10人登録し、まとめて活動を確認できる機能。
-
-- **保存先**: ブラウザの localStorage（サーバーには一切送信しない）
-- **上限**: 10人
-- **データ取得**: ページ表示のたびに Supabase から最新データを取得
-- **URLシェア**: 登録済み議員IDをURLパラメータに変換してクリップボードにコピー。受け取り側は `/favorites?ids=...` でインポート
-- **活動タイムライン**: 発言・質問主意書・議員立法・採決を混合表示（議員ごと最新3件）
-- **登録ボタン設置場所**: 議員一覧（各カード右端★）・議員詳細（右上⭐）
-- **注意**: ブラウザデータ消去・プライベートモードでは消える。端末・ブラウザ間での同期なし
-
-`lib/favorites.ts` が localStorage の読み書きを担当。`useSearchParams` を使用するため `favorites/page.tsx` は必ず Suspense ラッパーが必要。
+- 全ページは `page.tsx`（サーバー・metadata）+ `XxxClient.tsx`（クライアント）に分離
+- タブ・ソート・フィルターの状態はURLパラメータに反映（SNSシェア対応）
+- 発言本文はDBに保存しない（キーワード構築後に破棄）
 
 ## 法的運用方針
 

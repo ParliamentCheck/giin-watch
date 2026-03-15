@@ -1,248 +1,180 @@
-# はたらく議員 — プロジェクト現状ドキュメント
+# はたらく議員 — 現状ドキュメント
 
-> 最終更新: 2026-03-12
-
----
-
-## プロジェクト概要
-
-国会議員の活動を可視化するWebサービス「はたらく議員」。
-議員の発言数・質問主意書数・委員会所属・採決記録などを収集・スコアリングして公開する。
+> 最終更新: 2026-03-16
 
 ---
 
-## 技術スタック
+## 1. サービス概要
 
-| レイヤー | 技術 |
-|---|---|
-| フロントエンド | Next.js + TypeScript + Tailwind CSS v4（`apps/web/`） |
-| データベース | Supabase（PostgreSQL）無料プラン 500MB |
-| データ収集 | Python（`apps/collector/`） |
-| CI/CD | GitHub Actions（`.github/workflows/`） |
-| Git ブランチ | `develop` / `master`（ff-only で master に merge・常にセット） |
+**URL**: https://www.hataraku-giin.com/
+**目的**: 国会議員の活動を公開データに基づいてデータで見える化する
+**基本方針**: 議員を断定・評価・序列化しない。集計結果の表示に特化する
 
 ---
 
-## コレクター構成
+## 2. 収録データの全体像
 
-```
-apps/collector/
-  config.py                    # 共通定数（API URL、制限値など）
-  db.py                        # get_client / execute_with_retry / batch_upsert
-  utils.py                     # make_member_id / is_procedural_speech など
-  run_daily.py                 # 日次収集オーケストレーター（ローカル実行用）
-  run_backfill.py              # バックフィルオーケストレーター（--task 引数）
-  sources/
-    members.py                 # 議員登録（衆院・参院サイトをスクレイピング）
-    speeches.py                # NDL API 発言収集（メタデータのみ保存・テキスト破棄）
-    questions.py               # 質問主意書（衆院 questions + 参院 sangiin_questions に保存）
-    petitions.py               # 請願（衆院 petitions + 参院 sangiin_petitions に保存）
-    committees.py              # 委員会所属（衆院・参院 → committee_members に保存）
-    votes.py                   # 参院採決記録（votes に保存）※衆院は個人別データ非公開
-    bills.py                   # 議員立法（bills に保存）
-    keywords.py                # ワードクラウド構築（member_keywords / party_keywords）
-    cabinet_scraper.py         # 内閣役職データ
-  processors/
-    scoring.py                 # speech_count / session_count / question_count / petition_count 再計算
-    cleanup.py                 # speeches 上限削除・各種検証タスク
-scripts/
-  migrate_member_ids.py        # 一回限りのDB移行スクリプト（bracket形式ID → kanji形式）
-  backfill_procedural.py       # is_procedural フラグのバックフィル
-```
+### 2.1 DBテーブルと収録内容
 
----
+| テーブル | 収録内容 | 収録範囲 |
+|---------|---------|---------|
+| `members` | 議員マスタ（現職 + 前議員） | 全員 |
+| `speeches` | 発言メタデータ（NDL API） | 第210回〜第221回国会（2017年10月〜） |
+| `questions` | 衆院質問主意書 | 第196回〜第221回国会 |
+| `sangiin_questions` | 参院質問主意書 | 第196回〜第221回国会 |
+| `petitions` | 衆院請願 | 直近複数セッション |
+| `sangiin_petitions` | 参院請願 | 直近複数セッション |
+| `committee_members` | 委員会所属（現時点スナップショット） | 最新のみ |
+| `votes` | 参院採決記録（個人別） | 第208回〜第221回国会（衆院は個人別非公開） |
+| `bills` | 議員立法 + 閣法 | 第208回〜第221回国会 |
+| `member_keywords` | 議員別ワードクラウド（上位100語） | 直近4年分の発言から構築 |
+| `party_keywords` | 政党別ワードクラウド（上位100語） | member_keywords の合算 |
+| `site_settings` | サイト設定（メンテナンスバナー等） | — |
 
-## DBテーブル構造
+### 2.2 各テーブルの重要な制約・特性
 
-| テーブル | 概要 | member_id形式 |
-|---|---|---|
-| `members` | 議員マスタ（PK: `id`） | `"{house}-{kanji_name}"` |
-| `speeches` | 発言メタデータ（NDL API） | FK to members.id |
-| `questions` | 衆院質問主意書 | FK to members.id |
-| `sangiin_questions` | 参院質問主意書 | FK to members.id |
-| `petitions` | 衆院請願 | `introducer_ids`（配列型） |
-| `sangiin_petitions` | 参院請願 | `introducer_ids`（配列型） |
-| `committee_members` | 委員会所属 | FK to members.id |
-| `votes` | 参院採決記録 | FK to members.id |
-| `bills` | 議員立法 | `submitter_ids`（配列型） |
-| `member_keywords` | 議員別ワードクラウド | FK to members.id |
-| `party_keywords` | 政党別ワードクラウド | — |
+**speeches**
+- 発言本文は保存しない（キーワード構築後に破棄）
+- 上限 500,000行。超過時は古い順に自動削除
+- `is_procedural = true` の議事進行発言はスコア対象外
 
-**member_id の正しい形式**: `"衆議院-山田太郎"` / `"参議院-山田太郎"`
-（スペースなし・漢字のみ・bracket表記なし）
+**members**
+- `id`: `"{house}-{氏名}"` 形式（スペース全除去）
+- `is_active`: 現職 = true / 前議員 = false
+- `ndl_names`: NDL API の表記ゆれ対応（例: 吉良佳子 ↔ 吉良よし子）
+- `prev_party`: 中道改革連合メンバーの旧所属政党（公明党 or 立憲民主党）
 
----
+**bills**
+- `bill_type`: `"議員立法"` / `"閣法"` で区別
+- 閣法のみ: `committee_shu/san`・`vote_date_shu/san`・`vote_result_shu/san`・`law_number`・`promulgated_at` を収録
+- 閣法の `submitter_ids` は空配列（提出者は「内閣」）
 
-## GitHub Actions
+**votes**
+- 参議院のみ。衆議院は個人別投票記録を公開していない
 
-### collect.yml — 日次自動収集（UTC 18:00）
-実行順序:
-1. 議員登録（`sources/members.py`）
-2. 発言収集（`sources/speeches.py`）
-3. スコア再計算（`processors/scoring.py`）
-4. 内閣役職（`sources/cabinet_scraper.py`）
-5. 質問主意書（`sources/questions.py`）※衆院+参院
-6. 請願（`sources/petitions.py`）※衆院+参院（日次は直近2セッションのみ）
-7. 採決記録（`sources/votes.py --mode daily`）※参院・現会期のみ（timeout 10分）
-8. 委員会所属（`sources/committees.py`）※衆院+参院
-9. キーワード更新（`sources/keywords.py --mode daily`）
-10. speeches 上限チェック（`processors/cleanup.py --task truncate-speeches`）
-
-各ステップは `continue-on-error: true` で独立。
-
-### backfill.yml — 手動実行タスク
-
-| タスク | 内容 |
-|---|---|
-| `migrate-member-ids` | DB内の旧形式IDを一括変換 |
-| `scoring-only` | スコアのみ再計算 |
-| `speeches-all` | 2021年〜現在年の発言を年単位で順次バックフィル（動的） |
-| `speeches-YYYY` | 特定年の発言バックフィル |
-| `keyword-all` | キーワード全件再構築（2022年〜現在年・何度実行しても同じ結果） |
-| `keyword-full-rebuild` | キーワード全件再構築（遡及年数を `--years` で指定） |
-| `votes-collect` | 参院採決記録収集 |
-| `bills-collect` | 議員立法収集 |
-| `sangiin-questions` | 参院質問主意書収集 |
-| `petitions-collect` | 衆院・参院請願収集（全セッション） |
-
----
-
-## フロントページ構成
-
-| パス | 内容 |
-|---|---|
-| `/` | トップ（統計・最新活動タブ・政党バーチャート・更新履歴） |
-| `/members` | 現職議員一覧（ソート・フィルター・お気に入り★） |
-| `/members/[id]` | 議員詳細（委員会・発言・質問・採決・議員立法・請願・キーワード） |
-| `/members/former` | 前議員一覧 |
-| `/cabinet` | 内閣一覧 |
-| `/parties` | 政党・会派別データ |
-| `/parties/[name]` | 政党詳細 |
-| `/committees` | 委員会一覧 |
-| `/committees/[name]` | 委員会詳細（党別構成・委員長/理事/委員・請願タブ） |
-| `/bills` | 議員立法一覧（院フィルター・タイトル検索・提出者リンク） |
-| `/favorites` | お気に入り議員（マイダッシュボード・URLシェア） |
-
----
-
-## 設計上の注意事項
-
-### Supabase PostgREST の制限
-- **最大1000行/リクエスト**（デフォルト）。`limit(2000)` を指定しても1000行しか返らない
-- ページネーションの終了条件は `if not batch: break`（`len(batch) < PAGE` は使ってはいけない）
-- 大量OFFSETクエリでstatement_timeoutが発生する → cursor pagination（`id > last_id`）で回避
-
-### members テーブルの書き込み
-- `upsert` 禁止（`name NOT NULL` 制約に違反するケースがある）
-- 書き込みは **UPDATE のみ**（既存行の更新に限定）
-- PK（`members.id`）変更が必要な場合: 新ID行INSERT → 参照テーブルUPDATE → 旧ID行DELETE の順
-
-### speeches テーブル
-- 上限: **500,000行**（`SPEECHES_MAX_ROWS`）。超過時は `spoken_at` 昇順で古い順に削除
-- 発言テキストはDBに保存しない（キーワード構築後に破棄）
-- `is_procedural = True` の発言はスコアリング対象外
-
----
-
-## 現在のデータ状況（2026-03-08時点）
+### 2.3 データ量（2026-03-08時点）
 
 | 指標 | 値 |
-|---|---|
-| 登録議員数 | 839名 |
-| 発言あり議員 | 725 / 839名 |
-| speeches総行数 | 664,385件（うち108,163件はmember_id=NULL） |
-| speeches上限 | 500,000行 |
+|-----|---|
+| 登録議員数（現職） | 約713名 |
+| 登録議員数（前議員） | 約200名以上 |
+| speeches 総行数 | 664,385件（うち約108,000件は member_id=NULL） |
+| speeches 上限 | 500,000行 |
 
 ---
 
-## 解決済みの問題
+## 3. 実装済み機能一覧
 
-### ③ トップページ「発言記録」が0件表示（commit 17dae0b）
-**原因**: `page.tsx` が `speeches` テーブルに `count: "exact"` クエリを送っていたが、RLS が anon のカウントをブロックして 0 を返していた。
-**修正**: `members.speech_count` の合計値を使うよう変更。members クエリを1本に統合。
+### ページ
 
-### ① member_id 不一致（bracket形式）
-**原因**: 参院サイトが議員名の表示形式を `"犬童周作"` → `"いんどう周作[犬童周作]"` に変更。
-`members.id` が bracket形式になり、旧スピーチの `member_id`（kanji形式）と不一致。
-**修正**: `sources/members.py` で参院名をkanji名のみに正規化し、読み仮名を `ndl_names` に保存。
-`scripts/migrate_member_ids.py` でDB内の既存bracket形式IDを一括変換（手動実行済み）。
+| パス | 機能 |
+|-----|------|
+| `/` | 統計カード・最新活動タブ（委員会・質問・立法・請願）・政党バーチャート・更新履歴 |
+| `/members` | 現職議員一覧（政党・院フィルター・各種ソート・お気に入り★） |
+| `/members/[id]` | 議員詳細（発言・質問・採決・立法・請願・キーワード・活動バランスレーダー）|
+| `/members/former` | 前議員一覧（政党・院フィルター・各種ソート） |
+| `/parties` | 政党・会派一覧（ソート・URL共有） |
+| `/parties/[party]` | 政党詳細（議員・委員長理事・ワードクラウド・議席内訳・活動バランスレーダー） |
+| `/committees` | 委員会一覧（検索・フィルター） |
+| `/committees/[name]` | 委員会詳細（委員長理事・議員一覧・請願）タブ構成 |
+| `/bills` | 議員立法・閣法・政党ネットワーク分析 3タブ構成 |
+| `/votes` | 政党別採決一致率マトリクス（会期プルダウン・URL共有） |
+| `/cabinet` | 現内閣（役職順） |
+| `/favorites` | お気に入り議員（最大10名・localStorage・URLシェア） |
+| `/changelog` | 更新履歴 |
 
-### ② スコアリングが全員0になるバグ
-**原因**: `processors/scoring.py` の `_fetch_all()` 内ページネーション終了条件のバグ。
-`if len(batch) < PAGE` で break していたため、Supabaseが1000行返すとPAGE=2000未満と判定されて即終了 → 先頭1000件しか集計されず。
-**修正**: `if not batch: break` に変更（commit 5a20973）。
-**結果**: 発言あり議員が 42/839 → 725/839 に改善。
+### 議員詳細ページの機能
 
----
+- **採決タブ（参院のみ）**: 賛成・反対・欠席・欠席率の統計カード＋フィルター
+- **議員立法タブ**: 提出法案 / 共同提出パートナー サブタブ
+- **活動バランスレーダーチャート**: 発言・議員立法・質問主意書・請願の4軸（全議員最大値で正規化）
+- **プロンプト作成ボタン**: 議員情報をAI向けプロンプトとしてクリップボードにコピー
+- **SSR**: 初期データをサーバーレンダリング（AIクローラー対応）
 
-## 残タスク
+### /bills ページの機能
 
-### 対応しない・保留
-- **議員写真** — 著作権・肖像権リスクがあるため、安全な方法が確認できない限り実装しない
-- **衆院採決記録** — 個人別データの収集コストが高すぎるため、良い案が見つかるまで保留
-- **旧議員データ管理ポリシー** — 現状 `/members/former` で問題なく動作中。方針が必要になったタイミングで検討
+**議員立法タブ**: 院フィルター・タイトル検索・提出者チップ（前議員はグレー）
 
-### Phase 3: GitHub Actions 整理
-- collect.yml / backfill.yml のさらなる整理（必要に応じて）
+**閣法タブ**:
+- 成立/廃案/審議中の件数統計カード＋成立率
+- 法案名・提出日・国会回次・院・付託委員会を表示
+- 「👤 発言議員」ボタン: 付託委員会×会期で発言した議員を展開
+  - ※ 付託委員会で同会期中に発言した議員であり、この法案のみを審議した議員ではない（注釈あり）
+  - 「会議録テキスト」リンクでNDL会議録ページへ直リンク
 
----
+**政党ネットワークタブ**: 共同提出政党ペアTOP10＋ヒートマップマトリクス（クリックでドリルダウン）
 
-## キーとなるコード箇所
+### SEO / AIO / LLMO
 
-```python
-# apps/collector/db.py
-def execute_with_retry(query_fn, *, max_retries=3, label="query"):
-    """Supabaseクエリをリトライ付きで実行。"""
-
-# apps/collector/processors/scoring.py
-def _fetch_all(table, select):
-    """全件カーソルページング。終了条件: if not batch: break（重要）"""
-
-# apps/collector/utils.py
-def make_member_id(house, name):
-    """議員ID生成: f"{house}-{name}" スペース除去"""
-
-def is_procedural_speech(speech_text):
-    """議事進行発言判定: 30文字以下 or 委員長/議長役職を含む"""
-
-def build_member_name_set(member_names: list[str]) -> frozenset[str]:
-    """全議員名から除外用 frozenset を構築。ループ前に1回だけ呼ぶ。"""
-
-def should_exclude_word(word, member_name="", all_member_names=None):
-    """キーワード除外判定。自身の名前＋全議員名（部分一致）を除外。"""
-
-# apps/collector/sources/keywords.py
-def full_rebuild(years: int = 4):
-    """全議員キーワードを years 年分ゼロから再構築（冪等）。
-    keyword-all は KEYWORD_START_YEAR(2022)〜現在年で呼ぶ。"""
-```
+- sitemap.xml 動的生成（全議員・政党・委員会ページ）
+- robots.txt（GPTBot・ClaudeBot・PerplexityBot 明示許可）
+- llms.txt（AI向けドキュメント）
+- 全ページ OGP メタデータ
+- 動的ページに JSON-LD（Person / PoliticalParty / GovernmentOrganization）
+- `/members/[id]` は初期HTMLにデータを含むSSR済み
 
 ---
 
-## データ品質監査（audit.py）
+## 4. 取得できているデータでできること / できないこと
 
-`apps/collector/processors/audit.py` — 日次ジョブの最後に自動実行。
+### できること（今のデータで表示可能）
 
-### チェック内容
-| チェック | 対象 | 方法 |
-|---|---|---|
-| 発言数 | ランダム5名 | NDL APIで直近90日の件数とDBを比較。DBが0件なのにNDLに10件超あれば不整合 |
-| 大臣職 | DB登録の閣僚全員 | 官邸サイトをスクレイピングし、DBのcabinet_postと照合。官邸に名前がなければ退任の可能性 |
+| 分析 | 使うデータ |
+|-----|----------|
+| 議員の発言セッション数推移 | speeches（spoken_at 別集計） |
+| 質問主意書の傾向・時系列 | questions / sangiin_questions |
+| 議員立法の共同提出パートナー分析 | bills.submitter_ids |
+| 政党間の共同立法ネットワーク | bills.submitter_ids × members.party |
+| 参院議員の採決賛否記録 | votes |
+| 政党別採決一致率 | votes × members.party |
+| 委員会の構成・委員長/理事 | committee_members |
+| 閣法の成立状況・付託委員会 | bills（bill_type="閣法"） |
+| 閣法の委員会審議に関わった議員（近似） | bills × speeches |
+| 議員の発言キーワード傾向 | member_keywords |
+| 政党の活動比重の比較 | members 集計値 × committee_members |
+| 閣法の採決態様（全会一致か否か） | bills.vote_result_shu/san（収録済み・未表示） |
+| 成立した閣法の法律番号・公布日 | bills.law_number/promulgated_at（収録済み・未表示） |
 
-### 不整合時の動作
-- `audit.py` が exit 1 で終了
-- `collect.yml` の「監査エラーをIssueに報告」ステップが GitHub Issue を自動作成
-- Issue にはレポート（議員名・問題の種類・詳細）が記載される
-- GitHub の通知設定によりメールで通知が届く
-- 調査・修正が完了したら Issue を Close する
+### できないこと（データの限界）
 
-### 設計方針
-- 全員チェックはコストが高すぎるためランダムサンプリング（5名）を採用
-- 同種のエラーが検出されたら「他の議員にも同じ問題がある可能性」として全件調査のきっかけにする
-- タイムアウト: 10分
+| 分析 | 理由 |
+|-----|------|
+| 衆院議員の採決賛否 | 衆院は個人別投票記録を公開していない |
+| 特定閣法のみの審議者を特定 | 発言本文をDBに保存していないため委員会名でしか絞れない |
+| 議員の委員会役職の累積履歴 | committee_members は現時点スナップショットのみ |
+| 法案提出時点の所属政党 | members.party は現在の政党のみ保持（変遷なし） |
+| 議員写真 | 著作権・肖像権リスクのため非実装 |
+| 党務・地元活動・非公開会議 | 公開情報に含まれないため取得不可 |
+| 議員の発言内容・詳細 | 本文はDBに保存しない設計 |
 
-## バックフィル設計原則
+---
 
-- `speeches-all` / `keyword-all` は **`SPEECHES_START_YEAR` / `KEYWORD_START_YEAR` 〜現在年** を動的に計算（ハードコードなし）
-- `keyword-all` は `full_rebuild` を使うため **何度実行しても冪等**（メンバーごとにDBを削除→ゼロ積み上げ→保存）
-- `keyword-YYYY` 個別タスクは存在しない（マージ方式は二重カウントになるため廃止）
+## 5. 前議員の収録状況
+
+- **現在の前議員数**: `/members/former` に `is_active=false` で収録
+- **2026-03-15 に72名を一括登録**: bills/speeches に登場するが未収録だった前議員を追加
+- **収録の対象範囲**: speeches DBに発言記録がある議員 + bills の submitter_ids に登場する議員
+- **要確認リスト**: `former_members_review.md` に手動判定待ちの214名が残存
+
+---
+
+## 6. 未着手・保留の機能
+
+| 項目 | 状況 |
+|-----|------|
+| 閣法の採決態様・法律番号の表示 | DB収録済み・UI未実装 |
+| 前議員ページの採決・立法タブ | 未決定 |
+| 採決データのバックフィル（第208回以前） | 保留 |
+| 議員の政党所属変遷の記録 | 設計上困難（現在の政党のみ保持） |
+| `former_members_review.md` 残214名の追加 | ユーザー手動判定待ち |
+
+---
+
+## 7. 既知の制約・注意事項
+
+- **speeches の member_id=NULL**: NDL API の speaker_name と members.name が一致しない場合に発生。現在約108,000件
+- **speeches 上限**: 500,000行。日次で古いものから自動削除される
+- **Supabase 1000行制限**: 全クエリに `.limit(2000)` が必要（デフォルト1000行）
+- **データ反映遅延**: NDL APIへの審議録反映は1〜2週間かかる場合がある
+- **中道改革連合**: 旧公明党・旧立憲民主党が合流した会派。政党ネットワーク分析では `prev_party` で元の政党に戻して集計する
+- **超党派ラベル**: 法案単位での「超党派」判定は不正確のため非実装。集計レベルの政党ネットワーク分析のみ実装済み
