@@ -35,6 +35,7 @@ def main() -> None:
     from sources.committees import collect_shugiin_committees, collect_sangiin_committees
     from sources.bills import collect_bills
     from sources.keywords import daily_update as keywords_daily
+    from sources.vote_alignment import compute_alignment
     from processors.cleanup import truncate_speeches
 
     skip_keywords = os.environ.get("SKIP_KEYWORDS", "").lower() in ("1", "true", "yes")
@@ -51,6 +52,7 @@ def main() -> None:
         "petitions_san":  _step("請願（参）",         collect_sangiin_petitions),
         "committees_shu": _step("委員会（衆）",       collect_shugiin_committees),
         "committees_san": _step("委員会（参）",       collect_sangiin_committees),
+        "vote_alignment": _step("政党採決一致率計算", compute_alignment),
     }
 
     if not skip_keywords:

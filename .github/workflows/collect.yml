@@ -84,6 +84,12 @@ jobs:
         timeout-minutes: 15
         run: python apps/collector/sources/committees.py
 
+      - name: 政党採決一致率計算
+        id: vote_alignment
+        continue-on-error: true
+        timeout-minutes: 10
+        run: python apps/collector/sources/vote_alignment.py
+
       - name: キーワード更新
         id: keywords
         if: inputs.skip_keywords != true
@@ -106,6 +112,7 @@ jobs:
           echo "| 採決記録 | ${{ steps.votes.outcome }} |"
           echo "| 議員立法・閣法 | ${{ steps.bills.outcome }} |"
           echo "| 委員会所属 | ${{ steps.committees.outcome }} |"
+          echo "| 政党採決一致率 | ${{ steps.vote_alignment.outcome }} |"
           echo "| キーワード更新 | ${{ steps.keywords.outcome }} |"
 
       - name: speeches 上限チェック・削除

@@ -85,11 +85,12 @@ function PartyDetailContent() {
   const [members,        setMembers]        = useState<Member[]>([]);
   const [chairs,         setChairs]         = useState<CommitteeRole[]>([]);
   const [keywords,       setKeywords]       = useState<KeywordData[]>([]);
-  const [partyQuestions, setPartyQuestions] = useState<{ title: string; submitted_at: string }[]>([]);
-  const [partyBills,     setPartyBills]     = useState<{ title: string; submitted_at: string | null }[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [kwLoading,      setKwLoading]      = useState(false);
-  const [aiDataLoading,  setAiDataLoading]  = useState(false);
+  const [partyQuestions,  setPartyQuestions]  = useState<{ title: string; submitted_at: string }[]>([]);
+  const [partyBills,      setPartyBills]      = useState<{ title: string; submitted_at: string | null }[]>([]);
+  const [alignments,      setAlignments]      = useState<{ party_a: string; party_b: string; alignment_rate: number; sample_size: number }[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [kwLoading,       setKwLoading]       = useState(false);
+  const [aiDataLoading,   setAiDataLoading]   = useState(false);
   const [radarGlobalMax, setRadarGlobalMax] = useState({ session: 1, question: 1, bill: 1, petition: 1, role: 1 });
   const [voteStats, setVoteStats] = useState<{ total: number; yes: number; no: number; absent: number } | null>(null);
   const searchParams = useSearchParams();
@@ -110,7 +111,7 @@ function PartyDetailContent() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [membersRes, allMembersRes, committeeRes] = await Promise.all([
+      const [membersRes, allMembersRes, committeeRes, alignmentsRes] = await Promise.all([
         supabase
           .from("members")
           .select("id, name, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender, election_type")
@@ -126,6 +127,11 @@ function PartyDetailContent() {
           .from("committee_members")
           .select("member_id, name, role, committee")
           .in("role", ["委員長", "理事", "会長", "副会長"]),
+        supabase
+          .from("party_vote_alignments")
+          .select("party_a, party_b, alignment_rate, sample_size")
+          .or(`party_a.eq.${party},party_b.eq.${party}`)
+          .order("alignment_rate", { ascending: false }),
       ]);
 
       const memberIds   = (membersRes.data || []).map((m) => m.id);
@@ -169,6 +175,7 @@ function PartyDetailContent() {
       setRadarGlobalMax(gm);
 
       setMembers(membersRes.data || []);
+      setAlignments(alignmentsRes.data || []);
       setChairs((committeeRes.data || [])
         .filter((c) => memberIdSet.has(c.member_id))
         .map((c) => ({
@@ -681,6 +688,14 @@ function PartyDetailContent() {
           lines.push("■ 本会議採決記録（参議院・第208回〜第221回国会）");
           lines.push(`賛成率: ${yesRate}% / 反対率: ${noRate}% / 欠席率: ${absentRate}%`);
           lines.push("※ 採決データは党議拘束の影響を受けるため、個別議員の意思を完全には反映しません。");
+          lines.push("");
+        }
+        if (alignments.length > 0) {
+          lines.push("■ 主要政党との採決一致率（参議院・第208回〜）");
+          for (const a of alignments) {
+            const other = a.party_a === party ? a.party_b : a.party_a;
+            lines.push(`${other}: ${(a.alignment_rate * 100).toFixed(1)}%（${a.sample_size}法案）`);
+          }
           lines.push("");
         }
         if (partyQuestions.length > 0) {
