@@ -6,6 +6,11 @@ export interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    date: "2026-03-17",
+    title: "政党ページにAI分析機能を追加",
+    description: "政党詳細ページに「🤖 AI分析」タブを追加しました。質問主意書・議員立法のタイトル一覧、採決一致率、発言キーワードなどをあなた自身のAIに渡して政党の活動傾向を分析できます。Google Gemini・OpenAIのAPIキーに対応。",
+  },
+  {
     date: "2026-03-16",
     title: "議員詳細ページにAI分析機能を追加",
     description: "議員の活動データ（質問主意書・議員立法・採決・委員会・請願）をもとに、あなた自身のAIで政策傾向を分析できる機能を追加しました。Google Gemini・OpenAIのAPIキーに対応。APIキーはサーバーに送信・保存されず、このデバイス内にのみ保存されます。",
