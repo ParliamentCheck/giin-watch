@@ -6,7 +6,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
 import ActivityRadar from "../../components/ActivityRadar";
+import AIAnalysisBase from "../../components/AIAnalysisBase";
 import { PARTY_COLORS } from "../../../lib/partyColors";
+import { getPartyStatus } from "../../../lib/partyStatus";
 import { usePagination } from "../../../hooks/usePagination";
 
 interface Member {
@@ -80,11 +82,14 @@ function PartyDetailContent() {
   const color   = PARTY_COLORS[party] || "#7f8c8d";
   useEffect(() => { document.title = `${party} | はたらく議員`; }, [party]);
 
-  const [members,    setMembers]    = useState<Member[]>([]);
-  const [chairs,     setChairs]     = useState<CommitteeRole[]>([]);
-  const [keywords,   setKeywords]   = useState<KeywordData[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [kwLoading,  setKwLoading]  = useState(false);
+  const [members,        setMembers]        = useState<Member[]>([]);
+  const [chairs,         setChairs]         = useState<CommitteeRole[]>([]);
+  const [keywords,       setKeywords]       = useState<KeywordData[]>([]);
+  const [partyQuestions, setPartyQuestions] = useState<{ title: string; submitted_at: string }[]>([]);
+  const [partyBills,     setPartyBills]     = useState<{ title: string; submitted_at: string | null }[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [kwLoading,      setKwLoading]      = useState(false);
+  const [aiDataLoading,  setAiDataLoading]  = useState(false);
   const [radarGlobalMax, setRadarGlobalMax] = useState({ session: 1, question: 1, bill: 1, petition: 1, role: 1 });
   const [voteStats, setVoteStats] = useState<{ total: number; yes: number; no: number; absent: number } | null>(null);
   const searchParams = useSearchParams();
@@ -196,12 +201,46 @@ function PartyDetailContent() {
 
       setLoading(false);
 
-      // キーワードはタブ内なので遅延フェッチでOK
+      // キーワード・AI用データはタブ内なので遅延フェッチでOK
       if (memberIds.length > 0) {
+        const shugiinIds = (membersRes.data || []).filter((m) => m.house === "衆議院").map((m) => m.id);
+
         setKwLoading(true);
-        const kw = await fetchKeywordsBatched(memberIds);
+        setAiDataLoading(true);
+        const [kw, questionsRes, sangiinQuestionsRes, billsRes] = await Promise.all([
+          fetchKeywordsBatched(memberIds),
+          shugiinIds.length > 0
+            ? supabase.from("questions").select("title, submitted_at")
+                .in("member_id", shugiinIds)
+                .order("submitted_at", { ascending: false })
+                .limit(100)
+            : Promise.resolve({ data: [] as { title: string; submitted_at: string }[] }),
+          sangiinIds.length > 0
+            ? supabase.from("sangiin_questions").select("title, submitted_at")
+                .in("member_id", sangiinIds)
+                .order("submitted_at", { ascending: false })
+                .limit(100)
+            : Promise.resolve({ data: [] as { title: string; submitted_at: string }[] }),
+          supabase.from("bills").select("title, submitted_at, submitter_ids")
+            .eq("bill_type", "member")
+            .order("submitted_at", { ascending: false, nullsFirst: false })
+            .limit(1000),
+        ]);
         setKeywords(kw);
         setKwLoading(false);
+
+        const mergedQuestions = [
+          ...(questionsRes.data || []),
+          ...(sangiinQuestionsRes.data || []),
+        ].sort((a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || "")).slice(0, 50);
+        setPartyQuestions(mergedQuestions);
+
+        const memberIdSet2 = new Set(memberIds);
+        const filteredBills = (billsRes.data || []).filter((b) =>
+          (b.submitter_ids || []).some((id: string) => memberIdSet2.has(id))
+        );
+        setPartyBills(filteredBills);
+        setAiDataLoading(false);
       }
     }
     fetchAll();
@@ -256,6 +295,7 @@ function PartyDetailContent() {
     { id: "committees", label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
     { id: "wordcloud",  label: "☁️ キーワード" },
     { id: "breakdown",  label: "📊 内訳" },
+    { id: "ai",         label: "🤖 AI分析" },
   ];
 
   return (
@@ -608,6 +648,97 @@ function PartyDetailContent() {
           </div>
         </div>
       )}
+
+      {/* AI分析タブ */}
+      {tab === "ai" && (() => {
+        const lines: string[] = [];
+        lines.push(`政党名: ${party}`);
+        lines.push(`所属議員数: ${members.length}名（衆議院${shugiin}名 / 参議院${sangiin}名）`);
+        const statusEntry = getPartyStatus(party);
+        if (statusEntry) {
+          const fromYear = statusEntry.from.slice(0, 7);
+          const period = statusEntry.to
+            ? `${fromYear}〜${statusEntry.to.slice(0, 7)}`
+            : `${fromYear}〜`;
+          lines.push(`現在の立場: ${statusEntry.status}（${period}）`);
+          if (statusEntry.note) {
+            lines.push(`補足: ${statusEntry.note}`);
+          }
+        }
+        lines.push("※ 集計は現在の所属議員を基準とし、第210回国会（2022年）以降の活動を対象とします。");
+        lines.push("");
+        lines.push("■ 活動件数（累計）");
+        lines.push(`発言セッション数: ${totalSessions}回`);
+        lines.push(`質問主意書: ${totalQuestions}件`);
+        lines.push(`議員立法: ${totalBills}件`);
+        lines.push(`請願: ${totalPetitions}件`);
+        lines.push(`委員会役職（委員長・理事）: ${totalRoles}件`);
+        lines.push("");
+        if (voteStats && voteStats.total > 0) {
+          const yesRate   = (voteStats.yes    / voteStats.total * 100).toFixed(1);
+          const noRate    = (voteStats.no     / voteStats.total * 100).toFixed(1);
+          const absentRate = (voteStats.absent / voteStats.total * 100).toFixed(1);
+          lines.push("■ 本会議採決記録（参議院・第208回〜第221回国会）");
+          lines.push(`賛成率: ${yesRate}% / 反対率: ${noRate}% / 欠席率: ${absentRate}%`);
+          lines.push("※ 採決データは党議拘束の影響を受けるため、個別議員の意思を完全には反映しません。");
+          lines.push("");
+        }
+        if (partyQuestions.length > 0) {
+          const year = (d: string) => d.slice(0, 4);
+          lines.push(`■ 質問主意書タイトル（直近${partyQuestions.length}件 / 第196回国会以降）`);
+          for (const q of partyQuestions) lines.push(`- ${q.title}（${year(q.submitted_at)}）`);
+          lines.push("");
+        }
+        if (partyBills.length > 0) {
+          const year = (d: string | null) => d ? d.slice(0, 4) : "年不明";
+          lines.push(`■ 議員立法タイトル（${partyBills.length}件 / 第210回国会以降）`);
+          for (const b of partyBills) lines.push(`- ${b.title}（${year(b.submitted_at)}）`);
+          lines.push("");
+        }
+        if (keywords.length > 0) {
+          lines.push("■ 発言キーワード上位（第210回国会以降の発言から集計）");
+          lines.push(keywords.slice(0, 20).map((k) => `${k.word}(${k.count})`).join("、"));
+        }
+        const contextText = lines.join("\n");
+        const systemPrompt =
+          "あなたは日本の政党・会派の国会活動データを分析するアシスタントです。" +
+          "提供するデータは国会の公式記録から取得した客観的な情報です。" +
+          "以下の点に注意して分析してください：" +
+          "与党は内閣を通じて政策を実現するため、質問主意書・議員立法の件数は構造的に少なくなる傾向があります。" +
+          "採決データは党議拘束の影響を受けるため、個々の議員の意思を完全には反映しません。" +
+          "件数の大小が活動の優劣を示すものではありません。" +
+          "提供データに「現在の立場」が明記されている場合は、それを最優先とし、学習データとの矛盾があってもデータを信頼してください。" +
+          "断定的な評価ではなく、データから読み取れる傾向として述べてください。";
+        const defaultQuestion =
+          "提供された活動データ（発言・質問主意書・議員立法・採決・委員会役職・キーワード）の内容と件数から読み取れることを教えてください。";
+
+        if (aiDataLoading) {
+          return (
+            <div className="card" style={{ padding: 20, marginTop: 16 }}>
+              <div className="loading-block" style={{ padding: "32px 0" }}>
+                <div className="loading-spinner" />
+                <span>質問主意書・議員立法データを読み込んでいます...</span>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <AIAnalysisBase
+            contextText={contextText}
+            systemPrompt={systemPrompt}
+            defaultQuestion={defaultQuestion}
+            downloadFilename={party}
+            tipContent={
+              <>
+                💡 <strong>分析精度について：</strong>
+                質問主意書・議員立法・採決記録が多い政党ほど詳細な分析が可能です。
+                与党は内閣を通じた政策実現が主な手段であるため、質問主意書・議員立法の件数は構造的に少なくなる傾向があります。
+              </>
+            }
+          />
+        );
+      })()}
     </div>
   );
 }
