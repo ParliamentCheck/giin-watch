@@ -89,6 +89,7 @@ function PartyDetailContent() {
   const [partyBills,      setPartyBills]      = useState<{ title: string; submitted_at: string | null }[]>([]);
   const [alignments,          setAlignments]          = useState<{ party_a: string; party_b: string; alignment_rate: number; sample_size: number }[]>([]);
   const [coSubmissionRanking, setCoSubmissionRanking] = useState<{ party: string; count: number }[]>([]);
+  const [partyBenchmarks, setPartyBenchmarks] = useState<Record<string, { count: number; billPer: number; questionPer: number; sessionPer: number }>>({});
   const [loading,         setLoading]         = useState(true);
   const [kwLoading,       setKwLoading]       = useState(false);
   const [aiDataLoading,   setAiDataLoading]   = useState(false);
@@ -164,6 +165,28 @@ function PartyDetailContent() {
         partySums[p].role += 1;
       }
 
+      // 主要政党ベンチマーク（議員1人あたり）
+      const BENCHMARK_PARTIES = ["自由民主党", "立憲民主党", "日本維新の会", "国民民主党", "公明党", "中道改革連合"];
+      const partyMemberCounts: Record<string, number> = {};
+      for (const m of allMembers) {
+        if (!m.party) continue;
+        partyMemberCounts[m.party] = (partyMemberCounts[m.party] || 0) + 1;
+      }
+      const benchmarks: Record<string, { count: number; billPer: number; questionPer: number; sessionPer: number }> = {};
+      for (const p of BENCHMARK_PARTIES) {
+        const s = partySums[p];
+        const c = partyMemberCounts[p] || 0;
+        if (s && c > 0) {
+          benchmarks[p] = {
+            count: c,
+            billPer: Math.round((s.bill / c) * 10) / 10,
+            questionPer: Math.round((s.question / c) * 10) / 10,
+            sessionPer: Math.round((s.session / c) * 10) / 10,
+          };
+        }
+      }
+      setPartyBenchmarks(benchmarks);
+
       const gm = { session: 1, question: 1, bill: 1, petition: 1, role: 1 };
       for (const s of Object.values(partySums)) {
         if (s.session  > gm.session)  gm.session  = s.session;
@@ -214,7 +237,7 @@ function PartyDetailContent() {
 
         setKwLoading(true);
         setAiDataLoading(true);
-        const [kw, questionsRes, sangiinQuestionsRes, billsRes] = await Promise.all([
+        const [kw, questionsRes, sangiinQuestionsRes, billsRes, allMembersForMap] = await Promise.all([
           fetchKeywordsBatched(memberIds),
           shugiinIds.length > 0
             ? supabase.from("questions").select("title, submitted_at")
@@ -231,7 +254,8 @@ function PartyDetailContent() {
           supabase.from("bills").select("title, submitted_at, submitter_ids")
             .eq("bill_type", "議員立法")
             .order("submitted_at", { ascending: false, nullsFirst: false })
-            .limit(1000),
+            .limit(2000),
+          supabase.from("members").select("id, party").limit(5000),
         ]);
         setKeywords(kw);
         setKwLoading(false);
@@ -242,25 +266,25 @@ function PartyDetailContent() {
         ].sort((a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || "")).slice(0, 50);
         setPartyQuestions(mergedQuestions);
 
-        const memberIdSet2 = new Set(memberIds);
-        const filteredBills = (billsRes.data || []).filter((b) =>
-          (b.submitter_ids || []).some((id: string) => memberIdSet2.has(id))
-        );
-        setPartyBills(filteredBills);
-
-        // 共同提出ランキング（元議員含む全 member→party マップが必要）
-        const allMembersForMap = await supabase
-          .from("members")
-          .select("id, party")
-          .limit(3000);
+        // 全議員（元議員含む）の id→party マップ
         const memberPartyMap: Record<string, string> = {};
         for (const m of allMembersForMap.data || []) {
           if (m.party) memberPartyMap[m.id] = m.party;
         }
+        // 当該政党の全議員IDセット（元議員含む）
+        const partyAllMemberIdSet = new Set(
+          (allMembersForMap.data || []).filter((m) => m.party === party).map((m) => m.id)
+        );
+
+        const filteredBills = (billsRes.data || []).filter((b) =>
+          (b.submitter_ids || []).some((id: string) => partyAllMemberIdSet.has(id))
+        );
+        setPartyBills(filteredBills);
+
         const coCount: Record<string, number> = {};
         for (const b of filteredBills) {
           for (const sid of (b.submitter_ids || []) as string[]) {
-            if (memberIdSet2.has(sid)) continue;
+            if (partyAllMemberIdSet.has(sid)) continue;
             const p = memberPartyMap[sid];
             if (p) coCount[p] = (coCount[p] || 0) + 1;
           }
@@ -795,6 +819,29 @@ function PartyDetailContent() {
         }
         lines.push("※ 集計は現在の所属議員を基準とし、第210回国会（2022年）以降の活動を対象とします。");
         lines.push("");
+        {
+          const termsWithData = members.filter((m) => m.terms != null);
+          if (termsWithData.length > 0) {
+            const dist: Record<string, number> = { "1回": 0, "2〜3回": 0, "4〜5回": 0, "6回以上": 0 };
+            let sum = 0;
+            for (const m of termsWithData) {
+              const t = m.terms as number;
+              sum += t;
+              if (t <= 1) dist["1回"]++;
+              else if (t <= 3) dist["2〜3回"]++;
+              else if (t <= 5) dist["4〜5回"]++;
+              else dist["6回以上"]++;
+            }
+            const avg = (sum / termsWithData.length).toFixed(1);
+            const distStr = Object.entries(dist)
+              .filter(([, c]) => c > 0)
+              .map(([k, c]) => `${k}: ${c}名`)
+              .join(" / ");
+            lines.push("■ 当選回数分布（現役議員）");
+            lines.push(`${distStr} / 平均: ${avg}回`);
+            lines.push("");
+          }
+        }
         lines.push("■ 活動件数（累計）");
         lines.push(`発言セッション数: ${totalSessions}回`);
         lines.push(`質問主意書: ${totalQuestions}件`);
@@ -802,6 +849,20 @@ function PartyDetailContent() {
         lines.push(`請願: ${totalPetitions}件`);
         lines.push(`委員会役職（委員長・理事）: ${totalRoles}件`);
         lines.push("");
+        if (Object.keys(partyBenchmarks).length > 0) {
+          const curCount = members.length || 1;
+          lines.push("■ 主要政党との議員1人あたり活動比較（第210回国会以降・現役議員基準）");
+          lines.push("政党 | 議員数 | 立法/人 | 質問/人 | 発言/人");
+          const selfBill = totalBills / curCount;
+          const selfQ    = totalQuestions / curCount;
+          const selfSess = totalSessions / curCount;
+          lines.push(`${party} | ${curCount}名 | ${(selfBill).toFixed(1)} | ${(selfQ).toFixed(1)} | ${(selfSess).toFixed(1)}`);
+          for (const [p, b] of Object.entries(partyBenchmarks)) {
+            if (p === party) continue;
+            lines.push(`${p} | ${b.count}名 | ${b.billPer} | ${b.questionPer} | ${b.sessionPer}`);
+          }
+          lines.push("");
+        }
         if (voteStats && voteStats.total > 0) {
           const yesRate   = (voteStats.yes    / voteStats.total * 100).toFixed(1);
           const noRate    = (voteStats.no     / voteStats.total * 100).toFixed(1);
@@ -854,9 +915,10 @@ function PartyDetailContent() {
           "採決データは党議拘束の影響を受けるため、個々の議員の意思を完全には反映しません。" +
           "件数の大小が活動の優劣を示すものではありません。" +
           "提供データに「現在の立場」が明記されている場合は、それを最優先とし、学習データとの矛盾があってもデータを信頼してください。" +
+          "2025年10月に自公連立が解消され、公明党が野党に転じ、日本維新の会が閣外協力として与党入りするという政治的変化がありました。各政党の現在の立場は提供データの記述を正として判断してください。" +
           "断定的な評価ではなく、データから読み取れる傾向として述べてください。";
         const defaultQuestion =
-          "提供された活動データ（発言・質問主意書・議員立法・採決・委員会役職・キーワード）の内容と件数から読み取れることを教えてください。";
+          "提供された活動データをもとに、この政党の国会活動の特徴・他党との比較・連携傾向を分析してください。";
 
         if (aiDataLoading) {
           return (
