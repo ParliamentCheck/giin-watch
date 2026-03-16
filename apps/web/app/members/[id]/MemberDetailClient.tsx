@@ -472,6 +472,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           { id: "bills",      label: "📋 議員立法" },
           { id: "petitions",  label: "📜 請願" },
           { id: "keywords",   label: "☁️ キーワード" },
+          { id: "ai",         label: "🤖 AI分析" },
         ].map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`tab-pill${tab === t.id ? " active" : ""}`}
@@ -923,15 +924,17 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         </div>
       )}
 
-      {/* AI分析 */}
-      <AIAnalysis
-        member={member}
-        questions={questions}
-        votes={votes}
-        bills={bills}
-        petitions={petitions}
-        committees={committees}
-      />
+      {/* AI分析タブ */}
+      {tab === "ai" && (
+        <AIAnalysis
+          member={member}
+          questions={questions}
+          votes={votes}
+          bills={bills}
+          petitions={petitions}
+          committees={committees}
+        />
+      )}
     </div>
   );
 }
