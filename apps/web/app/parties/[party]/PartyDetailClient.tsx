@@ -87,7 +87,8 @@ function PartyDetailContent() {
   const [keywords,       setKeywords]       = useState<KeywordData[]>([]);
   const [partyQuestions,  setPartyQuestions]  = useState<{ title: string; submitted_at: string }[]>([]);
   const [partyBills,      setPartyBills]      = useState<{ title: string; submitted_at: string | null }[]>([]);
-  const [alignments,      setAlignments]      = useState<{ party_a: string; party_b: string; alignment_rate: number; sample_size: number }[]>([]);
+  const [alignments,          setAlignments]          = useState<{ party_a: string; party_b: string; alignment_rate: number; sample_size: number }[]>([]);
+  const [coSubmissionRanking, setCoSubmissionRanking] = useState<{ party: string; count: number }[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [kwLoading,       setKwLoading]       = useState(false);
   const [aiDataLoading,   setAiDataLoading]   = useState(false);
@@ -130,7 +131,6 @@ function PartyDetailContent() {
         supabase
           .from("party_vote_alignments")
           .select("party_a, party_b, alignment_rate, sample_size")
-          .or(`party_a.eq.${party},party_b.eq.${party}`)
           .order("alignment_rate", { ascending: false }),
       ]);
 
@@ -175,7 +175,7 @@ function PartyDetailContent() {
       setRadarGlobalMax(gm);
 
       setMembers(membersRes.data || []);
-      setAlignments(alignmentsRes.data || []);
+      setAlignments(alignmentsRes.data || []);  // 全ペア
       setChairs((committeeRes.data || [])
         .filter((c) => memberIdSet.has(c.member_id))
         .map((c) => ({
@@ -229,7 +229,7 @@ function PartyDetailContent() {
                 .limit(100)
             : Promise.resolve({ data: [] as { title: string; submitted_at: string }[] }),
           supabase.from("bills").select("title, submitted_at, submitter_ids")
-            .eq("bill_type", "member")
+            .eq("bill_type", "議員立法")
             .order("submitted_at", { ascending: false, nullsFirst: false })
             .limit(1000),
         ]);
@@ -247,6 +247,29 @@ function PartyDetailContent() {
           (b.submitter_ids || []).some((id: string) => memberIdSet2.has(id))
         );
         setPartyBills(filteredBills);
+
+        // 共同提出ランキング（元議員含む全 member→party マップが必要）
+        const allMembersForMap = await supabase
+          .from("members")
+          .select("id, party")
+          .limit(3000);
+        const memberPartyMap: Record<string, string> = {};
+        for (const m of allMembersForMap.data || []) {
+          if (m.party) memberPartyMap[m.id] = m.party;
+        }
+        const coCount: Record<string, number> = {};
+        for (const b of filteredBills) {
+          for (const sid of (b.submitter_ids || []) as string[]) {
+            if (memberIdSet2.has(sid)) continue;
+            const p = memberPartyMap[sid];
+            if (p) coCount[p] = (coCount[p] || 0) + 1;
+          }
+        }
+        setCoSubmissionRanking(
+          Object.entries(coCount)
+            .map(([p, count]) => ({ party: p, count }))
+            .sort((a, b) => b.count - a.count)
+        );
         setAiDataLoading(false);
       }
     }
@@ -302,6 +325,7 @@ function PartyDetailContent() {
     { id: "committees", label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
     { id: "wordcloud",  label: "☁️ キーワード" },
     { id: "breakdown",  label: "📊 内訳" },
+    { id: "distance",   label: "🔗 政党距離感" },
     { id: "ai",         label: "🤖 AI分析" },
   ];
 
@@ -656,6 +680,103 @@ function PartyDetailContent() {
         </div>
       )}
 
+      {/* 政党距離感タブ */}
+      {tab === "distance" && (() => {
+        const PARTY_SHORT: Record<string, string> = {
+          "自民党":       "自民", "立憲民主党":   "立憲", "中道改革連合": "中道",
+          "公明党":       "公明", "日本維新の会": "維新", "国民民主党":   "国民",
+          "共産党":       "共産", "れいわ新選組": "れいわ", "社民党":     "社民",
+          "参政党":       "参政", "チームみらい": "みらい", "日本保守党": "保守",
+          "有志の会":     "有志", "沖縄の風":     "沖縄",
+        };
+
+        const myAlignments = alignments
+          .filter((a) => a.party_a === party || a.party_b === party)
+          .sort((a, b) => b.alignment_rate - a.alignment_rate);
+
+        const maxCoCount = coSubmissionRanking[0]?.count || 1;
+
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* 採決一致率ランキング */}
+            <div className="card" style={{ padding: 24 }}>
+              <h3 className="section-title" style={{ marginBottom: 4 }}>採決一致率</h3>
+              <p style={{ fontSize: 12, color: "#888888", marginBottom: 16, lineHeight: 1.7 }}>
+                参議院本会議採決（第208回〜）で{party}と各政党が同じ多数決を取った割合。高いほど投票行動が近い。
+              </p>
+              {myAlignments.length === 0 ? (
+                <div className="empty-state">データがありません。</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {myAlignments.map((a) => {
+                    const other = a.party_a === party ? a.party_b : a.party_a;
+                    const otherColor = PARTY_COLORS[other] || "#7f8c8d";
+                    const pct = a.alignment_rate * 100;
+                    return (
+                      <div key={other}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: otherColor, flexShrink: 0 }} />
+                            <span style={{ fontWeight: 600, color: "#1a1a1a" }}>{other}</span>
+                          </span>
+                          <span style={{ color: otherColor, fontWeight: 700 }}>
+                            {pct.toFixed(1)}%
+                            <span style={{ fontSize: 10, color: "#aaaaaa", fontWeight: 400, marginLeft: 4 }}>({a.sample_size}法案)</span>
+                          </span>
+                        </div>
+                        <div className="progress-bar" style={{ height: 8 }}>
+                          <div className="progress-fill" style={{ width: `${pct}%`, background: otherColor }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p style={{ fontSize: 11, color: "#aaaaaa", marginTop: 12 }}>
+                ※ 採決データは党議拘束の影響を受けるため、政策的立場と完全には一致しません。
+              </p>
+            </div>
+
+            {/* 共同提出ランキング */}
+            <div className="card" style={{ padding: 24 }}>
+              <h3 className="section-title" style={{ marginBottom: 4 }}>議員立法 共同提出パートナー</h3>
+              <p style={{ fontSize: 12, color: "#888888", marginBottom: 16, lineHeight: 1.7 }}>
+                {party}の議員が関わった議員立法に、他のどの政党の議員が共同提出者として名を連ねているか。
+              </p>
+              {coSubmissionRanking.length === 0 ? (
+                <div className="empty-state">共同提出データがありません。</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {coSubmissionRanking.map((r) => {
+                    const rColor = PARTY_COLORS[r.party] || "#7f8c8d";
+                    return (
+                      <div key={r.party}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: rColor, flexShrink: 0 }} />
+                            <span style={{ fontWeight: 600, color: "#1a1a1a" }}>{r.party}</span>
+                          </span>
+                          <span style={{ color: rColor, fontWeight: 700 }}>
+                            {r.count}<span style={{ fontSize: 10, color: "#aaaaaa", fontWeight: 400, marginLeft: 2 }}>法案</span>
+                          </span>
+                        </div>
+                        <div className="progress-bar" style={{ height: 8 }}>
+                          <div className="progress-fill" style={{ width: `${r.count / maxCoCount * 100}%`, background: rColor }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p style={{ fontSize: 11, color: "#aaaaaa", marginTop: 12 }}>
+                ※ 第210回国会以降の議員立法が対象。
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* AI分析タブ */}
       {tab === "ai" && (() => {
         const lines: string[] = [];
@@ -690,9 +811,12 @@ function PartyDetailContent() {
           lines.push("※ 採決データは党議拘束の影響を受けるため、個別議員の意思を完全には反映しません。");
           lines.push("");
         }
-        if (alignments.length > 0) {
+        const myAlignments = alignments
+          .filter((a) => a.party_a === party || a.party_b === party)
+          .sort((a, b) => b.alignment_rate - a.alignment_rate);
+        if (myAlignments.length > 0) {
           lines.push("■ 主要政党との採決一致率（参議院・第208回〜）");
-          for (const a of alignments) {
+          for (const a of myAlignments) {
             const other = a.party_a === party ? a.party_b : a.party_a;
             lines.push(`${other}: ${(a.alignment_rate * 100).toFixed(1)}%（${a.sample_size}法案）`);
           }
@@ -708,6 +832,13 @@ function PartyDetailContent() {
           const year = (d: string | null) => d ? d.slice(0, 4) : "年不明";
           lines.push(`■ 議員立法タイトル（${partyBills.length}件 / 第210回国会以降）`);
           for (const b of partyBills) lines.push(`- ${b.title}（${year(b.submitted_at)}）`);
+          lines.push("");
+        }
+        if (coSubmissionRanking.length > 0) {
+          lines.push("■ 議員立法 共同提出パートナー上位（第210回国会以降）");
+          for (const r of coSubmissionRanking.slice(0, 10)) {
+            lines.push(`${r.party}: ${r.count}件`);
+          }
           lines.push("");
         }
         if (keywords.length > 0) {
