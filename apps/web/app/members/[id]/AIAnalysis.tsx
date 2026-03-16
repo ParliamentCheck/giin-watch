@@ -456,7 +456,14 @@ export default function AIAnalysis(props: AIAnalysisProps) {
           {result && (
             <>
               <div style={{
-                marginTop: 16, padding: "14px 16px", background: "#f9f9f9",
+                marginTop: 14, padding: "10px 14px",
+                background: "#fffbea", border: "1px solid #f0c040", borderRadius: 6,
+                fontSize: 12, color: "#7a5c00", lineHeight: 1.6,
+              }}>
+                ⚠️ この分析はAIが公開データから自動生成した推測です。『はたらく議員』の公式見解・評価ではありません。
+              </div>
+              <div style={{
+                marginTop: 10, padding: "14px 16px", background: "#f9f9f9",
                 border: "1px solid #e0e0e0", borderRadius: 8, fontSize: 13, lineHeight: 1.8,
                 whiteSpace: "pre-wrap",
               }}>
@@ -464,34 +471,29 @@ export default function AIAnalysis(props: AIAnalysisProps) {
                 {loading && <span style={{ opacity: 0.4 }}>▌</span>}
               </div>
               {!loading && (
-                <>
-                  <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
-                    <button
-                      onClick={() => {
-                        const date = new Date().toISOString().slice(0, 10);
-                        const name = props.member?.name ?? "議員";
-                        const disclaimer = "\n\n※この分析は、ユーザーが作成したプロンプトおよび提供したAPIキーを用いてAIが公開データから自動生成した推測であり、『はたらく議員』の公式見解・評価ではありません。";
-                        const content = `【${name} / ${model} / ${date}】\n\n${result}${disclaimer}`;
-                        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `${name}_${model}_${date}.txt`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}
-                      style={{
-                        padding: "6px 14px", borderRadius: 6, border: "1px solid #cccccc",
-                        background: "#ffffff", fontSize: 12, color: "#555555", cursor: "pointer",
-                      }}
-                    >
-                      ダウンロード
-                    </button>
-                  </div>
-                  <p style={{ marginTop: 6, fontSize: 11, color: "#aaaaaa", lineHeight: 1.6 }}>
-                    ※この分析は、ユーザーが作成したプロンプトおよび提供したAPIキーを用いてAIが公開データから自動生成した推測であり、『はたらく議員』の公式見解・評価ではありません。
-                  </p>
-                </>
+                <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    onClick={() => {
+                      const date = new Date().toISOString().slice(0, 10);
+                      const name = props.member?.name ?? "議員";
+                      const disclaimer = "\n\n※この分析は、ユーザーが作成したプロンプトおよび提供したAPIキーを用いてAIが公開データから自動生成した推測であり、『はたらく議員』の公式見解・評価ではありません。";
+                      const content = `【${name} / ${model} / ${date}】\n\n${result}${disclaimer}`;
+                      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${name}_${model}_${date}.txt`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    style={{
+                      padding: "6px 14px", borderRadius: 6, border: "1px solid #cccccc",
+                      background: "#ffffff", fontSize: 12, color: "#555555", cursor: "pointer",
+                    }}
+                  >
+                    分析結果のダウンロード
+                  </button>
+                </div>
               )}
             </>
           )}
