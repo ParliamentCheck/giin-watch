@@ -90,6 +90,7 @@ function PartyDetailContent() {
   const [alignments,          setAlignments]          = useState<{ party_a: string; party_b: string; alignment_rate: number; sample_size: number }[]>([]);
   const [coSubmissionRanking, setCoSubmissionRanking] = useState<{ party: string; count: number }[]>([]);
   const [partyBenchmarks, setPartyBenchmarks] = useState<Record<string, { count: number; billPer: number; questionPer: number; sessionPer: number }>>({});
+  const [partyUniqueBills, setPartyUniqueBills] = useState<{ title: string; submitted_at: string | null }[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [kwLoading,       setKwLoading]       = useState(false);
   const [aiDataLoading,   setAiDataLoading]   = useState(false);
@@ -294,6 +295,15 @@ function PartyDetailContent() {
             .map(([p, count]) => ({ party: p, count }))
             .sort((a, b) => b.count - a.count)
         );
+
+        // 独自提出法案（全提出者が自党メンバーのみ）
+        const uniqueBills = filteredBills.filter((b) =>
+          (b.submitter_ids || []).every((sid: string) =>
+            partyAllMemberIdSet.has(sid) || !memberPartyMap[sid]
+          )
+        );
+        setPartyUniqueBills(uniqueBills);
+
         setAiDataLoading(false);
       }
     }
@@ -899,6 +909,14 @@ function PartyDetailContent() {
           lines.push("■ 議員立法 共同提出パートナー上位（第210回国会以降）");
           for (const r of coSubmissionRanking.slice(0, 10)) {
             lines.push(`${r.party}: ${r.count}件`);
+          }
+          lines.push("");
+        }
+        if (partyUniqueBills.length > 0) {
+          const year = (d: string | null) => d ? d.slice(0, 4) : "年不明";
+          lines.push(`■ 独自提出法案サンプル（上位5件 / 全${partyUniqueBills.length}件）`);
+          for (const b of partyUniqueBills.slice(0, 5)) {
+            lines.push(`- ${b.title}（${year(b.submitted_at)}）`);
           }
           lines.push("");
         }
