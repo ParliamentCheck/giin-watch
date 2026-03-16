@@ -8,6 +8,7 @@ import ActivityRadar from "../../components/ActivityRadar";
 import { isFavorite, addFavorite, removeFavorite } from "../../../lib/favorites";
 import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
 import { usePagination } from "../../../hooks/usePagination";
+import AIAnalysis from "./AIAnalysis";
 
 interface Member {
   id: string;
@@ -921,6 +922,16 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           )}
         </div>
       )}
+
+      {/* AI分析 */}
+      <AIAnalysis
+        member={member}
+        questions={questions}
+        votes={votes}
+        bills={bills}
+        petitions={petitions}
+        committees={committees}
+      />
     </div>
   );
 }
