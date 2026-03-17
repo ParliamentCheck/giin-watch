@@ -9,7 +9,7 @@ type Props = { params: Promise<{ id: string }> };
 async function getMember(memberId: string) {
   const { data } = await supabase
     .from("members")
-    .select("id, name, party, faction, house, district, terms, is_active, session_count, question_count, bill_count, petition_count, cabinet_post, source_url")
+    .select("id, name, alias_name, party, faction, house, district, terms, is_active, session_count, question_count, bill_count, petition_count, cabinet_post, source_url")
     .eq("id", memberId)
     .single();
   return data;
@@ -43,14 +43,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     data.question_count ? `質問主意書${data.question_count}件`        : null,
     data.bill_count     ? `議員立法${data.bill_count}件`              : null,
   ].filter(Boolean).join("、");
-  const description = `${data.name}（${parts.join("・")}）の国会活動データ。${stats ? stats + "。" : ""}発言・質問主意書・議員立法・採決・委員会活動を可視化。`;
+  const displayName = (data as any).alias_name ?? data.name;
+  const description = `${displayName}（${parts.join("・")}）の国会活動データ。${stats ? stats + "。" : ""}発言・質問主意書・議員立法・採決・委員会活動を可視化。`;
   const url = `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`;
 
   return {
-    title: data.name,
+    title: displayName,
     description,
-    openGraph: { title: `${data.name} | はたらく議員`, description, url },
-    twitter: { card: "summary_large_image", title: `${data.name} | はたらく議員`, description },
+    openGraph: { title: `${displayName} | はたらく議員`, description, url },
+    twitter: { card: "summary_large_image", title: `${displayName} | はたらく議員`, description },
     alternates: { canonical: url },
   };
 }
@@ -71,7 +72,7 @@ export default async function MemberDetailPage({ params }: Props) {
   const jsonLd = member ? {
     "@context": "https://schema.org",
     "@type": "Person",
-    "name": member.name,
+    "name": (member as any).alias_name ?? member.name,
     "jobTitle": member.cabinet_post || (member.house === "衆議院" ? "衆議院議員" : "参議院議員"),
     "affiliation": { "@type": "Organization", "name": member.party },
     "url": `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`,

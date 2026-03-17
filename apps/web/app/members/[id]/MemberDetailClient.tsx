@@ -13,6 +13,7 @@ import AIAnalysis from "./AIAnalysis";
 interface Member {
   id: string;
   name: string;
+  alias_name: string | null;
   party: string;
   faction: string | null;
   house: string;
@@ -150,7 +151,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   useEffect(() => {
     if (member?.name) {
       const tabLabel = MEMBER_TAB_LABELS[tab] ?? tab;
-      document.title = `${member.name} — ${tabLabel} | はたらく議員`;
+      document.title = `${member.alias_name ?? member.name} — ${tabLabel} | はたらく議員`;
     }
   }, [member, tab]);
   const setTab = (t: string) => {
@@ -364,7 +365,12 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#111111" }}>
-                {member.name}
+                {member.alias_name ?? member.name}
+                {member.alias_name && (
+                  <span style={{ fontSize: 14, fontWeight: 400, color: "#888888", marginLeft: 8 }}>
+                    （{member.name}）
+                  </span>
+                )}
               </h1>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 {favMsg && <span style={{ fontSize: 11, color: "#ef4444" }}>{favMsg}</span>}
