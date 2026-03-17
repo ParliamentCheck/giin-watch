@@ -119,6 +119,49 @@ async function getLatestCommitteeActivity() {
   }));
 }
 
+async function getCrossPartyBills() {
+  try {
+    const { data: bills } = await supabase
+      .from("bills")
+      .select("id, title, session_number, source_url, submitter_ids")
+      .eq("bill_type", "議員立法")
+      .limit(1000);
+    if (!bills || bills.length === 0) return [];
+
+    const allIds = [...new Set(bills.flatMap((b: any) => (b.submitter_ids as string[]) || []))];
+    if (allIds.length === 0) return [];
+
+    const memberParty: Record<string, string> = {};
+    for (let i = 0; i < allIds.length; i += 50) {
+      const { data: members } = await supabase
+        .from("members")
+        .select("id, party")
+        .in("id", allIds.slice(i, i + 50));
+      for (const m of members || []) memberParty[(m as any).id] = (m as any).party;
+    }
+
+
+    const EXCLUDE = new Set(["無所属", "不明（前議員）"]);
+
+    return bills
+      .map((b: any) => {
+        const parties = [...new Set<string>(
+          ((b.submitter_ids as string[]) || [])
+            .map((id) => memberParty[id])
+            .filter((p): p is string => !!p && !EXCLUDE.has(p))
+        )];
+        return { id: b.id as string, title: b.title as string, session: b.session_number as number, source_url: b.source_url as string | null, parties };
+      })
+      .filter((b) => b.parties.length >= 3)
+      .sort((a, b) => b.parties.length - a.parties.length)
+      .slice(0, 5);
+    return result;
+  } catch (e) {
+    console.error("[crossParty] error:", e);
+    return [];
+  }
+}
+
 async function getRecentBills() {
   const billsRes = await supabase
     .from("bills")
@@ -330,7 +373,7 @@ async function getMonthlyQuestions() {
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
-  const [stats, recentQuestions, committeeActivities, partyBreakdown, recentPetitions, recentBills, currentStats, alignmentMatrix, monthlyQuestions] = await Promise.all([
+  const [stats, recentQuestions, committeeActivities, partyBreakdown, recentPetitions, recentBills, currentStats, alignmentMatrix, monthlyQuestions, crossPartyBills] = await Promise.all([
     getStats(),
     getRecentQuestions(),
     getLatestCommitteeActivity(),
@@ -340,6 +383,7 @@ export default async function TopPage() {
     getCurrentSessionStats(),
     getPartyAlignmentMatrix(),
     getMonthlyQuestions(),
+    getCrossPartyBills(),
   ]);
 
   const maxPartyCount = partyBreakdown[0]?.total || 1;
@@ -536,6 +580,54 @@ export default async function TopPage() {
                   </details>
                 ));
               })()}
+            </div>
+          </section>
+        )}
+
+        {/* ── 超党派議員立法 ──────────────────────────────── */}
+        {crossPartyBills.length > 0 && (
+          <section className="mb-16">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h2 className="text-lg font-bold text-neutral-900">超党派で提出された議員立法</h2>
+                <p className="text-xs text-neutral-500 mt-0.5">最も多くの政党の議員が連名した法案 — 2022年〜現在</p>
+              </div>
+              <Link href="/bills" className="text-xs text-neutral-500 hover:text-neutral-700 transition-colors shrink-0 ml-4 mt-1">
+                法案一覧 →
+              </Link>
+            </div>
+            <p className="text-sm text-neutral-500 leading-relaxed mb-5">
+              議員立法のうち、与野党を問わず複数政党の議員が連名で提出した法案を、参加政党数が多い順に表示しています。
+              政党を超えて共通の課題認識があったことを示す記録です。
+            </p>
+            <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl divide-y divide-neutral-200/70">
+              {crossPartyBills.map((bill, i) => (
+                <div key={bill.id} className="px-5 py-4">
+                  <div className="flex items-start gap-3">
+                    <span className="shrink-0 mt-0.5 text-[11px] font-bold text-neutral-400 w-4 text-right">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-neutral-800 text-white text-[10px] font-bold shrink-0">
+                          {bill.parties.length}党
+                        </span>
+                        <span className="text-[11px] text-neutral-400">第{bill.session}回国会</span>
+                      </div>
+                      <a href={bill.source_url || "#"} target="_blank" rel="noopener noreferrer"
+                        className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug line-clamp-2 transition-colors">
+                        {bill.title}
+                      </a>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {bill.parties.map((party: string) => (
+                          <span key={party} className="inline-flex items-center gap-1 text-[10px] text-neutral-600">
+                            <span style={{ color: partyColor(party), fontSize: 8 }}>●</span>
+                            {PARTY_SHORT[party] ?? party}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}
