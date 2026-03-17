@@ -377,12 +377,12 @@ export default async function TopPage() {
         {/* ── メインナビゲーション ────────────────────────────── */}
         <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
           {[
-            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。全議員のプロフィールと活動実績を検索",               path: "/members"    },
-            { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",                     path: "/committees" },
-            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数・活動バランス。国会での勢力図と政党の特色が見える",           path: "/parties"    },
-            { icon: "📋", title: "議員立法",   desc: "議員が提出した法案の一覧。超党派共同立法のフィルターも可能",                     path: "/bills"      },
-            { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",         path: "/votes"      },
-            { icon: "👑", title: "現内閣",     desc: "現在の大臣・副大臣・政務官の一覧。各閣僚の議員ページにもリンク",                   path: "/cabinet"    },
+            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。各議員の活動実績・頻出キーワード・AI分析を確認できます",       path: "/members"    },
+            { icon: "👑", title: "内閣",       desc: "現在の大臣・副大臣・政務官の一覧。各閣僚の議員ページにもリンク",                           path: "/cabinet"    },
+            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数・活動バランス。採決での政党間距離感やAI分析も確認できます",             path: "/parties"    },
+            { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",                               path: "/committees" },
+            { icon: "📋", title: "法案",       desc: "議員立法・閣法（参議院）の一覧。超党派共同提出フィルターと政党間共同提出ネットワーク図も確認できます", path: "/bills"      },
+            { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",                 path: "/votes"      },
           ].map((item) => (
             <Link key={item.path} href={item.path}
               className="group block bg-neutral-200/60 border border-neutral-200 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400">
