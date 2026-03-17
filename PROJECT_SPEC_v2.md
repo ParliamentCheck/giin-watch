@@ -405,6 +405,10 @@ components/
   ActivityTabs.tsx          トップページの活動タブ（質問主意書・委員会・請願）
   WordCloud.tsx             ワードクラウド可視化（d3-cloud使用）
   ActivityRadar.tsx         活動バランスレーダーチャート（議員・政党ページで使用）
+  Analytics.tsx             GA4ページビュー送信（usePathname + useSearchParams監視）
+
+app/components/
+  AIAnalysisBase.tsx        BYOK AI分析の共通UI・API呼び出しロジック
 ```
 
 ### 5.3 重要な実装ルール
@@ -551,6 +555,39 @@ effectiveParty[m.id] = m.party === "中道改革連合" && m.prev_party ? m.prev
 - Google AdSense: `ads.txt` + body内Scriptタグ（pub-1728847761086799）
 - Google Analytics: G-1QJP14PKPF
 - 訂正申し立て: https://docs.google.com/forms/d/e/1FAIpQLSfs3iOuviV2CV5BddBbG2rmPYQ4QVnRvEn8pm3j3rNpdPBlpg/viewform
+
+#### BYOK AI分析機能
+
+議員詳細ページ・政党詳細ページに実装。ユーザーが自分のAPIキーをブラウザに入力し、ページの活動データを直接AI事業者に送信して分析する。データ・キーともに当サービスのサーバーには送信・保存しない。
+
+**対応プロバイダー:**
+
+| プロバイダー | API方式 | キー保存キー |
+|------------|--------|------------|
+| Google Gemini | Gemini API（SSE） | `giin_watch_ai_apikey_gemini` |
+| OpenAI | Chat Completions API（SSE） | `giin_watch_ai_apikey_openai` |
+| xAI Grok | OpenAI互換エンドポイント（SSE） | `giin_watch_ai_apikey_grok` |
+
+APIキーはプロバイダーごとに `localStorage` に個別保存。プロバイダー切替時に他プロバイダーのキーを上書きしない設計（`useRef` で非同期クロージャのスタレ値汚染を防止）。
+
+**モデル動的取得:** APIキー入力（blur）時に `/v1/models`（OpenAI/Grok）または `v1beta/models`（Gemini）から取得してドロップダウンに反映。
+
+**Grokモデルのフィルタリングルール:**
+- `grok-` プレフィックス以外を除外
+- `imagine` / `video` / `image` / `code` / `beta` を含むモデルを除外
+- ラベル付与（`grokLabel` 関数）: `mini` → 軽量・高速、`fast` → 高速、それ以外 → 高精度、`non-reasoning` → 非推論付加、`reasoning`（non-なし） → 推論付加
+
+**GA4イベント:** 分析実行成功時に送信:
+```js
+gtag("event", "ai_analysis", { provider, model })
+```
+
+**関連ファイル:**
+| ファイル | 役割 |
+|---------|------|
+| `app/components/AIAnalysisBase.tsx` | 共通UI・API呼び出し・モデル動的取得 |
+| `app/members/[id]/AIAnalysis.tsx` | 議員ページ用 context構築・プロンプト定義 |
+| `app/parties/[party]/PartyDetailClient.tsx` | 政党ページ用 context構築・プロンプト定義（インライン） |
 
 ---
 
