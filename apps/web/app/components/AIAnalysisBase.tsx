@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, useRef, ReactNode } from "react";
 
-type Provider = "openai" | "gemini";
+type Provider = "openai" | "gemini" | "grok";
 
 export const KEY_STORAGE: Record<Provider, string> = {
   openai: "giin_watch_ai_apikey_openai",
   gemini: "giin_watch_ai_apikey_gemini",
+  grok:   "giin_watch_ai_apikey_grok",
 };
 export const PROVIDER_STORAGE = "giin_watch_ai_provider";
 export const MODEL_STORAGE    = "giin_watch_ai_model";
@@ -20,6 +21,12 @@ export const MODELS: Record<Provider, { value: string; label: string }[]> = {
     { value: "gpt-4o-mini", label: "gpt-4o-mini（標準・低コスト）" },
     { value: "gpt-4o",      label: "gpt-4o（高精度）" },
   ],
+  grok: [
+    { value: "grok-3-mini",                 label: "grok-3-mini（軽量・高速・非推論）" },
+    { value: "grok-3",                      label: "grok-3（高精度・非推論）" },
+    { value: "grok-4-1-fast-non-reasoning", label: "grok-4-1-fast-non-reasoning（高速・非推論）" },
+    { value: "grok-4-0709",                 label: "grok-4-0709（高精度・非推論）" },
+  ],
 };
 
 const API_KEY_URLS: Record<Provider, { label: string; url: string }> = {
@@ -31,13 +38,20 @@ const API_KEY_URLS: Record<Provider, { label: string; url: string }> = {
     label: "Google AI Studio でAPIキーを取得する",
     url: "https://aistudio.google.com/app/apikey",
   },
+  grok: {
+    label: "xAI Console でAPIキーを取得する",
+    url: "https://console.x.ai/",
+  },
 };
 
 export function friendlyError(raw: string, provider: Provider): string {
   const r = raw.toLowerCase();
-  if (r.includes("quota") || r.includes("limit: 0") || r.includes("rate limit") || r.includes("rate_limit")) {
+  if (r.includes("quota") || r.includes("limit: 0") || r.includes("rate limit") || r.includes("rate_limit") || r.includes("spend limit")) {
     if (provider === "gemini") {
       return "APIの利用枠に達しています。しばらく待ってから再試行するか、Google AI StudioでAPIキーの状態を確認してください。";
+    }
+    if (provider === "grok") {
+      return "APIの利用枠に達しています。xAI Consoleでクレジット残高や利用制限をご確認ください。";
     }
     return "APIの利用枠に達しています。OpenAIのダッシュボードでクレジット残高や利用制限をご確認ください。";
   }
@@ -59,9 +73,10 @@ export async function callOpenAI(
   context: string,
   question: string,
   model: string,
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
+  endpoint = "https://api.openai.com/v1/chat/completions"
 ): Promise<void> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -80,7 +95,8 @@ export async function callOpenAI(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const raw = (err as any)?.error?.message || `APIエラー: ${res.status}`;
-    throw new Error(friendlyError(raw, "openai"));
+    const providerHint: Provider = endpoint.includes("x.ai") ? "grok" : "openai";
+    throw new Error(friendlyError(raw, providerHint));
   }
 
   const reader = res.body!.getReader();
@@ -159,6 +175,60 @@ export async function callGemini(
   }
 }
 
+function grokLabel(id: string): string {
+  const hasMini        = id.includes("mini");
+  const hasFast        = id.includes("fast");
+  const isNonReasoning = id.includes("non-reasoning");
+  const isReasoning    = !isNonReasoning && id.includes("reasoning");
+  const speed  = hasMini ? "軽量・高速" : hasFast ? "高速" : "高精度";
+  const mode   = isReasoning ? "推論" : isNonReasoning ? "非推論" : null;
+  const suffix = mode ? `${speed}・${mode}` : speed;
+  return `${id}（${suffix}）`;
+}
+
+async function fetchModels(provider: Provider, apiKey: string): Promise<{ value: string; label: string }[]> {
+  try {
+    if (provider === "openai" || provider === "grok") {
+      const endpoint = provider === "grok"
+        ? "https://api.x.ai/v1/models"
+        : "https://api.openai.com/v1/models";
+      const res = await fetch(endpoint, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (!res.ok) return [];
+      const json = await res.json();
+      const prefix = provider === "grok" ? "grok-" : "gpt-";
+      const exclude = provider === "grok"
+        ? ["imagine", "video", "image", "code", "beta"]
+        : ["embedding", "whisper", "tts", "dall-e", "davinci", "babbage"];
+      const models = (json.data as { id: string }[])
+        .filter((m) => m.id.startsWith(prefix) && !exclude.some((ex) => m.id.includes(ex)))
+        .sort((a, b) => b.id.localeCompare(a.id));
+      if (provider === "grok") {
+        return models.map((m) => ({ value: m.id, label: grokLabel(m.id) }));
+      }
+      return models.map((m) => ({ value: m.id, label: m.id }));
+    }
+    if (provider === "gemini") {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+      );
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.models as { name: string; displayName: string; supportedGenerationMethods?: string[] }[])
+        .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+        .sort((a, b) => b.name.localeCompare(a.name))
+        .map((m) => ({
+          value: m.name.replace("models/", ""),
+          label: m.displayName || m.name.replace("models/", ""),
+        }));
+    }
+  } catch {
+    /* フォールバック */
+  }
+  return [];
+}
+
 interface AIAnalysisBaseProps {
   contextText: string;
   systemPrompt: string;
@@ -177,32 +247,71 @@ export default function AIAnalysisBase({
   const [consented, setConsented] = useState(false);
   const [provider, setProvider] = useState<Provider>("gemini");
   const [model, setModel] = useState(MODELS.gemini[0].value);
-  const [apiKeys, setApiKeys] = useState<Record<Provider, string>>({ openai: "", gemini: "" });
+  const [apiKeys, setApiKeys] = useState<Record<Provider, string>>({ openai: "", gemini: "", grok: "" });
   const [question, setQuestion] = useState(defaultQuestion);
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [saveKey, setSaveKey] = useState(true);
   const [keyVisible, setKeyVisible] = useState(false);
+  const [dynamicModels, setDynamicModels] = useState<Partial<Record<Provider, { value: string; label: string }[]>>>({});
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const providerRef = useRef<Provider>(provider);
+  const apiKeysRef  = useRef<Record<Provider, string>>(apiKeys);
+  useEffect(() => { providerRef.current = provider; }, [provider]);
+  useEffect(() => { apiKeysRef.current  = apiKeys;  }, [apiKeys]);
 
   useEffect(() => {
     const savedOpenAI   = localStorage.getItem(KEY_STORAGE.openai) ?? "";
     const savedGemini   = localStorage.getItem(KEY_STORAGE.gemini) ?? "";
-    const savedProvider = localStorage.getItem(PROVIDER_STORAGE) as Provider | null;
+    const savedGrok     = localStorage.getItem(KEY_STORAGE.grok)   ?? "";
+    const savedProvider = (localStorage.getItem(PROVIDER_STORAGE) as Provider | null) ?? "gemini";
     const savedModel    = localStorage.getItem(MODEL_STORAGE);
-    setApiKeys({ openai: savedOpenAI, gemini: savedGemini });
-    if (savedProvider) setProvider(savedProvider);
-    if (savedModel) setModel(savedModel);
+    setApiKeys({ openai: savedOpenAI, gemini: savedGemini, grok: savedGrok });
+    setProvider(savedProvider);
+    const savedKey = { openai: savedOpenAI, gemini: savedGemini, grok: savedGrok }[savedProvider];
+    if (savedKey) {
+      fetchModels(savedProvider, savedKey).then((models) => {
+        if (models.length > 0) {
+          setDynamicModels((prev) => ({ ...prev, [savedProvider]: models }));
+          const inList = savedModel && models.some((m) => m.value === savedModel);
+          setModel(inList ? savedModel! : models[0].value);
+        } else if (savedModel) {
+          setModel(savedModel);
+        }
+      });
+    } else if (savedModel) {
+      setModel(savedModel);
+    }
   }, []);
 
   const handleProviderChange = (p: Provider) => {
     setProvider(p);
-    setModel(MODELS[p][0].value);
+    const list = dynamicModels[p] ?? MODELS[p];
+    setModel(list[0].value);
   };
 
   const apiKey = apiKeys[provider];
   const setApiKey = (val: string) =>
     setApiKeys((prev) => ({ ...prev, [provider]: val }));
+
+  const handleKeyBlur = async () => {
+    const p   = providerRef.current;
+    const key = apiKeysRef.current[p];
+    if (!key.trim()) return;
+    if (saveKey) localStorage.setItem(KEY_STORAGE[p], key);
+    if (dynamicModels[p]) return;
+    setModelsLoading(true);
+    const models = await fetchModels(p, key);
+    if (models.length > 0) {
+      setDynamicModels((prev) => ({ ...prev, [p]: models }));
+      const exists = models.some((m) => m.value === model);
+      if (!exists) setModel(models[0].value);
+    }
+    setModelsLoading(false);
+  };
+
+  const currentModels = dynamicModels[provider] ?? MODELS[provider];
 
   const handleAnalyze = async () => {
     if (!apiKey.trim()) { setError("APIキーを入力してください"); return; }
@@ -221,6 +330,8 @@ export default function AIAnalysisBase({
       const onChunk = (chunk: string) => setResult((prev) => prev + chunk);
       if (provider === "openai") {
         await callOpenAI(apiKey, systemPrompt, contextText, question, model, onChunk);
+      } else if (provider === "grok") {
+        await callOpenAI(apiKey, systemPrompt, contextText, question, model, onChunk, "https://api.x.ai/v1/chat/completions");
       } else {
         await callGemini(apiKey, systemPrompt, contextText, question, model, onChunk);
       }
@@ -293,18 +404,24 @@ export default function AIAnalysisBase({
             >
               <option value="gemini">Google Gemini</option>
               <option value="openai">OpenAI（ChatGPT Proとは別のAPIキーが必要）</option>
+              <option value="grok">xAI Grok</option>
             </select>
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
+              disabled={modelsLoading}
               style={{
                 padding: "6px 10px", borderRadius: 6, border: "1px solid #cccccc",
                 fontSize: 13, background: "#ffffff",
+                opacity: modelsLoading ? 0.6 : 1,
               }}
             >
-              {MODELS[provider].map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
+              {modelsLoading
+                ? <option>取得中...</option>
+                : currentModels.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))
+              }
             </select>
             <a
               href={API_KEY_URLS[provider].url}
@@ -322,8 +439,10 @@ export default function AIAnalysisBase({
               <input
                 type={keyVisible ? "text" : "password"}
                 placeholder="APIキーを入力"
+                autoComplete="new-password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
+                onBlur={handleKeyBlur}
                 style={{
                   width: "100%", padding: "7px 36px 7px 10px", borderRadius: 6,
                   border: "1px solid #cccccc", fontSize: 13, boxSizing: "border-box",
