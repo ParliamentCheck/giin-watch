@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 KANTEI_BASE = "https://www.kantei.go.jp"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
+# 官邸サイトのひらがな・異表記 → DB表記のエイリアス
+NAME_ALIASES: dict[str, str] = {
+    "牧野たかお": "牧野京夫",
+    "友納理緒": "土肥理緒",  # 公称名→戸籍名（参議院登録名）
+}
+
 # 旧字→新字マッピング（必要に応じて追加）
 KANJI_MAP = {
     "邉": "辺", "邊": "辺", "齋": "斎", "齊": "斎",
@@ -69,17 +75,26 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
             logger.error(f"ページ取得エラー {url}: {e}")
             continue
 
-        text = soup.get_text()
-
-        # 「役職  姓 名（ふりがな）」形式でマッチ（姓名はスペース区切り）
-        matches = re.findall(
-            r"([^\n\s　]{2,30}(?:大臣|長官|補佐官|政務官))\s{1,4}([^\s　（]{1,6})\s{1,4}([^\s　（]{1,6})\s*（([ぁ-んァ-ンー\s　]+)）",
-            text,
-        )
-        for post, sei, mei, _ in matches:
-            name = sei + mei
-            results.append({"name": name, "post": post, "category": category})
-            logger.info(f"  {post}: {name}")
+        # <li> ごとにパース：「役職（3スペース以上）姓 名（ふりがな）」
+        for li in soup.find_all("li"):
+            li_text = li.get_text()
+            parts = re.split(r"\s{3,}", li_text.strip())
+            if len(parts) < 2:
+                continue
+            role_part = parts[0].strip()
+            if not re.search(r"大臣|長官|補佐官|政務官", role_part):
+                continue
+            name_match = None
+            for part in parts[1:]:
+                m = re.match(r"([^\s　（]{1,8})\s+([^\s　（]{1,8})\s*（([ぁ-んァ-ンー\s　]+)）", part.strip())
+                if m:
+                    name_match = m
+                    break
+            if not name_match:
+                continue
+            name = name_match.group(1) + name_match.group(2)
+            results.append({"name": name, "post": role_part, "category": category})
+            logger.info(f"  {role_part}: {name}")
 
     return results
 
@@ -137,7 +152,7 @@ def main():
     matched = 0
     unmatched = []
     for p in posts:
-        norm = normalize_name(p["name"])
+        norm = normalize_name(NAME_ALIASES.get(p["name"], p["name"]))
         member_id = member_map.get(norm)
         if member_id:
             execute_with_retry(

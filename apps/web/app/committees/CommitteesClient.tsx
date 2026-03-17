@@ -71,10 +71,6 @@ export default function CommitteesClient() {
 
         {/* タイトル・フィルターカード */}
         <div className="card-xl" style={{ marginBottom: 16 }}>
-          <button onClick={() => router.push("/")} className="btn-back">
-            ← トップに戻る
-          </button>
-
           <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🏛 委員会一覧</h1>
           <p style={{ color: "#555555", marginBottom: 24, fontSize: 14 }}>
             現在の委員会・調査会ごとの所属議員数
