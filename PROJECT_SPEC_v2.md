@@ -215,6 +215,19 @@ petitionsテーブルと同じ構造。house は 参議院（固定）。
 - member_keywordsの更新後に、政党ごとに所属議員のワードを合算
 - 1政党あたり上位100語を保持、表示は上位50語
 
+#### party_vote_alignments（政党間採決一致率）
+| カラム | 型 | 説明 |
+|-------|---|------|
+| party_a | text | 政党名A |
+| party_b | text | 政党名B |
+| alignment_rate | float | 採決一致率（0.0〜1.0） |
+| sample_size | integer | 比較対象の採決件数 |
+| PK: (party_a, party_b) |
+
+- 参議院採決データ（votesテーブル）から `vote_alignment.py` で計算・upsert
+- 全採決で各政党の多数決方向を決定 → 全政党ペアの一致率を算出
+- `/votes` ページのマトリクスおよび政党詳細ページの「政党距離感」タブで使用
+
 #### site_settings（サイト設定）
 | カラム | 型 | 説明 |
 |-------|---|------|
@@ -290,11 +303,12 @@ apps/collector/
     speeches.py                # 発言メタデータ収集（NDL API）
     questions.py               # 質問主意書（衆院・参院）
     petitions.py               # 請願（衆院・参院）
-    votes.py                   # 採決記録（参議院のみ）
-    bills.py                   # 議員立法（衆院・参院）
+    votes.py                   # 採決記録（参議院のみ）--mode daily / backfill
+    bills.py                   # 議員立法・閣法（衆院・参院）--daily フラグで日次モード
     cabinet_scraper.py         # 内閣役職（官邸サイト）
     committees.py              # 委員会所属
-    keywords.py                # ワードクラウド更新
+    keywords.py                # ワードクラウド更新 --mode daily / full
+    vote_alignment.py          # 政党間採決一致率計算 → party_vote_alignments テーブルに upsert
   processors/
     scoring.py                 # 活動スコア再計算（speech_count等集計）
     cleanup.py                 # speechesテーブル上限管理
@@ -382,13 +396,14 @@ SESSION_MAX = {
 /members/[id]            議員詳細（委員会・発言・質問・採決・立法・請願・キーワード）
 /members/former          前議員一覧
 /parties                 政党・会派一覧（ソート付き）?sort= でURL共有可
-/parties/[party]         政党詳細（議員・委員長理事・ワードクラウド・内訳）?tab= ?sort= でURL共有可
+/parties/[party]         政党詳細（議員・委員長理事・ワードクラウド・内訳・政党距離感・AI分析）?tab= ?sort= でURL共有可
 /committees              委員会一覧（検索・フィルター）
 /committees/[name]       委員会詳細（委員長理事・議員一覧・請願）?tab= ?sort= でURL共有可
 /votes                   政党別採決一致率マトリクス（会期プルダウン・?session= でURL共有可）
 /bills                   法案一覧（📋議員立法タブ・🏛閣法タブ・🤝政党ネットワークタブ）
 /favorites               お気に入り議員（活動タイムライン・最大10名）
 /cabinet                 現内閣（役職順）
+/faq                     データ仕様（収集方法・制約・用語説明）
 /about                   サイトについて
 /disclaimer              免責事項
 /terms                   利用規約
@@ -397,7 +412,7 @@ SESSION_MAX = {
 /contact                 お問い合わせ（Googleフォーム）
 ```
 
-### 5.2 共通コンポーネント
+### 5.2 共通コンポーネント・ユーティリティ
 ```
 components/
   GlobalNav.tsx             ヘッダーナビゲーション（<header>タグ、-webkit-sticky対応）
@@ -406,10 +421,36 @@ components/
   WordCloud.tsx             ワードクラウド可視化（d3-cloud使用）
   ActivityRadar.tsx         活動バランスレーダーチャート（議員・政党ページで使用）
   Analytics.tsx             GA4ページビュー送信（usePathname + useSearchParams監視）
+  MemberChip.tsx            議員への簡易リンクコンポーネント（政党色付きバッジ）
+  Paginator.tsx             ページネーションUI。PAGE_SIZE=50固定。上下2バリアント
 
 app/components/
   AIAnalysisBase.tsx        BYOK AI分析の共通UI・API呼び出しロジック
+
+lib/
+  supabase.ts               Supabaseクライアント（ブラウザ用）
+  supabase-server.ts        Supabaseクライアント（サーバーコンポーネント用）
+  partyColors.ts            政党カラー定義（政党名 → 16進カラーコード のMap）
+  partyStatus.ts            政党の与野党ステータス履歴（下記参照）
+  favorites.ts              お気に入り機能のlocalStorage操作ユーティリティ
+  changelog.ts              変更履歴データ（/changelogページ用）
+
+hooks/
+  usePagination.ts          URLパラメータ(?page=N)でページネーション状態を管理するフック
+                            返り値: { page, setPage, clearPage }
 ```
+
+#### partyStatus.ts の設計
+
+政党の与野党ステータス変化を時系列で記録する。AI分析プロンプトの context に自動注入して使用。
+
+記録している主な状態変化（2026年3月現在）：
+- 2025年10月10日: 公明党が連立離脱・野党化
+- 2025年10月20日: 日本維新の会が与党（閣外協力）へ
+- 2026年1月16日: 中道改革連合結成（旧公明党衆院議員 + 旧立憲民主党衆院議員の多数が合流）
+- 自民党: 高市早苗総裁下で右傾化、26年間の公明党との連立終了
+
+`getPartyStatus(party: string)` で政党名を渡すと現在のステータスを返す。
 
 ### 5.3 重要な実装ルール
 
@@ -506,9 +547,21 @@ useEffect(() => {
 使用しているURLパラメータ：
 | パラメータ | ページ | 例 |
 |-----------|-------|---|
-| `?tab=` | `/members/[id]`, `/parties/[party]`, `/committees/[name]` | `?tab=speeches` |
+| `?tab=` | `/members/[id]`, `/parties/[party]`, `/committees/[name]`, `/bills` | `?tab=speeches` |
 | `?sort=` | `/parties`, `/parties/[party]`, `/committees/[name]` | `?sort=speech_count` |
 | `?session=` | `/votes` | `?session=217` |
+| `?page=` | `/members/[id]`（採決一覧等）, `/parties/[party]`（議員一覧） | `?page=2` |
+
+#### 政党詳細ページのタブ構成
+
+| tab値 | ラベル | 内容 |
+|------|--------|------|
+| `members` | 議員一覧 | ソート・ページネーション付き議員リスト（PAGE_SIZE=50） |
+| `committees` | 委員長・理事 | 委員長/会長/理事/副会長に絞った役職一覧 |
+| `wordcloud` | キーワード | 所属議員のキーワードを合算したワードクラウド |
+| `breakdown` | 内訳 | 衆参比・選挙区/比例比・当選回数分布（デフォルトタブ） |
+| `distance` | 政党距離感 | party_vote_alignments から当該政党との一致率を降順表示 |
+| `ai` | AI分析 | BYOK AI分析（AIAnalysisBase使用） |
 
 #### 議員立法ページの政党ネットワーク分析（/bills 政党ネットワークタブ）
 
@@ -802,23 +855,27 @@ steps:
   5.  質問主意書収集        sources/questions.py
   6.  請願収集              sources/petitions.py
   7.  採決記録収集（現会期）sources/votes.py --mode daily  [timeout: 10分]
-  8.  委員会所属収集        sources/committees.py          [timeout: 15分]
-  9.  キーワード更新        sources/keywords.py --mode daily [timeout: 20分, スキップ可]
-  10. speeches上限チェック  processors/cleanup.py --task truncate-speeches
-  11. データ品質監査        processors/audit.py  [失敗時はGitHub Issueを自動作成]
-  12. 実行結果サマリー出力
+  8.  議員立法・閣法収集    sources/bills.py --daily        [timeout: 15分]
+  9.  委員会所属収集        sources/committees.py          [timeout: 15分]
+  10. 政党採決一致率計算    sources/vote_alignment.py
+  11. キーワード更新        sources/keywords.py --mode daily [timeout: 20分, スキップ可]
+  12. speeches上限チェック  processors/cleanup.py --task truncate-speeches
+  13. データ品質監査        processors/audit.py  [失敗時はGitHub Issueを自動作成]
+  14. 実行結果サマリー出力
 ```
 
 **手動実行オプション**: `skip_keywords=true` でキーワード更新をスキップ可能
 
 ### 過去データ取得 (.github/workflows/backfill.yml)
 - 手動実行（workflow_dispatch）
-- 年を選択: 2024 / 2023 / 2022 / 2021 / 2018-2020
+- task 選択式（year 指定 または 以下の特殊タスク）:
+  - `scoring-only`: スコア再計算のみ
+  - `keyword-full-rebuild`: member_keywords・party_keywords をtruncateして全議員分を再構築
+  - `keyword-all`: 全議員の keywords を再抽出（truncateなし）
+  - `backfill-procedural`: is_procedural フラグの再設定
+  - `migrate-member-ids`: member IDの正規化マイグレーション
+  - `sangiin-questions`: 参議院質問主意書のバックフィル
 - 1年分ずつ順番に実行すること（並列はSupabase過負荷の原因）
-
-### キーワード全件再構築 (.github/workflows/keyword-full-rebuild.yml)
-- 手動実行（workflow_dispatch）
-- member_keywordsとparty_keywordsをtruncateし、全議員分を再構築
 
 ---
 
