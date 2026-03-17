@@ -169,15 +169,151 @@ async function getPartyBreakdown() {
     .slice(0, 8);
 }
 
+/* ─── 今国会・独自コンテンツ ────────────────────────────────── */
+const CURRENT_SESSION = 221;
+
+const PARTY_SHORT: Record<string, string> = {
+  "自民党":       "自民",
+  "立憲民主党":   "立憲",
+  "中道改革連合": "中道改革",
+  "公明党":       "公明",
+  "日本維新の会": "維新",
+  "国民民主党":   "国民",
+  "共産党":       "共産",
+  "れいわ新選組": "れいわ",
+  "社民党":       "社民",
+  "参政党":       "参政",
+  "チームみらい": "みらい",
+  "日本保守党":   "保守",
+};
+
+async function getCurrentSessionStats() {
+  const [qShuRes, votedBillsRes] = await Promise.all([
+    supabase.from("questions")
+      .select("id", { count: "exact", head: true })
+      .eq("session", CURRENT_SESSION),
+    supabase.from("votes")
+      .select("bill_title")
+      .eq("session_number", CURRENT_SESSION)
+      .limit(2000),
+  ]);
+  const billsRes = await supabase.from("bills")
+    .select("id", { count: "exact", head: true })
+    .gte("submitted_at", "2026-01-01");
+
+  const adoptedBills = new Set((votedBillsRes.data || []).map((v: any) => v.bill_title)).size;
+  return { questions: qShuRes.count || 0, bills: billsRes.count || 0, adoptedBills };
+}
+
+// 採決一致率（全会期・ページネーションで全件取得）
+async function getPartyAlignmentMatrix() {
+  let allVotes: any[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data } = await supabase
+      .from("votes")
+      .select("member_id, vote, bill_title, vote_date, session_number")
+      .in("vote", ["賛成", "反対"])
+      .range(from, from + PAGE - 1);
+    if (!data || data.length === 0) break;
+    allVotes = allVotes.concat(data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  const votes = allVotes;
+  if (votes.length === 0) return null;
+
+  const { data: members } = await supabase
+    .from("members").select("id, party").limit(2000);
+
+  const memberParty: Record<string, string> = {};
+  for (const m of members || []) memberParty[m.id] = m.party;
+
+  const billVotes: Record<string, Record<string, string[]>> = {};
+  for (const v of votes as any[]) {
+    const party = memberParty[v.member_id];
+    if (!party || party === "無所属") continue;
+    const key = `${v.vote_date}__${v.bill_title}`;
+    if (!billVotes[key]) billVotes[key] = {};
+    if (!billVotes[key][party]) billVotes[key][party] = [];
+    billVotes[key][party].push(v.vote);
+  }
+
+  const positions: Record<string, Record<string, string>> = {};
+  for (const [bill, partyMap] of Object.entries(billVotes)) {
+    positions[bill] = {};
+    for (const [party, pvotes] of Object.entries(partyMap)) {
+      const yes = pvotes.filter((v) => v === "賛成").length;
+      const no  = pvotes.filter((v) => v === "反対").length;
+      if (yes + no === 0) continue;
+      positions[bill][party] = yes >= no ? "賛成" : "反対";
+    }
+  }
+
+  const billCount = Object.keys(positions).length;
+  if (billCount < 1) return null;
+
+  const partyCount: Record<string, number> = {};
+  for (const pos of Object.values(positions))
+    for (const p of Object.keys(pos)) partyCount[p] = (partyCount[p] || 0) + 1;
+
+  const parties = Object.entries(partyCount)
+    .filter(([, c]) => c >= 1)
+    .sort((a, b) => b[1] - a[1])
+    .map(([p]) => p)
+    .slice(0, 9);
+
+  const matrix: Record<string, Record<string, { rate: number; total: number }>> = {};
+  for (const p1 of parties) {
+    matrix[p1] = {};
+    for (const p2 of parties) {
+      let agree = 0, total = 0;
+      for (const pos of Object.values(positions))
+        if (pos[p1] && pos[p2]) { total++; if (pos[p1] === pos[p2]) agree++; }
+      matrix[p1][p2] = { rate: total > 0 ? agree / total : 0, total };
+    }
+  }
+
+  const sessionNums = [...new Set(votes.map((v: any) => v.session_number as number))].sort((a, b) => a - b);
+  const sessionLabel = sessionNums.length <= 1
+    ? `第${sessionNums[0]}回国会`
+    : `第${sessionNums[0]}〜${sessionNums[sessionNums.length - 1]}回国会`;
+
+  return { matrix, parties, billCount, sessionLabel };
+}
+
+// 質問主意書の月別推移
+async function getMonthlyQuestions() {
+  const { data } = await supabase
+    .from("questions")
+    .select("submitted_at")
+    .gte("submitted_at", "2025-04-01")
+    .limit(5000);
+
+  const monthMap: Record<string, number> = {};
+  for (const q of data || []) {
+    const month = (q.submitted_at as string).slice(0, 7);
+    monthMap[month] = (monthMap[month] || 0) + 1;
+  }
+  return Object.entries(monthMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([month, count]) => ({ month, count }));
+}
+
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
-  const [stats, recentQuestions, committeeActivities, partyBreakdown, recentPetitions, recentBills] = await Promise.all([
+  const [stats, recentQuestions, committeeActivities, partyBreakdown, recentPetitions, recentBills, currentStats, alignmentMatrix, monthlyQuestions] = await Promise.all([
     getStats(),
     getRecentQuestions(),
     getLatestCommitteeActivity(),
     getPartyBreakdown(),
     getRecentPetitions(),
     getRecentBills(),
+    getCurrentSessionStats(),
+    getPartyAlignmentMatrix(),
+    getMonthlyQuestions(),
   ]);
 
   const maxPartyCount = partyBreakdown[0]?.total || 1;
@@ -255,6 +391,137 @@ export default async function TopPage() {
             </Link>
           ))}
         </section>
+
+        {/* ── 今国会のうごき ───────────────────────────────── */}
+        <section className="mb-16">
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-neutral-900">今国会のうごき</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">第{CURRENT_SESSION}回国会（2026年〜）の集計</p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "質問主意書", value: currentStats.questions,    note: "衆議院" },
+              { label: "議員立法",   value: currentStats.bills,        note: "提出" },
+              { label: "採決",       value: currentStats.adoptedBills, note: "参議院本会議" },
+            ].map((item) => (
+              <div key={item.label} className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center">
+                <div className="text-2xl font-extrabold tabular-nums text-neutral-900">{item.value.toLocaleString()}</div>
+                <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
+                <div className="text-[10px] text-neutral-400">{item.note}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── A: 採決で見る政党の距離感 ───────────────────── */}
+        {alignmentMatrix && (() => {
+          const m = alignmentMatrix.matrix;
+          const allPairs: { p1: string; p2: string; rate: number; total: number }[] = [];
+          for (let i = 0; i < alignmentMatrix.parties.length; i++) {
+            for (let j = i + 1; j < alignmentMatrix.parties.length; j++) {
+              const p1 = alignmentMatrix.parties[i], p2 = alignmentMatrix.parties[j];
+              const { rate, total } = m[p1]?.[p2] ?? { rate: 0, total: 0 };
+              if (total < 10) continue;
+              allPairs.push({ p1, p2, rate, total });
+            }
+          }
+          if (allPairs.length < 2) return null;
+          allPairs.sort((a, b) => b.rate - a.rate);
+
+          type Pair = { p1: string; p2: string; rate: number; total: number };
+          const getWithRanks = (sorted: Pair[]) => {
+            let n = Math.min(3, sorted.length);
+            while (n < sorted.length && sorted[n].rate === sorted[n - 1].rate) n++;
+            const items = sorted.slice(0, n);
+            return items.map((pair) => {
+              const rank = items.findIndex((p) => p.rate === pair.rate) + 1;
+              const isTie = items.filter((p) => p.rate === pair.rate).length > 1;
+              return { ...pair, rank, isTie };
+            });
+          };
+
+          const topWithRanks    = getWithRanks(allPairs);
+          const bottomWithRanks = getWithRanks([...allPairs].reverse());
+
+          type RankedPair = ReturnType<typeof getWithRanks>[0];
+          const PairRow = ({ pair }: { pair: RankedPair }) => (
+            <div className="px-5 py-3.5 border-b border-neutral-200/70 last:border-0">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[10px] font-bold text-neutral-400 w-8 shrink-0 whitespace-nowrap leading-none">
+                  {pair.rank}{pair.isTie && <span className="text-[8px] ml-px">タイ</span>}
+                </span>
+                <span style={{ color: partyColor(pair.p1), fontSize: 9 }}>●</span>
+                <span className="text-xs font-semibold text-neutral-800">{PARTY_SHORT[pair.p1] ?? pair.p1}</span>
+                <span className="text-[10px] text-neutral-400">×</span>
+                <span style={{ color: partyColor(pair.p2), fontSize: 9 }}>●</span>
+                <span className="text-xs font-semibold text-neutral-800">{PARTY_SHORT[pair.p2] ?? pair.p2}</span>
+                <span className="text-xs font-bold tabular-nums text-neutral-900 ml-auto shrink-0">
+                  {(pair.rate * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex items-center gap-2 pl-5">
+                <div className="flex-1 h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full"
+                    style={{ width: `${(pair.rate * 100).toFixed(1)}%`, background: `linear-gradient(to right, ${partyColor(pair.p1)}, ${partyColor(pair.p2)})` }} />
+                </div>
+              </div>
+            </div>
+          );
+
+          return (
+            <section className="mb-16">
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  <h2 className="text-lg font-bold text-neutral-900">採決で見る政党の距離感</h2>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    {alignmentMatrix.sessionLabel}・採決{alignmentMatrix.billCount}件（参議院本会議）— 賛否の一致率
+                  </p>
+                </div>
+                <Link href="/votes" className="text-xs text-neutral-500 hover:text-neutral-700 transition-colors shrink-0 ml-4 mt-1">
+                  全政党マトリクス →
+                </Link>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl overflow-hidden">
+                  <div className="px-5 py-2.5 bg-neutral-200/60 border-b border-neutral-200">
+                    <p className="text-xs font-bold text-neutral-600">賛否が一致しやすいペア</p>
+                  </div>
+                  {topWithRanks.map((pair, i) => <PairRow key={i} pair={pair} />)}
+                </div>
+                <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl overflow-hidden">
+                  <div className="px-5 py-2.5 bg-neutral-200/60 border-b border-neutral-200">
+                    <p className="text-xs font-bold text-neutral-600">賛否が乖離しやすいペア</p>
+                  </div>
+                  {bottomWithRanks.map((pair, i) => <PairRow key={i} pair={pair} />)}
+                </div>
+              </div>
+            </section>
+          );
+        })()}
+
+        {/* ── B: 質問主意書の月別推移 ──────────────────────── */}
+        {monthlyQuestions.length > 0 && (
+          <section className="mb-16">
+            <div className="mb-5">
+              <h2 className="text-lg font-bold text-neutral-900">質問主意書の月別推移</h2>
+              <p className="text-xs text-neutral-500 mt-0.5">衆議院・直近12ヶ月</p>
+            </div>
+            <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl px-6 py-5 space-y-2.5">
+              {(() => {
+                const max = Math.max(...monthlyQuestions.map((m) => m.count), 1);
+                return monthlyQuestions.map((m) => (
+                  <div key={m.month} className="flex items-center gap-3">
+                    <span className="text-[11px] text-neutral-500 tabular-nums w-14 shrink-0">{m.month}</span>
+                    <div className="flex-1 h-4 bg-neutral-200 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-neutral-500" style={{ width: `${(m.count / max) * 100}%` }} />
+                    </div>
+                    <span className="text-[11px] text-neutral-500 tabular-nums w-8 text-right shrink-0">{m.count}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          </section>
+        )}
 
         {/* ── 活動タブ：質問主意書 / 委員会活動 / 請願 ───────── */}
         <ActivityTabs
