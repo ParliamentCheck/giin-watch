@@ -283,23 +283,49 @@ async function getPartyAlignmentMatrix() {
   return { matrix, parties, billCount, sessionLabel };
 }
 
-// 質問主意書の月別推移
+// 質問主意書の月別推移（政党別）
 async function getMonthlyQuestions() {
   const { data } = await supabase
     .from("questions")
-    .select("submitted_at")
-    .gte("submitted_at", "2025-04-01")
+    .select("submitted_at, members(party)")
+    .like("submitted_at", "令和%")
     .limit(5000);
 
-  const monthMap: Record<string, number> = {};
-  for (const q of data || []) {
-    const month = (q.submitted_at as string).slice(0, 7);
-    monthMap[month] = (monthMap[month] || 0) + 1;
+  // "令和 7年10月21日" / "令和元年11月 1日" → "2025-10"
+  function toYearMonth(s: string): string | null {
+    const m = s.match(/^令和\s*(\d+|元)年\s*(\d+)月/);
+    if (!m) return null;
+    const y = m[1] === "元" ? 2019 : 2018 + parseInt(m[1]);
+    const mo = parseInt(m[2]).toString().padStart(2, "0");
+    return `${y}-${mo}`;
   }
+
+  const monthMap: Record<string, Record<string, number>> = {};
+  const partyTotal: Record<string, number> = {};
+  for (const q of data || []) {
+    const ym = toYearMonth(q.submitted_at as string);
+    if (!ym) continue;
+    const party = (q.members as any)?.party || "その他";
+    if (!monthMap[ym]) monthMap[ym] = {};
+    monthMap[ym][party] = (monthMap[ym][party] || 0) + 1;
+    partyTotal[party] = (partyTotal[party] || 0) + 1;
+  }
+
+  // 全期間の合計順でソートして各月バーの並び順を統一
+  const sortedParties = Object.entries(partyTotal)
+    .sort((a, b) => b[1] - a[1])
+    .map(([p]) => p);
+
   return Object.entries(monthMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-12)
-    .map(([month, count]) => ({ month, count }));
+    .sort(([a], [b]) => b.localeCompare(a))
+    .slice(0, 12)
+    .map(([month, partyMap]) => {
+      const total = Object.values(partyMap).reduce((s, c) => s + c, 0);
+      const parties = sortedParties
+        .filter((p) => partyMap[p])
+        .map((p) => ({ party: p, count: partyMap[p] }));
+      return { month, total, parties };
+    });
 }
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
@@ -504,19 +530,41 @@ export default async function TopPage() {
           <section className="mb-16">
             <div className="mb-5">
               <h2 className="text-lg font-bold text-neutral-900">質問主意書の月別推移</h2>
-              <p className="text-xs text-neutral-500 mt-0.5">衆議院・直近12ヶ月</p>
+              <p className="text-xs text-neutral-500 mt-0.5">衆議院・直近12ヶ月 — 政党別</p>
             </div>
             <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl px-6 py-5 space-y-2.5">
               {(() => {
-                const max = Math.max(...monthlyQuestions.map((m) => m.count), 1);
+                const max = Math.max(...monthlyQuestions.map((m) => m.total), 1);
                 return monthlyQuestions.map((m) => (
-                  <div key={m.month} className="flex items-center gap-3">
-                    <span className="text-[11px] text-neutral-500 tabular-nums w-14 shrink-0">{m.month}</span>
-                    <div className="flex-1 h-4 bg-neutral-200 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-neutral-500" style={{ width: `${(m.count / max) * 100}%` }} />
+                  <details key={m.month} className="group">
+                    <summary className="flex items-center gap-3 cursor-pointer list-none">
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 px-2 py-0.5 rounded-md border border-neutral-300 bg-white text-[11px] tabular-nums text-neutral-600 group-open:bg-neutral-800 group-open:text-white group-open:border-neutral-800 transition-colors">
+                        {m.month}
+                        <span className="text-red-400 text-[10px] not-italic group-open:rotate-90 inline-block transition-transform">›</span>
+                      </span>
+                      <div className="flex-1 h-4 bg-neutral-200 rounded-full overflow-hidden">
+                        <div className="h-full flex" style={{ width: `${(m.total / max) * 100}%` }}>
+                          {m.parties.map((p) => (
+                            <div
+                              key={p.party}
+                              className="h-full"
+                              style={{ width: `${(p.count / m.total) * 100}%`, background: partyColor(p.party) }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-neutral-500 tabular-nums w-8 text-right shrink-0">{m.total}</span>
+                    </summary>
+                    <div className="mt-2 mb-1 ml-[4.5rem] flex flex-wrap gap-x-4 gap-y-1">
+                      {m.parties.map((p) => (
+                        <span key={p.party} className="flex items-center gap-1 text-[11px] text-neutral-600">
+                          <span style={{ color: partyColor(p.party) }}>●</span>
+                          {PARTY_SHORT[p.party] ?? p.party}
+                          <span className="tabular-nums text-neutral-400">{p.count}</span>
+                        </span>
+                      ))}
                     </div>
-                    <span className="text-[11px] text-neutral-500 tabular-nums w-8 text-right shrink-0">{m.count}</span>
-                  </div>
+                  </details>
                 ));
               })()}
             </div>
