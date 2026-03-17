@@ -347,13 +347,14 @@ export default async function TopPage() {
   return (
     <div className="min-h-screen text-neutral-900">
       {/* ── ヒーロー ─────────────────────────────────────────── */}
-      <section>
-        <div className="max-w-4xl mx-auto px-5 pt-20 pb-12 text-center">
+      <div className="w-full border-b border-neutral-200 h-[360px] sm:h-auto sm:aspect-[10/4]" style={{ backgroundImage: "url('/hero.jpg')", backgroundSize: "cover", backgroundPosition: "center" }} />
+      <section className="-mt-24">
+        <div className="max-w-4xl mx-auto px-5 pt-0 pb-12 text-center">
           <h1 className="mb-4">
-            <img src="/logo-main.svg" alt="はたらく議員" className="h-32 sm:h-40 mx-auto" />
+            <img src="/logo-main.svg" alt="はたらく議員" className="h-44 sm:h-48 mx-auto" />
           </h1>
 
-          <p className="text-lg text-neutral-700 mb-2">
+          <p className="text-lg sm:text-2xl text-neutral-700 mb-5">
             国会議員の活動を、データで見える化
           </p>
           <p className="text-sm text-neutral-500 mb-4 leading-relaxed max-w-xl mx-auto text-left">
@@ -377,20 +378,23 @@ export default async function TopPage() {
         {/* ── メインナビゲーション ────────────────────────────── */}
         <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
           {[
-            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。各議員の活動実績・頻出キーワード・AI分析を確認できます",       path: "/members"    },
-            { icon: "👑", title: "内閣",       desc: "現在の大臣・副大臣・政務官の一覧。各閣僚の議員ページにもリンク",                           path: "/cabinet"    },
-            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数・活動バランス。採決での政党間距離感やAI分析も確認できます",             path: "/parties"    },
-            { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",                               path: "/committees" },
-            { icon: "📋", title: "法案",       desc: "議員立法・閣法（参議院）の一覧。超党派共同提出フィルターと政党間共同提出ネットワーク図も確認できます", path: "/bills"      },
-            { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",                 path: "/votes"      },
+            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。各議員の活動実績・頻出キーワード・AI分析を確認できます",       path: "/members",    img: "/card-members.jpg"    },
+            { icon: "👑", title: "内閣",       desc: "現在の大臣・副大臣・政務官の一覧。各閣僚の議員ページにもリンク",                           path: "/cabinet",    img: "/card-cabinet.jpg"    },
+            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数・活動バランス。採決での政党間距離感やAI分析も確認できます",             path: "/parties",    img: "/card-parties.jpg"    },
+            { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",                               path: "/committees", img: "/card-committees.jpg" },
+            { icon: "📋", title: "法案",       desc: "議員立法・閣法（参議院）の一覧。超党派共同提出フィルターと政党間共同提出ネットワーク図も確認できます", path: "/bills",     img: "/card-bills.jpg"      },
+            { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",                 path: "/votes",      img: "/card-votes.jpg"      },
           ].map((item) => (
             <Link key={item.path} href={item.path}
-              className="group block bg-neutral-200/60 border border-neutral-200 rounded-2xl p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">{item.icon}</span>
-                <span className="text-lg font-bold text-neutral-900 group-hover:text-neutral-600 transition-colors">{item.title}</span>
+              className="group block bg-neutral-200/60 border border-neutral-200 rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400">
+              <div className="w-full border-b border-neutral-200" style={{ height: 120, backgroundImage: `url('${item.img}')`, backgroundSize: "cover", backgroundPosition: "center" }} />
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-2xl">{item.icon}</span>
+                  <span className="text-lg font-bold text-neutral-900 group-hover:text-neutral-600 transition-colors">{item.title}</span>
+                </div>
+                <div className="text-sm text-neutral-500 leading-relaxed">{item.desc}</div>
               </div>
-              <div className="text-sm text-neutral-500 leading-relaxed">{item.desc}</div>
             </Link>
           ))}
         </section>
