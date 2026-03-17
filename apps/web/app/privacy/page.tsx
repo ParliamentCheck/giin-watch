@@ -28,7 +28,7 @@ export default function PrivacyPage() {
               textTransform: "uppercase", letterSpacing: 1.5,
               borderLeft: "3px solid #333333", paddingLeft: 10 }}>広告の配信について</h2>
             <p style={{ lineHeight: 1.9, color: "#888888" }}>
-              当サイトは、第三者配信の広告サービス（Google AdSense等）を利用する予定、または利用しています。
+              当サイトは、第三者配信の広告サービス（Google AdSense）を利用しています。
               広告配信事業者は、ユーザーの興味に応じた商品やサービスの広告を表示するため、
               当サイトや他サイトへのアクセスに関する情報であるCookie（氏名、住所、メールアドレス、
               電話番号は含まれません）を使用することがあります。
@@ -41,6 +41,17 @@ export default function PrivacyPage() {
                 Googleのポリシーと規約 ↗
               </a>
               をご覧ください。
+            </p>
+          </section>
+
+          <section style={{ marginBottom: 28 }}>
+            <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
+              textTransform: "uppercase", letterSpacing: 1.5,
+              borderLeft: "3px solid #333333", paddingLeft: 10 }}>AI分析機能について</h2>
+            <p style={{ lineHeight: 1.9, color: "#888888" }}>
+              当サイトのAI分析機能をご利用の際、入力されたAPIキーおよび分析対象のデータは、ブラウザから直接各AI事業者（OpenAI・Google・xAI等）のサーバーへ送信されます。
+              これらの情報が当サイトのサーバーに送信・保存されることは一切ありません。
+              各AI事業者におけるデータの取り扱いについては、各社のプライバシーポリシーをご確認ください。
             </p>
           </section>
 
