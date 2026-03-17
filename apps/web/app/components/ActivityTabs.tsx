@@ -64,7 +64,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
   return (
     <section className="mb-16">
       {/* タブバー */}
-      <div className="flex gap-1 mb-4 bg-white/60 border border-neutral-200 rounded-xl p-1">
+      <div className="grid grid-cols-2 sm:flex gap-1 mb-4 bg-white/60 border border-neutral-200 rounded-xl p-1">
         {tabs.map((t) => (
           <button
             key={t.id}

@@ -430,7 +430,7 @@ export default async function TopPage() {
             { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",                 path: "/votes",      img: "/card-votes.jpg"      },
           ].map((item) => (
             <Link key={item.path} href={item.path}
-              className="group block bg-neutral-200/60 border border-neutral-200 rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400">
+              className="group relative block bg-white border border-neutral-200 rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400">
               <div className="w-full border-b border-neutral-200" style={{ height: 120, backgroundImage: `url('${item.img}')`, backgroundSize: "cover", backgroundPosition: "center" }} />
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-2">
@@ -438,9 +438,33 @@ export default async function TopPage() {
                   <span className="text-lg font-bold text-neutral-900 group-hover:text-neutral-600 transition-colors">{item.title}</span>
                 </div>
                 <div className="text-sm text-neutral-500 leading-relaxed">{item.desc}</div>
+                <span className="absolute bottom-4 right-4 text-sm text-neutral-500 group-hover:text-neutral-800 transition-colors">→</span>
               </div>
             </Link>
           ))}
+        </section>
+
+        {/* ── AI分析バナー ────────────────────────────────── */}
+        <section className="mb-16 border border-neutral-200 rounded-2xl overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-stretch">
+            {/* 画像枠: スマホは上部・横幅100%、PC は左側固定幅 */}
+            <div className="w-full h-36 sm:w-52 sm:h-auto shrink-0 bg-neutral-200 sm:border-r sm:border-b-0 border-b border-neutral-200"
+              style={{ backgroundImage: "url('/card-ai.jpg')", backgroundSize: "cover", backgroundPosition: "center" }} />
+            {/* テキスト */}
+            <div className="px-6 py-5 bg-white">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">🤖</span>
+                <h2 className="text-base font-bold text-neutral-900">AI分析機能（BYOK）</h2>
+              </div>
+              <p className="text-sm text-neutral-600 leading-relaxed">
+                各議員・各政党ページでは、質問主意書・議員立法・採決・委員会・発言キーワードなどの活動データをもとに、AIによる傾向分析を利用できます。
+                分析にはご自身のAPIキー（Gemini / ChatGPT / Grok など）を使用します。データはサーバーを経由せず、お使いのブラウザから直接AIサービスへ送信されます。
+              </p>
+              <p className="text-xs text-neutral-400 mt-2">
+                ※ AI分析は公開データに基づく推測であり、当サイトの公式見解ではありません。政治的立場の評価・優劣の判定は行いません。
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* ── A: 採決で見る政党の距離感 ───────────────────── */}
@@ -507,7 +531,7 @@ export default async function TopPage() {
                     {alignmentMatrix.sessionLabel}・採決{alignmentMatrix.billCount}件（参議院本会議）— 賛否の一致率
                   </p>
                 </div>
-                <Link href="/votes" className="text-xs text-neutral-500 hover:text-neutral-700 transition-colors shrink-0 ml-4 mt-1">
+                <Link href="/votes" className="text-xs text-neutral-600 hover:text-neutral-900 bg-white border border-neutral-300 hover:border-neutral-500 rounded-full px-3 py-1 transition-colors shrink-0 ml-4 mt-1">
                   全政党マトリクス →
                 </Link>
               </div>
@@ -517,14 +541,14 @@ export default async function TopPage() {
                 議案ごとの詳細な賛否パターンや全政党のマトリクスは「全政党マトリクス」から確認できます。
               </p>
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl overflow-hidden">
-                  <div className="px-5 py-2.5 bg-neutral-200/60 border-b border-neutral-200">
+                <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+                  <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
                     <p className="text-xs font-bold text-neutral-600">賛否が一致しやすいペア</p>
                   </div>
                   {topWithRanks.map((pair, i) => <PairRow key={i} pair={pair} />)}
                 </div>
-                <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl overflow-hidden">
-                  <div className="px-5 py-2.5 bg-neutral-200/60 border-b border-neutral-200">
+                <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+                  <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
                     <p className="text-xs font-bold text-neutral-600">賛否が乖離しやすいペア</p>
                   </div>
                   {bottomWithRanks.map((pair, i) => <PairRow key={i} pair={pair} />)}
@@ -545,7 +569,7 @@ export default async function TopPage() {
               質問主意書は、議員が内閣に対して文書で説明を求める制度です。委員会での発言機会が少ない少数会派の議員も利用しやすく、政府の見解を公式記録として引き出す手段として活用されています。
               月ごとの提出件数と政党別の内訳を示しています。国会の開会・閉会や政治的な争点の動向によって件数が変化します。各月をクリックすると政党別の内訳を確認できます。
             </p>
-            <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl px-6 py-5 space-y-2.5">
+            <div className="bg-white border border-neutral-200 rounded-2xl px-6 py-5 space-y-2.5">
               {(() => {
                 const max = Math.max(...monthlyQuestions.map((m) => m.total), 1);
                 return monthlyQuestions.map((m) => (
@@ -592,7 +616,7 @@ export default async function TopPage() {
                 <h2 className="text-lg font-bold text-neutral-900">超党派で提出された議員立法</h2>
                 <p className="text-xs text-neutral-500 mt-0.5">最も多くの政党の議員が連名した法案 — 2022年〜現在</p>
               </div>
-              <Link href="/bills" className="text-xs text-neutral-500 hover:text-neutral-700 transition-colors shrink-0 ml-4 mt-1">
+              <Link href="/bills" className="text-xs text-neutral-600 hover:text-neutral-900 bg-white border border-neutral-300 hover:border-neutral-500 rounded-full px-3 py-1 transition-colors shrink-0 ml-4 mt-1">
                 法案一覧 →
               </Link>
             </div>
@@ -600,7 +624,7 @@ export default async function TopPage() {
               議員立法のうち、与野党を問わず複数政党の議員が連名で提出した法案を、参加政党数が多い順に表示しています。
               政党を超えて共通の課題認識があったことを示す記録です。
             </p>
-            <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl divide-y divide-neutral-200/70">
+            <div className="bg-white border border-neutral-200 rounded-2xl divide-y divide-neutral-200">
               {crossPartyBills.map((bill, i) => (
                 <div key={bill.id} className="px-5 py-4">
                   <div className="flex items-start gap-3">
@@ -644,7 +668,7 @@ export default async function TopPage() {
               { label: "議員立法",   value: currentStats.bills,        note: "提出" },
               { label: "採決",       value: currentStats.adoptedBills, note: "参議院本会議" },
             ].map((item) => (
-              <div key={item.label} className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center">
+              <div key={item.label} className="bg-white border border-neutral-200 rounded-xl px-4 py-5 text-center">
                 <div className="text-2xl font-extrabold tabular-nums text-neutral-900">{item.value.toLocaleString()}</div>
                 <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
                 <div className="text-[10px] text-neutral-400">{item.note}</div>
@@ -671,7 +695,7 @@ export default async function TopPage() {
               </Link>
             </div>
 
-            <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl p-6 space-y-4">
+            <div className="bg-white border border-neutral-200 rounded-2xl p-6 space-y-4">
               {partyBreakdown.map((p) => (
                 <div key={p.party}>
                   <div className="flex items-center justify-between mb-1.5">
@@ -697,7 +721,7 @@ export default async function TopPage() {
             <h2 className="text-base font-bold text-neutral-900">🕐 更新履歴</h2>
             <Link href="/changelog" className="text-xs text-neutral-500 hover:text-neutral-700 transition-colors">すべて見る →</Link>
           </div>
-          <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl divide-y divide-neutral-200">
+          <div className="bg-white border border-neutral-200 rounded-2xl divide-y divide-neutral-200">
             {changelog.slice(0, 5).map((entry, i) => (
               <div key={i} className="px-5 py-3 flex items-baseline gap-4">
                 <span className="tabular-nums text-xs text-neutral-500 shrink-0">{entry.date}</span>
@@ -730,7 +754,7 @@ export default async function TopPage() {
             { label: "請願",       value: stats.petitions, unit: "件" },
           ].map((item) => (
             <div key={item.label}
-              className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center hover:border-neutral-300 transition-colors">
+              className="bg-white border border-neutral-200 rounded-xl px-4 py-5 text-center hover:border-neutral-300 transition-colors">
               <div className="text-2xl font-extrabold tabular-nums text-neutral-900">
                 {item.value.toLocaleString()}
               </div>
