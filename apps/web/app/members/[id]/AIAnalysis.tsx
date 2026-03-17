@@ -19,12 +19,16 @@ interface AIAnalysisProps {
   questions: { title: string; submitted_at: string }[];
   votes: { bill_title: string; vote: string; vote_date: string | null }[];
   bills: { title: string; submitted_at: string | null }[];
-  petitions: { title: string }[];
+  petitions: { title: string; result: string | null }[];
   committees: { committee: string; role: string }[];
+  coSponsors?: { name: string; party: string; count: number }[];
+  speeches?: { committee: string; spoken_at: string }[];
+  keywords?: { word: string; count: number }[];
+  voteStats?: { yea: number; nay: number; absent: number; total: number } | null;
 }
 
 function buildContext(props: AIAnalysisProps): string {
-  const { member, questions, votes, bills, petitions, committees } = props;
+  const { member, questions, votes, bills, petitions, committees, coSponsors, speeches, keywords, voteStats } = props;
   if (!member) return "";
 
   const year = (date: string | null | undefined) =>
@@ -75,11 +79,17 @@ function buildContext(props: AIAnalysisProps): string {
   }
   lines.push("");
 
+  if (voteStats && voteStats.total > 0) {
+    const pct = (n: number) => `${Math.round((n / voteStats.total) * 100)}%`;
+    lines.push(`■ 採決集計（全${voteStats.total}件）`);
+    lines.push(`賛成${voteStats.yea}件（${pct(voteStats.yea)}）/ 反対${voteStats.nay}件（${pct(voteStats.nay)}）/ 欠席${voteStats.absent}件（${pct(voteStats.absent)}）`);
+    lines.push("※ 党議拘束により党全体の方針と重なる場合があります");
+    lines.push("");
+  }
   const yea = votes.filter((v) => v.vote === "賛成");
   const nay = votes.filter((v) => v.vote === "反対");
   if (votes.length > 0) {
-    lines.push(`■ 採決（直近${votes.length}件）`);
-    lines.push("※ 党議拘束により党全体の方針と重なる場合があります");
+    lines.push(`■ 採決内容（直近${votes.length}件）`);
     for (const v of yea) lines.push(`賛成: ${v.bill_title}（${year(v.vote_date)}）`);
     for (const v of nay) lines.push(`反対: ${v.bill_title}（${year(v.vote_date)}）`);
     lines.push("");
@@ -92,8 +102,36 @@ function buildContext(props: AIAnalysisProps): string {
   }
 
   if (petitions.length > 0) {
-    lines.push(`■ 紹介した請願（${petitions.length}件）`);
-    for (const p of petitions) lines.push(`- ${p.title}`);
+    const adopted   = petitions.filter((p) => p.result === "採択").length;
+    const rejected  = petitions.filter((p) => p.result === "不採択").length;
+    const pending   = petitions.filter((p) => p.result === "審査未了").length;
+    const resultSummary = [
+      adopted  ? `採択${adopted}件`   : null,
+      rejected ? `不採択${rejected}件` : null,
+      pending  ? `審査未了${pending}件` : null,
+    ].filter(Boolean).join("・");
+    lines.push(`■ 紹介した請願（${petitions.length}件${resultSummary ? `：${resultSummary}` : ""}）`);
+    for (const p of petitions) lines.push(`- ${p.title}${p.result ? `（${p.result}）` : ""}`);
+    lines.push("");
+  }
+
+  if (keywords && keywords.length > 0) {
+    lines.push("■ 発言頻出キーワード（上位）");
+    lines.push(keywords.slice(0, 15).map((k) => `${k.word}(${k.count})`).join("、"));
+    lines.push("");
+  }
+
+  if (speeches && speeches.length > 0) {
+    const recent = speeches.slice(0, 15);
+    lines.push(`■ 発言セッション（直近${recent.length}件）`);
+    for (const s of recent) lines.push(`- ${s.committee}（${s.spoken_at.slice(0, 7)}）`);
+    lines.push("");
+  }
+
+  if (coSponsors && coSponsors.length > 0) {
+    lines.push("■ 共同提出パートナー（件数上位）");
+    lines.push("※ 議員立法の共同提出が多い議員。党を超えた協力関係の参考情報。");
+    for (const s of coSponsors) lines.push(`- ${s.name}（${s.party}）: ${s.count}件`);
   }
 
   return lines.join("\n");

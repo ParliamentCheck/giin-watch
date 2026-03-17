@@ -224,6 +224,9 @@ export default function AIAnalysisBase({
       } else {
         await callGemini(apiKey, systemPrompt, contextText, question, model, onChunk);
       }
+      if (typeof window !== "undefined" && typeof (window as any).gtag === "function") {
+        (window as any).gtag("event", "ai_analysis", { provider, model });
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "エラーが発生しました");
     } finally {

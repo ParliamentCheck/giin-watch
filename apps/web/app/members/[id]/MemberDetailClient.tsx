@@ -941,6 +941,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           bills={bills}
           petitions={petitions}
           committees={committees}
+          coSponsors={coSponsors}
+          speeches={speeches}
+          keywords={keywords}
+          voteStats={voteStats}
         />
       )}
     </div>
