@@ -356,8 +356,10 @@ export default async function TopPage() {
           <p className="text-lg text-neutral-700 mb-2">
             国会議員の活動を、データで見える化
           </p>
-          <p className="text-sm text-neutral-500 mb-4">
-            衆議院・参議院の全議員の発言・質問主意書・委員会活動を収集・公開
+          <p className="text-sm text-neutral-500 mb-4 leading-relaxed max-w-xl mx-auto text-left">
+            国立国会図書館・衆議院・参議院の公開記録をもとに、発言・質問主意書・採決・議員立法・請願など、議員の国会活動に関するデータを自動収集・整理しています。
+            有権者が議員の活動実績を手軽に確認できることを目的としており、特定の政治的立場に偏らず、主観的な評価・スコアリング・ランキングは一切行いません。
+            数値はすべて公的機関の公開情報に基づいており、運営者の判断や意図は介在しない設計です。
           </p>
           <a href="/faq#data-period" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-neutral-300/60 bg-neutral-100/40 text-xs text-neutral-700 no-underline hover:border-neutral-400 transition-colors">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-neutral-400 animate-pulse" />
@@ -372,31 +374,6 @@ export default async function TopPage() {
       </section>
 
       <div className="max-w-4xl mx-auto px-5 pb-20">
-        {/* ── 統計カード ──────────────────────────────────────── */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-16">
-          {[
-            { label: "現職議員",   value: stats.total,     unit: "名" },
-            { label: "衆議院",     value: stats.shugiin,   unit: "名" },
-            { label: "参議院",     value: stats.sangiin,   unit: "名" },
-            { label: "政党・会派", value: stats.parties,   unit: "党" },
-            { label: "発言記録",   value: stats.speeches,  unit: "件" },
-            { label: "質問主意書", value: stats.questions, unit: "件" },
-            { label: "議員立法",   value: stats.bills,     unit: "件" },
-            { label: "請願",       value: stats.petitions, unit: "件" },
-          ].map((item) => (
-            <div key={item.label}
-              className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center hover:border-neutral-300 transition-colors">
-              <div className="text-2xl font-extrabold tabular-nums text-neutral-900">
-                {item.value.toLocaleString()}
-              </div>
-              <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
-            </div>
-          ))}
-          <p className="col-span-2 sm:col-span-4 text-[10px] text-neutral-400 text-center -mt-2">
-            ※ 発言・議員立法 2022年〜 / 質問主意書・請願 2018年〜
-          </p>
-        </section>
-
         {/* ── メインナビゲーション ────────────────────────────── */}
         <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
           {[
@@ -416,27 +393,6 @@ export default async function TopPage() {
               <div className="text-sm text-neutral-500 leading-relaxed">{item.desc}</div>
             </Link>
           ))}
-        </section>
-
-        {/* ── 今国会のうごき ───────────────────────────────── */}
-        <section className="mb-16">
-          <div className="mb-5">
-            <h2 className="text-lg font-bold text-neutral-900">今国会のうごき</h2>
-            <p className="text-xs text-neutral-500 mt-0.5">第{CURRENT_SESSION}回国会（2026年〜）の集計</p>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: "質問主意書", value: currentStats.questions,    note: "衆議院" },
-              { label: "議員立法",   value: currentStats.bills,        note: "提出" },
-              { label: "採決",       value: currentStats.adoptedBills, note: "参議院本会議" },
-            ].map((item) => (
-              <div key={item.label} className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center">
-                <div className="text-2xl font-extrabold tabular-nums text-neutral-900">{item.value.toLocaleString()}</div>
-                <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
-                <div className="text-[10px] text-neutral-400">{item.note}</div>
-              </div>
-            ))}
-          </div>
         </section>
 
         {/* ── A: 採決で見る政党の距離感 ───────────────────── */}
@@ -496,7 +452,7 @@ export default async function TopPage() {
 
           return (
             <section className="mb-16">
-              <div className="flex items-start justify-between mb-5">
+              <div className="flex items-start justify-between mb-3">
                 <div>
                   <h2 className="text-lg font-bold text-neutral-900">採決で見る政党の距離感</h2>
                   <p className="text-xs text-neutral-500 mt-0.5">
@@ -507,6 +463,11 @@ export default async function TopPage() {
                   全政党マトリクス →
                 </Link>
               </div>
+              <p className="text-sm text-neutral-500 leading-relaxed mb-5">
+                参議院本会議の採決記録をもとに、各政党ペアの賛否が何割の議案で一致したかを集計しています。
+                数値が高いほど同じ方向に投票する傾向があり、低いほど与野党など立場の違いが賛否に表れやすいことを示します。
+                議案ごとの詳細な賛否パターンや全政党のマトリクスは「全政党マトリクス」から確認できます。
+              </p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl overflow-hidden">
                   <div className="px-5 py-2.5 bg-neutral-200/60 border-b border-neutral-200">
@@ -528,10 +489,14 @@ export default async function TopPage() {
         {/* ── B: 質問主意書の月別推移 ──────────────────────── */}
         {monthlyQuestions.length > 0 && (
           <section className="mb-16">
-            <div className="mb-5">
+            <div className="mb-3">
               <h2 className="text-lg font-bold text-neutral-900">質問主意書の月別推移</h2>
               <p className="text-xs text-neutral-500 mt-0.5">衆議院・直近12ヶ月 — 政党別</p>
             </div>
+            <p className="text-sm text-neutral-500 leading-relaxed mb-5">
+              質問主意書は、議員が内閣に対して文書で説明を求める制度です。委員会での発言機会が少ない少数会派の議員も利用しやすく、政府の見解を公式記録として引き出す手段として活用されています。
+              月ごとの提出件数と政党別の内訳を示しています。国会の開会・閉会や政治的な争点の動向によって件数が変化します。各月をクリックすると政党別の内訳を確認できます。
+            </p>
             <div className="bg-neutral-200/40 border border-neutral-300/60 rounded-2xl px-6 py-5 space-y-2.5">
               {(() => {
                 const max = Math.max(...monthlyQuestions.map((m) => m.total), 1);
@@ -570,6 +535,27 @@ export default async function TopPage() {
             </div>
           </section>
         )}
+
+        {/* ── 今国会のうごき ───────────────────────────────── */}
+        <section className="mb-8">
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-neutral-900">今国会のうごき</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">第{CURRENT_SESSION}回国会（2026年〜）の集計</p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "質問主意書", value: currentStats.questions,    note: "衆議院" },
+              { label: "議員立法",   value: currentStats.bills,        note: "提出" },
+              { label: "採決",       value: currentStats.adoptedBills, note: "参議院本会議" },
+            ].map((item) => (
+              <div key={item.label} className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center">
+                <div className="text-2xl font-extrabold tabular-nums text-neutral-900">{item.value.toLocaleString()}</div>
+                <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
+                <div className="text-[10px] text-neutral-400">{item.note}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* ── 活動タブ：質問主意書 / 委員会活動 / 請願 ───────── */}
         <ActivityTabs
@@ -633,6 +619,31 @@ export default async function TopPage() {
               </div>
             ))}
           </div>
+        </section>
+
+        {/* ── 統計カード ──────────────────────────────────────── */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-16">
+          {[
+            { label: "現職議員",   value: stats.total,     unit: "名" },
+            { label: "衆議院",     value: stats.shugiin,   unit: "名" },
+            { label: "参議院",     value: stats.sangiin,   unit: "名" },
+            { label: "政党・会派", value: stats.parties,   unit: "党" },
+            { label: "発言記録",   value: stats.speeches,  unit: "件" },
+            { label: "質問主意書", value: stats.questions, unit: "件" },
+            { label: "議員立法",   value: stats.bills,     unit: "件" },
+            { label: "請願",       value: stats.petitions, unit: "件" },
+          ].map((item) => (
+            <div key={item.label}
+              className="bg-neutral-200/60 border border-neutral-200 rounded-xl px-4 py-5 text-center hover:border-neutral-300 transition-colors">
+              <div className="text-2xl font-extrabold tabular-nums text-neutral-900">
+                {item.value.toLocaleString()}
+              </div>
+              <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
+            </div>
+          ))}
+          <p className="col-span-2 sm:col-span-4 text-[10px] text-neutral-400 text-center -mt-2">
+            ※ 発言・議員立法 2022年〜 / 質問主意書・請願 2018年〜
+          </p>
         </section>
 
         {/* ── 注記 ── */}
