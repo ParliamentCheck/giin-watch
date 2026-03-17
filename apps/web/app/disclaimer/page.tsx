@@ -28,7 +28,7 @@ export default function DisclaimerPage() {
             </p>
           </section>
 
-          <section style={{ marginBottom: 28 }}>
+          <section>
             <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
               textTransform: "uppercase", letterSpacing: 1.5,
               borderLeft: "3px solid #333333", paddingLeft: 10 }}>無断転載の禁止</h2>
@@ -39,24 +39,6 @@ export default function DisclaimerPage() {
             </p>
           </section>
 
-          <section>
-            <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
-              textTransform: "uppercase", letterSpacing: 1.5,
-              borderLeft: "3px solid #333333", paddingLeft: 10 }}>データソース</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[
-                { label: "国立国会図書館 国会会議録検索システム", url: "https://kokkai.ndl.go.jp/" },
-                { label: "衆議院公式サイト", url: "https://www.shugiin.go.jp/" },
-                { label: "参議院公式サイト", url: "https://www.sangiin.go.jp/" },
-                { label: "首相官邸", url: "https://www.kantei.go.jp/" },
-              ].map((s) => (
-                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer"
-                  style={{ color: "#333333", textDecoration: "none" }}>
-                  {s.label} ↗
-                </a>
-              ))}
-            </div>
-          </section>
         </div>
 
       </div>
