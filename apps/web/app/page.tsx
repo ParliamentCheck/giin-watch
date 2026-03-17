@@ -155,7 +155,6 @@ async function getCrossPartyBills() {
       .filter((b) => b.parties.length >= 3)
       .sort((a, b) => b.parties.length - a.parties.length)
       .slice(0, 5);
-    return result;
   } catch (e) {
     console.error("[crossParty] error:", e);
     return [];

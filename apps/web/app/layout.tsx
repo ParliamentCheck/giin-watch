@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import GlobalNav from "./components/GlobalNav";
 import GlobalFooter from "./components/GlobalFooter";
+import FloatingMemberSearch from "./components/FloatingMemberSearch";
 import Analytics from "@/components/Analytics";
 
 const BASE_URL = "https://www.hataraku-giin.com";
@@ -105,6 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <GlobalFooter />
+        <FloatingMemberSearch />
       </body>
     </html>
   );

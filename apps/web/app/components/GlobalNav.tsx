@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { label: "法案",         path: "/bills" },
   { label: "採決",         path: "/votes" },
   { label: "前議員",       path: "/members/former" },
-  { label: "⭐ お気に入り", path: "/favorites" },
+  { label: "⭐ My議員", path: "/favorites" },
 ];
 
 export default function GlobalNav() {

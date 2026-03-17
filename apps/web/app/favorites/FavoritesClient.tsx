@@ -41,7 +41,7 @@ const TYPE_LABELS: Record<string, string> = {
 function FavoritesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  useEffect(() => { document.title = "お気に入り | はたらく議員"; }, []);
+  useEffect(() => { document.title = "My議員 | はたらく議員"; }, []);
 
   const [memberIds, setMemberIds]   = useState<string[]>([]);
   const [members,   setMembers]     = useState<Member[]>([]);
@@ -193,7 +193,7 @@ function FavoritesContent() {
       <div className="card-xl" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
           marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>⭐ お気に入り議員</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>⭐ My議員</h1>
           <div style={{ display: "flex", gap: 8 }}>
             {members.length > 0 && (
               <button onClick={handleShare}
@@ -219,7 +219,7 @@ function FavoritesContent() {
         <div style={{ background: "#ffffff", border: "1px solid #e0e0e0",
           borderRadius: 10, padding: "12px 16px", marginBottom: 0, fontSize: 12, color: "#888888",
           lineHeight: 1.8 }}>
-          ⚠️ お気に入りはこの端末・ブラウザにのみ保存されます。ブラウザのデータ消去・プライベートモードでは保存されません。他の端末・ブラウザとは同期されません。運営者にはデータは送信されません。
+          ⚠️ My議員はこの端末・ブラウザにのみ保存されます。ブラウザのデータ消去・プライベートモードでは保存されません。他の端末・ブラウザとは同期されません。運営者にはデータは送信されません。
         </div>
       </div>
 
@@ -228,7 +228,7 @@ function FavoritesContent() {
       {memberIds.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0", color: "#888888" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>⭐</div>
-          <div style={{ fontSize: 15, marginBottom: 8 }}>お気に入り議員が登録されていません</div>
+          <div style={{ fontSize: 15, marginBottom: 8 }}>My議員が登録されていません</div>
           <div style={{ fontSize: 13 }}>議員一覧・詳細ページの ⭐ ボタンから登録できます</div>
           <button onClick={() => router.push("/members")}
             style={{ marginTop: 24, background: "#e0e0e0", border: "1px solid #c8c8c8",

@@ -164,7 +164,6 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [petitionFilter, setPetitionFilter] = useState<"採択" | "不採択" | "審査未了" | "all">("all");
   const [fav,        setFav]        = useState(false);
   const [favMsg,     setFavMsg]     = useState("");
-  const [copied,     setCopied]     = useState(false);
 
   useEffect(() => {
     async function fetchAll() {
@@ -339,61 +338,52 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           ← 一覧に戻る
         </button>
         {member && (
-          <button onClick={() => {
-            const url = `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`;
-            const prompt = `${member.name}（${member.party}・${member.house}・${member.district}）について詳しく教えてください。\n${url}`;
-            navigator.clipboard.writeText(prompt).then(() => {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            });
-          }}
-            className="btn-back"
-            style={{ marginBottom: 0, fontSize: 12 }}>
-            {copied ? "✓ コピーしました" : "プロンプト作成"}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {favMsg && <span style={{ fontSize: 11, color: "#ef4444" }}>{favMsg}</span>}
+            <button onClick={() => {
+              if (fav) {
+                removeFavorite(memberId);
+                setFav(false);
+                setFavMsg("");
+              } else {
+                const result = addFavorite(memberId);
+                if (result.ok) { setFav(true); setFavMsg(""); }
+                else { setFavMsg(result.reason || ""); }
+              }
+            }}
+              className={`fav-btn${fav ? " active" : ""}`}
+              style={fav
+                ? { background: color, color: "#ffffff", borderColor: color, marginBottom: 0 }
+                : { borderColor: color, color: color, marginBottom: 0 }}>
+              {fav ? "⭐ 登録済み" : "☆ My議員登録"}
+            </button>
+          </div>
         )}
       </div>
 
       {/* ヘッダー */}
       <div className="card-xl" style={{ marginBottom: 20 }}>
-        <div className="resp-stack" style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+        {/* 画像 + 名前・院・当選回数（常に横並び） */}
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 12 }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", flexShrink: 0,
             background: "#e0e0e0", border: `3px solid ${color}`,
             display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>
             👤
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-              <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#111111" }}>
-                {member.alias_name ?? member.name}
-                {member.alias_name && (
-                  <span style={{ fontSize: 14, fontWeight: 400, color: "#888888", marginLeft: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, color: "#111111", lineHeight: 1.2 }}>
+              {member.alias_name ?? member.name}
+              {member.alias_name && (
+                <>
+                  <br className="sm:hidden" />
+                  <span className="hidden sm:inline" />
+                  <span style={{ fontSize: 14, fontWeight: 400, color: "#888888" }} className="sm:ml-2">
                     （{member.name}）
                   </span>
-                )}
-              </h1>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                {favMsg && <span style={{ fontSize: 11, color: "#ef4444" }}>{favMsg}</span>}
-                <button onClick={() => {
-                  if (fav) {
-                    removeFavorite(memberId);
-                    setFav(false);
-                    setFavMsg("");
-                  } else {
-                    const result = addFavorite(memberId);
-                    if (result.ok) { setFav(true); setFavMsg(""); }
-                    else { setFavMsg(result.reason || ""); }
-                  }
-                }}
-                  className={`fav-btn${fav ? " active" : ""}`}
-                  style={fav
-                    ? { background: color, color: "#ffffff", borderColor: color }
-                    : { borderColor: color, color: color }}>
-                  {fav ? "⭐ 登録済み" : "☆ お気に入り登録"}
-                </button>
-              </div>
-            </div>
-            <div style={{ fontSize: 13, color: "#555555", marginBottom: 10 }}>
+                </>
+              )}
+            </h1>
+            <div style={{ fontSize: 13, color: "#555555" }}>
               {!member.is_active && (
                 <span className="badge-inactive">
                   ⚠️ 前議員（現在は議員ではありません）
@@ -404,28 +394,29 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                 <><br />当選回数：{member.terms}期</>
               )}
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <span className="badge badge-party" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, "--party-color": member.is_active ? color : "#aaaaaa" } as React.CSSProperties}>
-                🗳 {member.is_active ? member.party : `元${member.party}`}
-              </span>
-              {showFaction && (
-                <span className="badge badge-house" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
-                  🏛 会派: {member.faction}
-                </span>
-              )}
-              {member.cabinet_post && (
-                <span className="badge badge-cabinet" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, whiteSpace: "normal" }}>
-                  👑 {member.cabinet_post}
-                </span>
-              )}
-              {member.source_url && (
-                <a href={member.source_url} target="_blank" rel="noopener noreferrer"
-                  className="badge badge-house" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, textDecoration: "none" }}>
-                  📄 公式プロフィール
-                </a>
-              )}
-            </div>
           </div>
+        </div>
+        {/* バッジ類（元のまま・全幅） */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <span className="badge badge-party" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, "--party-color": member.is_active ? color : "#aaaaaa" } as React.CSSProperties}>
+            🗳 {member.is_active ? member.party : `元${member.party}`}
+          </span>
+          {showFaction && (
+            <span className="badge badge-house" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
+              🏛 会派: {member.faction}
+            </span>
+          )}
+          {member.cabinet_post && (
+            <span className="badge badge-cabinet" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, whiteSpace: "normal" }}>
+              👑 {member.cabinet_post}
+            </span>
+          )}
+          {member.source_url && (
+            <a href={member.source_url} target="_blank" rel="noopener noreferrer"
+              className="badge badge-house" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, textDecoration: "none" }}>
+              📄 公式プロフィール
+            </a>
+          )}
         </div>
       </div>
 

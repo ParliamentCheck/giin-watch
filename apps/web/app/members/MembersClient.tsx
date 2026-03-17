@@ -10,6 +10,7 @@ import { usePagination } from "../../hooks/usePagination";
 interface Member {
   id: string;
   name: string;
+  alias_name: string | null;
   party: string;
   faction: string | null;
   house: string;
@@ -90,7 +91,7 @@ function MembersContent() {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
-        .select("id, name, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count, petition_count")
+        .select("id, name, alias_name, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count, petition_count")
         .eq("is_active", true)
         .limit(2000)
         .order("name");
@@ -105,7 +106,13 @@ function MembersContent() {
 
   const filtered = members.filter((m) => {
     const norm = (s: string) => s.replace(/[\s\u3000]+/g, "");
-    if (search && !norm(m.name).includes(norm(search)) && !m.district.includes(search)) return false;
+    if (search) {
+      const q = norm(search);
+      const matchName  = norm(m.name).includes(q);
+      const matchAlias = m.alias_name ? norm(m.alias_name).includes(q) : false;
+      const matchDist  = m.district.includes(search);
+      if (!matchName && !matchAlias && !matchDist) return false;
+    }
     if (selectedHouse && m.house  !== selectedHouse) return false;
     if (selectedParty && m.party  !== selectedParty) return false;
     return true;
@@ -208,7 +215,12 @@ function MembersContent() {
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
                   {/* 名前 */}
                   <span style={{ fontWeight: 700, fontSize: 15, color: "#111111", minWidth: 90 }}>
-                    {m.name}
+                    {m.alias_name ?? m.name}
+                    {m.alias_name && (
+                      <span style={{ fontSize: 11, fontWeight: 400, color: "#888888", marginLeft: 4 }}>
+                        （{m.name}）
+                      </span>
+                    )}
                   </span>
                   {/* 政党バッジ */}
                   <span className="badge badge-party" style={{ "--party-color": color } as React.CSSProperties}>
@@ -227,7 +239,7 @@ function MembersContent() {
                     <span className={sortKey === "petition_count" ? "" : "hidden-mobile"}>請願：{m.petition_count ?? 0}</span>
                     <button
                       onClick={(e) => toggleFav(e, m.id)}
-                      title={favIds.includes(m.id) ? "お気に入りから解除" : "お気に入りに追加"}
+                      title={favIds.includes(m.id) ? "My議員から解除" : "My議員に追加"}
                       className={`fav-star-btn${favIds.includes(m.id) ? " active" : ""}`}>
                       ★
                     </button>
