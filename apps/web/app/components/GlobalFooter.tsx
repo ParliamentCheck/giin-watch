@@ -24,7 +24,7 @@ export default function GlobalFooter() {
       color: "#888888",
       fontSize: 13,
     }}>
-      <div style={{ maxWidth: 900, margin: "0 auto", width: "100%" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", width: "100%" }}>
         <div style={{
           display: "flex", justifyContent: "center",
           flexWrap: "wrap", gap: 8, marginBottom: 16,

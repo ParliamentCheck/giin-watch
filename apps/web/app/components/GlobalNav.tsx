@@ -29,7 +29,7 @@ export default function GlobalNav() {
       <div style={{
         height: 60, display: "flex", alignItems: "center",
         padding: "0 16px", justifyContent: "space-between",
-        maxWidth: 900, margin: "0 auto", width: "100%",
+        maxWidth: 960, margin: "0 auto", width: "100%",
       }}>
         {/* ロゴ */}
         <div onClick={() => navigate("/")}

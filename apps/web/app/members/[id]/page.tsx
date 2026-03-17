@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await getMember(memberId);
   if (!data) return { title: "議員詳細" };
 
-  const parts = [data.party, data.house, data.district, data.cabinet_post].filter(Boolean);
+  const parts = [data.party, data.house, data.district, data.terms ? `${data.terms}期` : null, data.cabinet_post].filter(Boolean);
   const stats = [
     data.session_count  ? `発言セッション数${data.session_count}回`  : null,
     data.question_count ? `質問主意書${data.question_count}件`        : null,

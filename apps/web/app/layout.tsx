@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Suspense } from "react";
 import "./globals.css";
 import GlobalNav from "./components/GlobalNav";
 import GlobalFooter from "./components/GlobalFooter";
+import Analytics from "@/components/Analytics";
 
 const BASE_URL = "https://www.hataraku-giin.com";
 
@@ -95,6 +97,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             gtag('config', 'G-1QJP14PKPF');
           `}
         </Script>
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
         <GlobalNav />
         <main style={{ minHeight: "calc(100vh - 60px - 120px)" }}>
           {children}

@@ -80,7 +80,10 @@ function PartyDetailContent() {
   const router  = useRouter();
   const party   = decodeURIComponent(params.party as string);
   const color   = PARTY_COLORS[party] || "#7f8c8d";
-  useEffect(() => { document.title = `${party} | はたらく議員`; }, [party]);
+  const PARTY_TAB_LABELS: Record<string, string> = {
+    members: "議員一覧", committees: "委員長・理事",
+    wordcloud: "キーワード", breakdown: "内訳", distance: "政党距離感", ai: "AI分析",
+  };
 
   const [members,        setMembers]        = useState<Member[]>([]);
   const [chairs,         setChairs]         = useState<CommitteeRole[]>([]);
@@ -98,6 +101,10 @@ function PartyDetailContent() {
   const [voteStats, setVoteStats] = useState<{ total: number; yes: number; no: number; absent: number } | null>(null);
   const searchParams = useSearchParams();
   const tab          = searchParams.get("tab") ?? "breakdown";
+  useEffect(() => {
+    const tabLabel = PARTY_TAB_LABELS[tab] ?? tab;
+    document.title = `${party} — ${tabLabel} | はたらく議員`;
+  }, [party, tab]);
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
@@ -366,7 +373,7 @@ function PartyDetailContent() {
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
-      padding: "24px", maxWidth: 900, margin: "0 auto" }}>
+      padding: "24px", maxWidth: 960, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
       <button onClick={() => router.push("/parties")} className="btn-back" style={{ marginBottom: 16 }}>

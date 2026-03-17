@@ -54,13 +54,18 @@ function CommitteeDetailContent() {
   const params = useParams();
   const router = useRouter();
   const committeeName = decodeURIComponent(params.name as string);
-  useEffect(() => { document.title = `${committeeName} | はたらく議員`; }, [committeeName]);
-
   const searchParams = useSearchParams();
   const [members,   setMembers]   = useState<CommitteeMember[]>([]);
   const [petitions, setPetitions] = useState<Petition[]>([]);
   const [loading,   setLoading]   = useState(true);
   const tab = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
+  const COMMITTEE_TAB_LABELS: Record<string, string> = {
+    chairs: "委員長・理事", members: "議員一覧", petitions: "請願",
+  };
+  useEffect(() => {
+    const tabLabel = COMMITTEE_TAB_LABELS[tab] ?? tab;
+    document.title = `${committeeName} — ${tabLabel} | はたらく議員`;
+  }, [committeeName, tab]);
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
@@ -195,7 +200,7 @@ function CommitteeDetailContent() {
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
-    <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ maxWidth: 960, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
       <button onClick={() => router.push("/committees")} className="btn-back">

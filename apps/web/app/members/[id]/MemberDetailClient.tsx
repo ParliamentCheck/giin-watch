@@ -137,14 +137,22 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [petitions,    setPetitions]    = useState<Petition[]>([]);
   const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
   const [globalMax,  setGlobalMax]  = useState(initialGlobalMax ?? { session: 1, question: 1, bill: 1, petition: 1 });
-  useEffect(() => {
-    if (member?.name) document.title = `${member.name} | はたらく議員`;
-  }, [member]);
   const [loading,       setLoading]       = useState(!initialMember);
   const [clientLoaded,  setClientLoaded]  = useState(false);
   const searchParams = useSearchParams();
   const { page: listPage, setPage: setListPage } = usePagination();
   const tab          = searchParams.get("tab") ?? "committees";
+  const MEMBER_TAB_LABELS: Record<string, string> = {
+    committees: "委員会", speeches: "発言", questions: "質問主意書",
+    votes: "採決", bills: "議員立法", petitions: "請願",
+    keywords: "キーワード", ai: "AI分析",
+  };
+  useEffect(() => {
+    if (member?.name) {
+      const tabLabel = MEMBER_TAB_LABELS[tab] ?? tab;
+      document.title = `${member.name} — ${tabLabel} | はたらく議員`;
+    }
+  }, [member, tab]);
   const setTab = (t: string) => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", t);
@@ -322,7 +330,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif",
-      padding: "24px", maxWidth: 900, margin: "0 auto" }}>
+      padding: "24px", maxWidth: 960, margin: "0 auto" }}>
 
       {/* 戻るボタン */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>

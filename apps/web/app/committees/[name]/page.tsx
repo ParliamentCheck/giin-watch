@@ -19,7 +19,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
   const committeeName = decodeURIComponent(name);
   const members = await getCommitteeInfo(committeeName);
-  const description = `${committeeName}の委員一覧（${members.length}名）。委員長・理事・所属議員、委員会審査の請願一覧。`;
+  const chair = members.find((m: any) => m.role === "委員長" || m.role === "会長");
+  const description = chair
+    ? `${committeeName}（${chair.role}：${chair.name}、委員${members.length}名）。委員長・理事・所属議員の一覧と委員会審査の請願を掲載。`
+    : `${committeeName}の委員一覧（${members.length}名）。委員長・理事・所属議員と委員会審査の請願を掲載。`;
   const url = `https://www.hataraku-giin.com/committees/${encodeURIComponent(committeeName)}`;
 
   return {

@@ -187,7 +187,7 @@ function FavoritesContent() {
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
       fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto" }}>
 
       {/* ヘッダーカード */}
       <div className="card-xl" style={{ marginBottom: 16 }}>
