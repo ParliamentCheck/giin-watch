@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
-const DEMO_TEXT = "議員名を入力";
+const DEMO_TEXT = "現職議員を入力";
 const DEMO_DELAY = 600;      // 展開開始まで（ms）
 const DEMO_TYPE_MS = 100;    // 1文字あたり（ms）
 const DEMO_HOLD_MS = 900;    // 全文字表示後の保持（ms）
@@ -98,7 +98,7 @@ export default function FloatingMemberSearch() {
   }
 
   // デモ中の表示文字列（inputのplaceholderとして表示）
-  const displayPlaceholder = isDemo ? "" : "議員名を入力…";
+  const displayPlaceholder = isDemo ? "" : "現職議員を入力…";
   const displayValue = isDemo ? demoText : query;
 
   return (

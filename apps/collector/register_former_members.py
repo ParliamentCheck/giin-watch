@@ -95,7 +95,7 @@ def register(dry_run: bool = False) -> None:
     client = get_client()
     rows = build_rows()
 
-    # 重複チェック
+    # 同IDの重複チェック
     existing_ids = {
         r["id"]
         for r in execute_with_retry(
@@ -104,10 +104,33 @@ def register(dry_run: bool = False) -> None:
         ).data
     }
 
-    new_rows = [r for r in rows if r["id"] not in existing_ids]
+    # 院違い現職との重複チェック（参院→衆院移籍など）
+    target_names = [r["name"] for r in rows]
+    active_members = execute_with_retry(
+        lambda: client.table("members").select("id,name,house").eq("is_active", True),
+        label="check_active",
+    ).data
+    active_by_name: dict[str, list[dict]] = {}
+    for m in active_members:
+        key = m["name"].replace(" ", "").replace("\u3000", "")
+        active_by_name.setdefault(key, []).append(m)
+
+    cross_house_skip: set[str] = set()
+    for r in rows:
+        name_key = r["name"].replace(" ", "").replace("\u3000", "")
+        for active in active_by_name.get(name_key, []):
+            if active["house"] != r["house"]:
+                logger.warning(
+                    "  [skip/cross-house] %s — 現職が別院に存在: %s",
+                    r["id"], active["id"],
+                )
+                cross_house_skip.add(r["id"])
+
+    new_rows = [r for r in rows if r["id"] not in existing_ids and r["id"] not in cross_house_skip]
     dup_rows = [r for r in rows if r["id"] in existing_ids]
 
-    logger.info("登録対象: %d件 / 既存スキップ: %d件", len(new_rows), len(dup_rows))
+    logger.info("登録対象: %d件 / 既存スキップ: %d件 / 院違い現職スキップ: %d件",
+                len(new_rows), len(dup_rows), len(cross_house_skip))
     for r in dup_rows:
         logger.info("  [skip/exists] %s", r["id"])
 
