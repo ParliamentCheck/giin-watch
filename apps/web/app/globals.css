@@ -268,12 +268,16 @@ body {
   background: #88888822;
   color: #333333;
   border: 1px solid #88888844;
+  white-space: normal;
+  flex-shrink: 1;
 }
 /* 内閣・役職バッジ（グレー強め） */
 .badge-cabinet {
   background: var(--bg-muted);
   color: var(--text-muted);
   border: 1px solid var(--border-subtle);
+  white-space: normal;
+  flex-shrink: 1;
 }
 /* 院バッジ */
 .badge-house {

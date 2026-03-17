@@ -414,7 +414,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                 </span>
               )}
               {member.cabinet_post && (
-                <span className="badge badge-cabinet" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
+                <span className="badge badge-cabinet" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, whiteSpace: "normal" }}>
                   👑 {member.cabinet_post}
                 </span>
               )}

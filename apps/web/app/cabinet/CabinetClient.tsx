@@ -112,7 +112,7 @@ export default function CabinetClient() {
                   style={{ padding: "12px 16px", "--hover-color": "#333333" } as React.CSSProperties}>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
                     {/* 大臣職バッジ */}
-                    <span className="badge badge-role">
+                    <span className="badge badge-role" style={{ whiteSpace: "normal" }}>
                       👑 {m.cabinet_post}
                     </span>
                     {/* 名前 */}
