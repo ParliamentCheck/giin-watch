@@ -112,10 +112,11 @@ function MembersContent() {
     const norm = (s: string) => s.replace(/[\s\u3000]+/g, "");
     if (search) {
       const q = norm(search);
-      const matchName  = norm(m.name).includes(q);
-      const matchAlias = m.alias_name ? norm(m.alias_name).includes(q) : false;
-      const matchDist  = m.district.includes(search);
-      if (!matchName && !matchAlias && !matchDist) return false;
+      const matchName    = norm(m.name).includes(q);
+      const matchAlias   = m.alias_name ? norm(m.alias_name).includes(q) : false;
+      const matchReading = ((m.last_name_reading ?? "") + (m.first_name_reading ?? "")).includes(q);
+      const matchDist    = m.district.includes(search);
+      if (!matchName && !matchAlias && !matchReading && !matchDist) return false;
     }
     if (selectedHouse && m.house  !== selectedHouse) return false;
     if (selectedParty && m.party  !== selectedParty) return false;
