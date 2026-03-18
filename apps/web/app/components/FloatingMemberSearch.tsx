@@ -102,7 +102,7 @@ export default function FloatingMemberSearch() {
   const displayValue = isDemo ? demoText : query;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-6 z-50 sm:bottom-6">
       <form
         onSubmit={handleSubmit}
         className="flex items-center justify-end bg-neutral-900 rounded-full shadow-lg overflow-hidden transition-all duration-300 ease-in-out"

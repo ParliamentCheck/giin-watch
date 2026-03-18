@@ -375,6 +375,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             👤
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
+            {(member.last_name_reading || member.first_name_reading) && (
+              <div style={{ fontSize: 12, color: "#999999", letterSpacing: "0.08em", marginBottom: 2 }}>
+                {member.last_name_reading}　{member.first_name_reading}
+              </div>
+            )}
             <h1 style={{ margin: "0 0 4px", fontSize: 26, fontWeight: 800, color: "#111111", lineHeight: 1.2 }}>
               {member.alias_name ?? member.name}
               {member.alias_name && (
