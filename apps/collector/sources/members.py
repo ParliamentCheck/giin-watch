@@ -86,15 +86,20 @@ def scrape_sangiin() -> list[dict]:
         if not raw_name or len(raw_name) < 2:
             continue
 
-        # 参院サイトは "よみがな[漢字名]" 形式で表示する場合がある
-        # → ID・表示名は漢字名のみに統一し、読み仮名は ndl_names に追加
+        # 参院サイトは "通称名[本名]" または "よみがな[漢字名]" 形式で表示する場合がある
+        # → ID・name は漢字本名（ブラケット内）に統一
+        # → ブラケット前の表示名は alias_name として保存（通称名・公称名）
         bracket = re.search(r"\[(.+?)\]", raw_name)
         if bracket:
             name = bracket.group(1).strip()
-            yomi = re.sub(r"\[.+?\]", "", raw_name).strip()
-            ndl_names = [name, yomi] if yomi else [name]
+            display = re.sub(r"\[.+?\]", "", raw_name).strip()
+            # 通称名かよみがなかを判定：平仮名のみなら読み仮名として alias_name には入れない
+            is_kana_only = bool(re.match(r"^[ぁ-んァ-ンー\s　]+$", display))
+            alias_name = None if is_kana_only else display
+            ndl_names = [name, display] if display else [name]
         else:
             name = re.sub(r"\s+", "", raw_name)
+            alias_name = None
             ndl_names = [name]
 
         profile_path = link.get('href', '').split('/')[-1]
@@ -103,6 +108,7 @@ def scrape_sangiin() -> list[dict]:
 
         members.append({
             "name":          name,
+            "alias_name":    alias_name,
             "party":         detail["party"],
             "faction":       detail["faction"],
             "district":      detail["district"],
@@ -134,7 +140,8 @@ def scrape_shugiin() -> list[dict]:
             cells = row.select('td')
             if len(cells) < 4:
                 continue
-            name = cells[0].get_text(strip=True).replace('君', '').replace('\u3000', ' ').strip()
+            name = cells[0].get_text(strip=True).replace('\u3000', ' ').strip()
+            name = re.sub(r'君$', '', name)  # 末尾の「君」のみ除去（名前中の「君」は保持）
             if not name or len(name) < 2 or '氏名' in name or '行' in name:
                 continue
             faction = cells[2].get_text(strip=True)
@@ -169,17 +176,18 @@ def register_members(members: list[dict]) -> None:
         if not name:
             continue
         rows.append({
-            "id":         make_member_id(m["house"], name),
-            "name":       name,
-            "party":      m.get("party", "無所属"),
-            "faction":    m.get("faction"),
-            "house":      m["house"],
-            "district":   m.get("district", "不明"),
-            "prefecture": m.get("prefecture", "不明"),
-            "terms":      m.get("terms"),
-            "source_url": m.get("source_url"),
-            "is_active":     True,
-            "election_type": m.get("election_type"),
+            "id":          make_member_id(m["house"], name),
+            "name":        name,
+            "alias_name":  m.get("alias_name"),
+            "party":       m.get("party", "無所属"),
+            "faction":     m.get("faction"),
+            "house":       m["house"],
+            "district":    m.get("district", "不明"),
+            "prefecture":  m.get("prefecture", "不明"),
+            "terms":       m.get("terms"),
+            "source_url":  m.get("source_url"),
+            "is_active":      True,
+            "election_type":  m.get("election_type"),
         })
 
     if rows:
