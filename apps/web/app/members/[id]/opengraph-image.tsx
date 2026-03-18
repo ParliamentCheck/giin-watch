@@ -36,7 +36,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || "";
 
   const res = await fetch(
-    `${supabaseUrl}/rest/v1/members?id=eq.${encodeURIComponent(memberId)}&select=name,party,house,district,session_count,question_count,bill_count,petition_count,cabinet_post`,
+    `${supabaseUrl}/rest/v1/members?id=eq.${encodeURIComponent(memberId)}&select=name,alias_name,party,house,district,session_count,question_count,bill_count,petition_count,cabinet_post`,
     { headers: { apikey: supabaseKey } }
   );
   const [member] = await res.json();
@@ -74,7 +74,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               <span style={{
                 fontSize: 80, fontWeight: 800, color: "#111", letterSpacing: "-2px", lineHeight: 1,
               }}>
-                {member.name}
+                {member.alias_name ?? member.name}
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>

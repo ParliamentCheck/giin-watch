@@ -9,7 +9,7 @@ type Props = { params: Promise<{ id: string }> };
 async function getMember(memberId: string) {
   const { data } = await supabase
     .from("members")
-    .select("id, name, alias_name, party, faction, house, district, terms, is_active, session_count, question_count, bill_count, petition_count, cabinet_post, source_url")
+    .select("id, name, alias_name, last_name, first_name, last_name_reading, first_name_reading, party, faction, house, district, terms, is_active, session_count, question_count, bill_count, petition_count, cabinet_post, source_url")
     .eq("id", memberId)
     .single();
   return data;

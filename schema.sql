@@ -7,6 +7,10 @@ CREATE TABLE members (
   id                TEXT PRIMARY KEY,  -- 例: "shugiin-12345"
   name              TEXT NOT NULL,
   name_reading      TEXT,
+  last_name         TEXT,              -- 姓
+  first_name        TEXT,              -- 名
+  last_name_reading TEXT,              -- 姓の読み（ひらがな）
+  first_name_reading TEXT,             -- 名の読み（ひらがな）
   legal_name        TEXT,              -- 通名使用の場合の戸籍氏名
   nationality       TEXT,
   party             TEXT NOT NULL,

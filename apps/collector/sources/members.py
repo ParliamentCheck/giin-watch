@@ -68,6 +68,11 @@ def get_current_sangiin_session() -> int:
     return session
 
 
+def _split_name_parts(text: str) -> list[str]:
+    """全角スペース・半角スペース・改行で分割してパーツを返す"""
+    return [p for p in re.split(r'[\u3000\n\s]+', text.strip()) if p]
+
+
 def scrape_sangiin() -> list[dict]:
     logger.info("参議院議員一覧を取得中...")
     current_session = get_current_sangiin_session()
@@ -76,6 +81,32 @@ def scrape_sangiin() -> list[dict]:
     resp = httpx.get(url, headers=HEADERS, timeout=30)
     resp.encoding = 'utf-8'
     soup = BeautifulSoup(resp.text, 'html.parser')
+
+    # 一覧テーブルから姓名・読みの分割データを先に収集
+    # テーブル構造: cells[0]=氏名（全角SP区切り）, cells[1]=読み（全角SP区切り）
+    name_split_map: dict[str, dict] = {}  # 正規化済み氏名 → {last, first, last_r, first_r}
+    for row in soup.select('table tr'):
+        cells = row.find_all('td')
+        if len(cells) != 6:
+            continue
+        raw_name    = cells[0].get_text(strip=False)
+        raw_reading = cells[1].get_text(strip=True)
+        if not re.search(r'[\u4e00-\u9fff\u3400-\u4dbf]', raw_name):
+            continue
+        bracket = re.search(r'\[(.+?)\]', raw_name)
+        if bracket:
+            name_parts = _split_name_parts(bracket.group(1))
+        else:
+            name_parts = _split_name_parts(raw_name)
+        reading_parts = _split_name_parts(raw_reading)
+        if len(name_parts) >= 2 and len(reading_parts) >= 2:
+            key = re.sub(r'\s+', '', name_parts[0] + ''.join(name_parts[1:]))
+            name_split_map[key] = {
+                "last_name":          name_parts[0],
+                "first_name":         ''.join(name_parts[1:]),
+                "last_name_reading":  reading_parts[0],
+                "first_name_reading": ''.join(reading_parts[1:]),
+            }
 
     members = []
     links = soup.select('a[href*=profile]')
@@ -106,18 +137,23 @@ def scrape_sangiin() -> list[dict]:
         profile_url = f"{SANGIIN_BASE}/profile/{profile_path}"
         detail = scrape_profile(profile_url)
 
+        split = name_split_map.get(re.sub(r'\s+', '', name), {})
         members.append({
-            "name":          name,
-            "alias_name":    alias_name,
-            "party":         detail["party"],
-            "faction":       detail["faction"],
-            "district":      detail["district"],
-            "prefecture":    detail["district"],
-            "house":         "参議院",
-            "terms":         detail.get("terms"),
-            "source_url":    profile_url,
-            "ndl_names":     ndl_names,
-            "election_type": detail.get("election_type"),
+            "name":               name,
+            "alias_name":         alias_name,
+            "party":              detail["party"],
+            "faction":            detail["faction"],
+            "district":           detail["district"],
+            "prefecture":         detail["district"],
+            "house":              "参議院",
+            "terms":              detail.get("terms"),
+            "source_url":         profile_url,
+            "ndl_names":          ndl_names,
+            "election_type":      detail.get("election_type"),
+            "last_name":          split.get("last_name"),
+            "first_name":         split.get("first_name"),
+            "last_name_reading":  split.get("last_name_reading"),
+            "first_name_reading": split.get("first_name_reading"),
         })
 
         logger.info(f"[{i+1}/{len(links)}] {name} / {detail['faction']} / {detail['party']} / {detail['district']}")
@@ -140,10 +176,26 @@ def scrape_shugiin() -> list[dict]:
             cells = row.select('td')
             if len(cells) < 4:
                 continue
-            name = cells[0].get_text(strip=True).replace('\u3000', ' ').strip()
-            name = re.sub(r'君$', '', name)  # 末尾の「君」のみ除去（名前中の「君」は保持）
+            name = cells[0].get_text(strip=False).replace('\u3000', ' ').strip()
+            name = re.sub(r'君\s*$', '', name)  # 末尾の「君」のみ除去（名前中の「君」は保持）
             if not name or len(name) < 2 or '氏名' in name or '行' in name:
                 continue
+
+            # ふりがな列（cells[1]）から姓名を分割
+            raw_reading = cells[1].get_text(strip=False) if len(cells) > 1 else ''
+            name_parts    = _split_name_parts(name)
+            reading_parts = _split_name_parts(raw_reading)
+            if len(name_parts) >= 2 and len(reading_parts) >= 2:
+                last_name          = name_parts[0]
+                first_name         = ''.join(name_parts[1:])
+                last_name_reading  = reading_parts[0]
+                first_name_reading = ''.join(reading_parts[1:])
+            else:
+                last_name = first_name = last_name_reading = first_name_reading = None
+
+            # nameはスペースを除去して格納
+            name = re.sub(r'\s+', '', name)
+
             faction = cells[2].get_text(strip=True)
             party   = normalize_party(faction)
             district = cells[3].get_text(strip=True)
@@ -152,14 +204,18 @@ def scrape_shugiin() -> list[dict]:
             election_type = "比例" if "(比)" in district or "（比）" in district else "小選挙区"
 
             members.append({
-                "name":          name,
-                "party":         party,
-                "faction":       faction,
-                "district":      district,
-                "prefecture":    district.replace('(比)', '').replace('（比）', '').rstrip('0123456789').strip(),
-                "house":         "衆議院",
-                "terms":         terms,
-                "election_type": election_type,
+                "name":               name,
+                "party":              party,
+                "faction":            faction,
+                "district":           district,
+                "prefecture":         district.replace('(比)', '').replace('（比）', '').rstrip('0123456789').strip(),
+                "house":              "衆議院",
+                "terms":              terms,
+                "election_type":      election_type,
+                "last_name":          last_name,
+                "first_name":         first_name,
+                "last_name_reading":  last_name_reading,
+                "first_name_reading": first_name_reading,
             })
 
         logger.info(f"ページ{i}完了")
@@ -176,18 +232,22 @@ def register_members(members: list[dict]) -> None:
         if not name:
             continue
         rows.append({
-            "id":          make_member_id(m["house"], name),
-            "name":        name,
-            "alias_name":  m.get("alias_name"),
-            "party":       m.get("party", "無所属"),
-            "faction":     m.get("faction"),
-            "house":       m["house"],
-            "district":    m.get("district", "不明"),
-            "prefecture":  m.get("prefecture", "不明"),
-            "terms":       m.get("terms"),
-            "source_url":  m.get("source_url"),
-            "is_active":      True,
-            "election_type":  m.get("election_type"),
+            "id":                 make_member_id(m["house"], name),
+            "name":               name,
+            "alias_name":         m.get("alias_name"),
+            "party":              m.get("party", "無所属"),
+            "faction":            m.get("faction"),
+            "house":              m["house"],
+            "district":           m.get("district", "不明"),
+            "prefecture":         m.get("prefecture", "不明"),
+            "terms":              m.get("terms"),
+            "source_url":         m.get("source_url"),
+            "is_active":          True,
+            "election_type":      m.get("election_type"),
+            "last_name":          m.get("last_name"),
+            "first_name":         m.get("first_name"),
+            "last_name_reading":  m.get("last_name_reading"),
+            "first_name_reading": m.get("first_name_reading"),
         })
 
     if rows:

@@ -11,6 +11,10 @@ interface Member {
   id: string;
   name: string;
   alias_name: string | null;
+  last_name: string | null;
+  first_name: string | null;
+  last_name_reading: string | null;
+  first_name_reading: string | null;
   party: string;
   faction: string | null;
   house: string;
@@ -91,7 +95,7 @@ function MembersContent() {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
-        .select("id, name, alias_name, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count, petition_count")
+        .select("id, name, alias_name, last_name, first_name, last_name_reading, first_name_reading, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count, petition_count")
         .eq("is_active", true)
         .limit(2000)
         .order("name");

@@ -14,6 +14,10 @@ interface Member {
   id: string;
   name: string;
   alias_name: string | null;
+  last_name: string | null;
+  first_name: string | null;
+  last_name_reading: string | null;
+  first_name_reading: string | null;
   party: string;
   faction: string | null;
   house: string;
