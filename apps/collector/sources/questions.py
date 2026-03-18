@@ -35,7 +35,8 @@ SHUGIIN_BASE_URL = "https://www.shugiin.go.jp/internet/itdb_shitsumon.nsf/html/s
 
 
 def _normalize_shu(name: str) -> str:
-    name = name.replace("\u3000", " ").replace("君", "").strip()
+    name = name.replace("\u3000", " ").strip()
+    name = re.sub(r"君$", "", name)  # 末尾の「君」のみ除去（名前中の「君」は保持）
     return re.sub(r" +", " ", name)
 
 

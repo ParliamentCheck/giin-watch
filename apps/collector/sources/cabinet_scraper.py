@@ -100,22 +100,24 @@ def scrape_meibo(cabinet_num: str) -> list[dict]:
 
 
 def build_member_map(client) -> dict:
-    """議員名 → member_id のマッピングを構築"""
+    """議員名 → member_id のマッピングを構築（name・alias_name 両方を登録）"""
     result = execute_with_retry(
-        lambda: client.table("members").select("id, name").eq("is_active", True).limit(2000),
+        lambda: client.table("members").select("id, name, alias_name").eq("is_active", True).limit(2000),
         label="fetch_members_for_cabinet",
     )
     member_map = {}
     for m in result.data:
         norm = normalize_name(m["name"])
         member_map[norm] = m["id"]
+        # alias_name（通称名）も検索対象に追加
+        if m.get("alias_name"):
+            member_map[normalize_name(m["alias_name"])] = m["id"]
+        # 旧形式 "通称名[本名]" を name に入れていた場合の後方互換
         if "[" in m["name"]:
             real = m["name"].split("[")[1].rstrip("]")
-            norm_real = normalize_name(real)
-            member_map[norm_real] = m["id"]
+            member_map[normalize_name(real)] = m["id"]
             short = m["name"].split("[")[0]
-            norm_short = normalize_name(short)
-            member_map[norm_short] = m["id"]
+            member_map[normalize_name(short)] = m["id"]
     return member_map
 
 

@@ -39,6 +39,7 @@ def main() -> None:
         "backfill-procedural",
         "votes-collect",
         "bills-collect",
+        "shugiin-questions",
         "sangiin-questions",
         "petitions-collect",
     ])
@@ -106,6 +107,10 @@ def main() -> None:
         from sources.bills import collect_bills
         collect_bills()
 
+    elif task == "shugiin-questions":
+        from sources.questions import collect_shugiin_questions
+        collect_shugiin_questions(full=True)
+
     elif task == "sangiin-questions":
         from sources.questions import collect_sangiin_questions
         collect_sangiin_questions(full=True)
@@ -118,6 +123,7 @@ def main() -> None:
     from processors.scoring import recalculate_scores as _rescore
     if task not in ("scoring-only", "migrate-member-ids") and not task.startswith("speeches-"):
         _rescore()
+
 
 
 if __name__ == "__main__":
