@@ -390,7 +390,7 @@ def daily_update() -> None:
     members = execute_with_retry(
         lambda: (
             client.table("members")
-            .select("id, name, house, last_name, first_name")
+            .select("id, name, house, last_name, first_name, last_name_reading, first_name_reading")
             .eq("is_active", True)
             .limit(2000)
         ),
@@ -401,6 +401,8 @@ def daily_update() -> None:
         [m["name"] for m in members],
         last_names=[m["last_name"] for m in members if m.get("last_name")],
         first_names=[m["first_name"] for m in members if m.get("first_name")],
+        last_name_readings=[m["last_name_reading"] for m in members if m.get("last_name_reading")],
+        first_name_readings=[m["first_name_reading"] for m in members if m.get("first_name_reading")],
     )
 
     # 直近に発言がある議員のみに絞る
@@ -476,7 +478,7 @@ def full_rebuild(years: int = 4) -> None:
     members = execute_with_retry(
         lambda: (
             client.table("members")
-            .select("id, name, house, last_name, first_name")
+            .select("id, name, house, last_name, first_name, last_name_reading, first_name_reading")
             .limit(2000)
         ),
         label="fetch_all_members",
@@ -489,6 +491,8 @@ def full_rebuild(years: int = 4) -> None:
         [m["name"] for m in members],
         last_names=[m["last_name"] for m in members if m.get("last_name")],
         first_names=[m["first_name"] for m in members if m.get("first_name")],
+        last_name_readings=[m["last_name_reading"] for m in members if m.get("last_name_reading")],
+        first_name_readings=[m["first_name_reading"] for m in members if m.get("first_name_reading")],
     )
     logger.info("Full rebuild: %d members, years %d-%d", len(members), start_year, today.year)
 

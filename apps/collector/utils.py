@@ -102,18 +102,19 @@ def build_member_name_set(
     *,
     last_names: list[str] | None = None,
     first_names: list[str] | None = None,
+    last_name_readings: list[str] | None = None,
+    first_name_readings: list[str] | None = None,
 ) -> frozenset[str]:
     """
     全議員名から部分文字列検索用のセットを事前構築する。
-    last_names / first_names を渡すと姓・名を個別にセットに追加する。
-    フルネームではなく姓・名単位で照合することで偶発的部分文字列の誤除外を防ぐ。
+    姓・名・読み仮名（姓/名）を個別に登録することで偶発的部分文字列の誤除外を防ぐ。
     """
     result: set[str] = set()
     for name in member_names:
         clean = re.sub(r"\s+", "", name.strip())
         if clean:
             result.add(clean)
-    for part_list in (last_names or [], first_names or []):
+    for part_list in (last_names or [], first_names or [], last_name_readings or [], first_name_readings or []):
         for part in part_list:
             clean = re.sub(r"\s+", "", (part or "").strip())
             if len(clean) >= 2:
