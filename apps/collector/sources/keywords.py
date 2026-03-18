@@ -390,14 +390,18 @@ def daily_update() -> None:
     members = execute_with_retry(
         lambda: (
             client.table("members")
-            .select("id, name, house")
+            .select("id, name, house, last_name, first_name")
             .eq("is_active", True)
             .limit(2000)
         ),
         label="fetch_members_for_keywords",
     ).data or []
 
-    all_member_names = build_member_name_set([m["name"] for m in members])
+    all_member_names = build_member_name_set(
+        [m["name"] for m in members],
+        last_names=[m["last_name"] for m in members if m.get("last_name")],
+        first_names=[m["first_name"] for m in members if m.get("first_name")],
+    )
 
     # 直近に発言がある議員のみに絞る
     members = [m for m in members if m["id"] in recent_speaker_ids]
@@ -472,7 +476,7 @@ def full_rebuild(years: int = 4) -> None:
     members = execute_with_retry(
         lambda: (
             client.table("members")
-            .select("id, name, house")
+            .select("id, name, house, last_name, first_name")
             .limit(2000)
         ),
         label="fetch_all_members",
@@ -481,7 +485,11 @@ def full_rebuild(years: int = 4) -> None:
     today = date.today()
     start_year = today.year - years
 
-    all_member_names = build_member_name_set([m["name"] for m in members])
+    all_member_names = build_member_name_set(
+        [m["name"] for m in members],
+        last_names=[m["last_name"] for m in members if m.get("last_name")],
+        first_names=[m["first_name"] for m in members if m.get("first_name")],
+    )
     logger.info("Full rebuild: %d members, years %d-%d", len(members), start_year, today.year)
 
     for m in members:
