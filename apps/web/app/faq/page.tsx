@@ -162,6 +162,11 @@ export default function FaqPage() {
             衆院2026（令和8年）・参院2025（令和7年）・参院2022（令和4年）。
             現職議員が在籍しない政党・団体は表示対象外です。
           </p>
+          <p style={{ ...pStyle, marginTop: 12 }}>
+            <strong style={{ color: "#555555" }}>無所属の得票率について：</strong>
+            無所属候補は比例代表に出馬できないため、比例得票数は常に0となります。
+            この計算方式では分母に小選挙区＋比例の総投票数を用いるため、無所属の得票率は政党と比べて構造的に低く算出されます（実際の小選挙区での支持よりも小さい値になります）。
+          </p>
         </section>
 
         <section id="ai-analysis" style={sectionStyle}>
