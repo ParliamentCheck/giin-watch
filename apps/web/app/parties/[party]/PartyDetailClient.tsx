@@ -732,6 +732,79 @@ function PartyDetailContent() {
               })}
             </div>
           </div>
+
+          {/* 選挙得票率 vs 議席率 */}
+          {(() => {
+            const electionPartyName = ELECTION_PARTY_NAME[party] ?? party;
+            const elections = [
+              { type: "衆院", year: 2026 },
+              { type: "参院", year: 2025 },
+              { type: "参院", year: 2022 },
+            ];
+            const rows = elections.map(({ type, year }) => {
+              const allRows = electionVotes.filter(v => v.election_type === type && v.election_year === year);
+              const myRow = allRows.find(v => v.party === electionPartyName);
+              if (!myRow) return null;
+              const totalVotes = allRows.reduce((s, r) => s + (r.smd_votes || 0) + (r.pr_votes || 0), 0);
+              const totalSeats = allRows.reduce((s, r) => s + (r.smd_seats || 0) + (r.pr_seats || 0), 0);
+              const myVotes = (myRow.smd_votes || 0) + (myRow.pr_votes || 0);
+              const mySeats = (myRow.smd_seats || 0) + (myRow.pr_seats || 0);
+              const votePct = totalVotes > 0 ? myVotes / totalVotes * 100 : 0;
+              const seatPct = totalSeats > 0 ? mySeats / totalSeats * 100 : 0;
+              const gap = seatPct - votePct;
+              return { label: `${year}${type}選`, myVotes, smdVotes: myRow.smd_votes || 0, prVotes: myRow.pr_votes || 0, mySeats, smdSeats: myRow.smd_seats || 0, prSeats: myRow.pr_seats || 0, votePct, seatPct, gap };
+            }).filter(Boolean) as { label: string; myVotes: number; smdVotes: number; prVotes: number; mySeats: number; smdSeats: number; prSeats: number; votePct: number; seatPct: number; gap: number }[];
+
+            if (rows.length === 0) return null;
+            return (
+              <div className="card" style={{ padding: 24 }}>
+                <h3 className="section-title">📊 選挙得票率 vs 議席率</h3>
+                <p style={{ fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.7 }}>
+                  得票率は小選挙区（選挙区）・比例の合算票を総投票数で割った独自指標です。乖離がプラスの場合、得票率より多くの議席を獲得しています。
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  {rows.map(r => (
+                    <div key={r.label}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>{r.label}</span>
+                        <span style={{ fontSize: 12, color: "#888" }}>{r.mySeats}議席（選{r.smdSeats} + 比{r.prSeats}）</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#888", marginBottom: 8 }}>
+                        {r.myVotes.toLocaleString()}票（選{r.smdVotes.toLocaleString()} / 比{r.prVotes.toLocaleString()}）
+                      </div>
+                      {/* 得票率バー */}
+                      <div style={{ marginBottom: 6 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#888", marginBottom: 3 }}>
+                          <span>得票率</span>
+                          <span style={{ fontWeight: 600, color: "#333" }}>{r.votePct.toFixed(1)}%</span>
+                        </div>
+                        <div className="progress-bar" style={{ height: 8 }}>
+                          <div className="progress-fill" style={{ width: `${r.votePct}%`, background: color, opacity: 0.5 }} />
+                        </div>
+                      </div>
+                      {/* 議席率バー */}
+                      <div style={{ marginBottom: 6 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#888", marginBottom: 3 }}>
+                          <span>議席率</span>
+                          <span style={{ fontWeight: 600, color: "#333" }}>{r.seatPct.toFixed(1)}%</span>
+                        </div>
+                        <div className="progress-bar" style={{ height: 8 }}>
+                          <div className="progress-fill" style={{ width: `${r.seatPct}%`, background: color }} />
+                        </div>
+                      </div>
+                      {/* 乖離 */}
+                      <div style={{ textAlign: "right", fontSize: 13, fontWeight: 700, color: r.gap >= 0 ? "#c0392b" : "#2980b9" }}>
+                        乖離 {r.gap >= 0 ? "+" : ""}{r.gap.toFixed(1)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: "#aaa", marginTop: 16, lineHeight: 1.7 }}>
+                  ※ 議席数は選挙確定時点。当選後の追加公認・会派移籍は反映していません。出典: 総務省公式資料。
+                </p>
+              </div>
+            );
+          })()}
         </div>
       )}
 
