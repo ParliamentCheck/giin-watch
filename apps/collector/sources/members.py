@@ -16,6 +16,14 @@ HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
 SANGIIN_BASE = "https://www.sangiin.go.jp/japanese/joho1/kousei/giin"
 SHUGIIN_BASE = "https://www.shugiin.go.jp/internet/itdb_annai.nsf/html/statics/syu/"
 
+# 衆議院公式サイトの会派登録と実際の党籍が異なる議員の手動補正
+# 理由: 会派結成に必要な人数（5名以上）を満たさない少数政党は
+#       衆議院サイト上で「無所属」扱いになるため
+PARTY_OVERRIDES: dict[str, str] = {
+    "衆議院-河村たかし": "減税日本・ゆうこく連合",  # 小選挙区当選、会派未満のため無所属登録
+    "衆議院-山本ジョージ": "れいわ新選組",           # 比例当選、会派未満のため無所属登録
+}
+
 
 def scrape_profile(profile_url: str) -> dict:
     try:
@@ -249,6 +257,13 @@ def register_members(members: list[dict]) -> None:
             "last_name_reading":  m.get("last_name_reading"),
             "first_name_reading": m.get("first_name_reading"),
         })
+
+    # 手動補正を適用
+    for row in rows:
+        if row["id"] in PARTY_OVERRIDES:
+            original = row["party"]
+            row["party"] = PARTY_OVERRIDES[row["id"]]
+            logger.info(f"党籍補正: {row['name']} {original} → {row['party']}")
 
     if rows:
         batch_upsert("members", rows, on_conflict="id", label="register_members")

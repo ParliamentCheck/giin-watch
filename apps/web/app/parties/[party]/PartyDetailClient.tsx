@@ -51,6 +51,7 @@ const PARTY_URLS: Record<string, string> = {
   "チームみらい":   "https://team-mir.ai/",
   "日本保守党":     "https://hoshuto.jp/",
   "有志の会":       "https://yushigroup.jp/",
+  "減税日本・ゆうこく連合": "https://yukoku.org/",
 };
 
 
@@ -94,6 +95,7 @@ function PartyDetailContent() {
   const [coSubmissionRanking, setCoSubmissionRanking] = useState<{ party: string; count: number }[]>([]);
   const [partyBenchmarks, setPartyBenchmarks] = useState<Record<string, { count: number; billPer: number; questionPer: number; sessionPer: number }>>({});
   const [partyUniqueBills, setPartyUniqueBills] = useState<{ title: string; submitted_at: string | null }[]>([]);
+  const [electionVotes, setElectionVotes] = useState<{ party: string; election_type: string; election_year: number; smd_votes: number | null; pr_votes: number | null; smd_seats: number | null; pr_seats: number | null }[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [kwLoading,       setKwLoading]       = useState(false);
   const [aiDataLoading,   setAiDataLoading]   = useState(false);
@@ -119,9 +121,16 @@ function PartyDetailContent() {
     clearPage();
   };
 
+  const ELECTION_PARTY_NAME: Record<string, string> = {
+    "自民党": "自由民主党",
+    "共産党": "日本共産党",
+    "社民党": "社会民主党",
+  };
+
   useEffect(() => {
     async function fetchAll() {
-      const [membersRes, allMembersRes, committeeRes, alignmentsRes] = await Promise.all([
+      const electionPartyName = ELECTION_PARTY_NAME[party] ?? party;
+      const [membersRes, allMembersRes, committeeRes, alignmentsRes, electionVotesRes] = await Promise.all([
         supabase
           .from("members")
           .select("id, name, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender, election_type")
@@ -141,6 +150,10 @@ function PartyDetailContent() {
           .from("party_vote_alignments")
           .select("party_a, party_b, alignment_rate, sample_size")
           .order("alignment_rate", { ascending: false }),
+        supabase
+          .from("election_votes")
+          .select("party, election_type, election_year, smd_votes, pr_votes, smd_seats, pr_seats")
+          .order("election_year", { ascending: false }),
       ]);
 
       const memberIds   = (membersRes.data || []).map((m) => m.id);
@@ -206,6 +219,7 @@ function PartyDetailContent() {
       setRadarGlobalMax(gm);
 
       setMembers(membersRes.data || []);
+      setElectionVotes(electionVotesRes.data || []);
       setAlignments(alignmentsRes.data || []);  // 全ペア
       setChairs((committeeRes.data || [])
         .filter((c) => memberIdSet.has(c.member_id))
@@ -930,6 +944,39 @@ function PartyDetailContent() {
         if (keywords.length > 0) {
           lines.push("■ 発言キーワード上位（第210回国会以降の発言から集計）");
           lines.push(keywords.slice(0, 20).map((k) => `${k.word}(${k.count})`).join("、"));
+          lines.push("");
+        }
+        if (electionVotes.length > 0) {
+          const electionPartyName = ELECTION_PARTY_NAME[party] ?? party;
+          const elections = [
+            { type: "衆院", year: 2026 },
+            { type: "参院", year: 2025 },
+            { type: "参院", year: 2022 },
+          ];
+          const divergenceLines: string[] = [];
+          for (const { type, year } of elections) {
+            const allRows = electionVotes.filter(v => v.election_type === type && v.election_year === year);
+            const myRow = allRows.find(v => v.party === electionPartyName);
+            if (!myRow) continue;
+            const totalVotes = allRows.reduce((s, r) => s + (r.smd_votes || 0) + (r.pr_votes || 0), 0);
+            const totalSeats = allRows.reduce((s, r) => s + (r.smd_seats || 0) + (r.pr_seats || 0), 0);
+            const myVotes = (myRow.smd_votes || 0) + (myRow.pr_votes || 0);
+            const mySeats = (myRow.smd_seats || 0) + (myRow.pr_seats || 0);
+            const votePct = totalVotes > 0 ? (myVotes / totalVotes * 100) : 0;
+            const seatPct = totalSeats > 0 ? (mySeats / totalSeats * 100) : 0;
+            const gap = seatPct - votePct;
+            divergenceLines.push(
+              `${year}${type}選 | 得票率: ${votePct.toFixed(1)}% | 議席率: ${seatPct.toFixed(1)}% | 乖離: ${gap >= 0 ? "+" : ""}${gap.toFixed(1)}% | 議席: ${mySeats}（小/選${myRow.smd_seats ?? 0} + 比例${myRow.pr_seats ?? 0}）`
+            );
+          }
+          if (divergenceLines.length > 0) {
+            lines.push("■ 選挙得票率 vs 議席率（出典: 総務省公式資料）");
+            lines.push("※ 得票率は小選挙区（選挙区）・比例の合算票÷総投票数（独自指標）。報道各社が主に使う小選挙区のみの数値より低くなります。乖離=議席率-得票率。");
+            lines.push("選挙 | 得票率 | 議席率 | 乖離 | 議席内訳");
+            for (const l of divergenceLines) lines.push(l);
+            lines.push("※ 議席数は選挙確定時点。当選後の追加公認・会派移籍は反映していません。");
+            lines.push("");
+          }
         }
         const contextText = lines.join("\n");
         const systemPrompt =
@@ -937,6 +984,7 @@ function PartyDetailContent() {
           "提供するデータは国会の公式記録から取得した客観的な情報です。" +
           "以下の点に注意して分析してください：" +
           "与党は内閣を通じて政策を実現するため、質問主意書・議員立法の件数は構造的に少なくなる傾向があります。" +
+          "選挙の得票率 vs 議席率の乖離データが含まれる場合は、小選挙区制の特性（1選挙区1議席のため大政党有利）を踏まえて言及してください。乖離がプラスなら得票率以上に議席を獲得、マイナスなら得票に見合わない議席数であることを示します。" +
           "採決データは党議拘束の影響を受けるため、個々の議員の意思を完全には反映しません。" +
           "件数の大小が活動の優劣を示すものではありません。" +
           "提供データに「現在の立場」が明記されている場合は、それを最優先とし、学習データとの矛盾があってもデータを信頼してください。" +
@@ -946,10 +994,9 @@ function PartyDetailContent() {
           "共同提出パートナーや独自提出法案から、政党の連携傾向・政策アイデンティティを明確にしてください。" +
           "断定的な評価や好意的・批判的な表現を避け、データから読み取れる傾向のみを中立的に述べてください。" +
           "\n\n【役職・動的情報の補完ルール（ハルシネーション防止優先）】\n" +
-          "党首・代表・幹事長など主要役員・議員数・在籍状況など提供データにない動的情報は、2026年3月現在の信頼できる公開情報（公式サイト・国会記録・大手メディア）に基づき補完可能。ただし不確かな情報・古い情報・推測は一切使用せず、確認できない場合は「提供データに基づく範囲で」と記述すること。\n" +
-          "補完情報は「2026年3月現在の公開情報に基づく」と明記し、具体名・数字・議員数の創作は禁止。役職・在籍状況は「公示前/選挙前情報」など曖昧さを明示すること。\n" +
-          "党首・主要役職が確認できる場合は導入部と「採決・連携傾向」セクションで自然に言及するが、連携の「強めています」など主観的・推測的表現は避け、データや報道の具体例で示すこと。\n" +
-          "事実と推測を常に明確に区別し、誤認リスクが高い項目（議員数・役職・連携関係など）には注記を入れること。\n\n" +
+          "提供データに含まれない動的情報（党首・代表・幹事長などの役職、現在の議員数、在籍状況など）を記述する場合は、必ず「（出典: ○○）」の形で出典を明示すること。出典が確認できない情報は記述しないこと。\n" +
+          "具体名・数字・役職の創作は禁止。確認できない場合は「提供データに記載なし」と記述すること。\n" +
+          "事実と推測を常に明確に区別し、誤認リスクが高い項目には注記を入れること。\n\n" +
           "【出力スタイルのガイドライン】\n" +
           "全体を「読みやすい記事風」にまとめること。淡々としたリストの羅列ではなく、自然な文章で繋げてください。\n" +
           "各セクションの冒頭に1〜2文の導入文を入れ、末尾に軽い考察を加えてください（例：「採決一致率の高さは、両党の政策的な近さを数字で裏付けている」）。ただしデータの範囲を超えない。\n" +

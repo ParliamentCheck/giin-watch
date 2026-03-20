@@ -28,6 +28,31 @@ export default function DisclaimerPage() {
             </p>
           </section>
 
+          <section style={{ marginBottom: 28 }}>
+            <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
+              textTransform: "uppercase", letterSpacing: 1.5,
+              borderLeft: "3px solid #333333", paddingLeft: 10 }}>手動補正データについて</h2>
+            <p style={{ lineHeight: 1.9, color: "#888888", marginBottom: 8 }}>
+              一部のデータは、公式ソースの仕様上の制約により実態と異なる場合があるため、手動で補正しています。
+            </p>
+            <ul style={{ lineHeight: 2, color: "#888888", paddingLeft: 20 }}>
+              <li>
+                <strong style={{ color: "#555" }}>議員の所属政党</strong>：
+                衆議院公式サイトでは会派結成に5名以上必要なため、少数政党の議員が「無所属」として登録される場合があります。
+                実際の党籍が確認できる場合は正しい政党名に補正しています（河村たかし→減税日本・ゆうこく連合、山本ジョージ→れいわ新選組）。
+              </li>
+              <li>
+                <strong style={{ color: "#555" }}>中道改革連合の超党派議員立法集計</strong>：
+                2026年1月以前の法案については、中道改革連合所属議員を旧所属政党（立憲民主党・公明党）として集計しています。
+              </li>
+              <li>
+                <strong style={{ color: "#555" }}>選挙得票数</strong>：
+                総務省公式資料（PDF・XLSX）に基づきます。按分票の小数点以下は切り捨てています。
+                議席数は各メディアの確定報道をもとに入力しています。
+              </li>
+            </ul>
+          </section>
+
           <section>
             <h2 style={{ fontSize: "1.1em", fontWeight: 700, color: "#333333", marginBottom: 12,
               textTransform: "uppercase", letterSpacing: 1.5,

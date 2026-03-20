@@ -57,6 +57,19 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
+      - name: 質問主意書データ収集
+        run: python apps/collector/sources/questions.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      - name: 選挙得票データ収集（手動実行時のみ / 選挙後に更新）
+        if: github.event_name == 'workflow_dispatch'
+        run: python apps/collector/sources/election_votes.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
       - name: 失敗時の通知（任意）
         if: failure()
         run: echo "収集失敗。ログを確認してください。"
