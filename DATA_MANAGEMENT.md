@@ -19,6 +19,40 @@
 | 政党間採決一致率 | `sources/vote_alignment.py` | 採決記録から算出 |
 | 党議拘束推定 | `sources/party_whip.py` | 採決記録から算出 |
 | 閣法 | `sources/cabinet_scraper.py` | 参議院公式サイト |
+| 発言抜粋（AI分析用） | `sources/speeches.py`（収集と同時処理） | 国立国会図書館API |
+
+---
+
+## 発言抜粋（speech_excerpts）の仕様
+
+AI分析機能のコンテキストとして使用する発言テキストを管理する。
+
+### 収集ロジック
+
+- `speeches.py` の収集ループ内で、発言テキストを取得した際に同時処理（追加のNDLアクセスなし）
+- 冒頭のヘッダー（`○議員名　` 形式）を正規表現で除去してから文字数を計算
+- ヘッダー除去後 **300字以上** を「長文」と判定して保存対象とする
+- 保存内容：ヘッダー除去後の先頭 **1,000字**
+- 議員ごとに `spoken_at` 降順で **最大10件** を保持（古いものは自動削除）
+
+### 保存先テーブル：`speech_excerpts`
+
+| カラム | 内容 |
+|---|---|
+| `id` | NDLのspeechID |
+| `member_id` | 議員ID |
+| `spoken_at` | 発言日 |
+| `committee` | 委員会名 |
+| `session_number` | 国会回次 |
+| `source_url` | NDL会議録URL |
+| `excerpt` | ヘッダー除去後の先頭1,000字 |
+| `original_length` | ヘッダー除去後の元の文字数 |
+
+### AI分析への使用
+
+- 議員詳細ページのAI分析タブで、直近 **5件** をコンテキストとして使用（`SPEECH_EXCERPT_COUNT = 5`）
+- 発言ヘッダーには `source_url`（NDL会議録URL）を含め、AI出力の「主な出典」に反映される
+- 件数の調整は `apps/web/app/members/[id]/AIAnalysis.tsx` の `SPEECH_EXCERPT_COUNT` を変更するだけ
 
 ---
 
