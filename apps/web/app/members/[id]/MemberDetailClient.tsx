@@ -140,7 +140,8 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [billsSubTab,  setBillsSubTab]  = useState<"list" | "partners">("list");
   const [voteFilter,   setVoteFilter]   = useState<"all" | "賛成" | "反対" | "欠席">("all");
   const [petitions,    setPetitions]    = useState<Petition[]>([]);
-  const [keywords,   setKeywords]   = useState<{ word: string; count: number }[]>([]);
+  const [keywords,        setKeywords]        = useState<{ word: string; count: number }[]>([]);
+  const [speechExcerpts,  setSpeechExcerpts]  = useState<{ excerpt: string; committee: string; spoken_at: string | null; source_url: string | null }[]>([]);
   const [globalMax,  setGlobalMax]  = useState(initialGlobalMax ?? { session: 1, question: 1, bill: 1, petition: 1 });
   const [loading,       setLoading]       = useState(!initialMember);
   const [clientLoaded,  setClientLoaded]  = useState(false);
@@ -192,6 +193,8 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
         supabase.from("sangiin_petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
           .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
+        supabase.from("speech_excerpts").select("excerpt,committee,spoken_at,source_url")
+          .eq("member_id", memberId).order("spoken_at", { ascending: false }).limit(10),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "賛成"),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "反対"),
@@ -224,10 +227,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         setCommittees(deduped);
       }
       if (safe(5)) setVotes(safe(5));
-      const totalCount  = results[10].status === "fulfilled" ? (results[10].value.count ?? 0) : 0;
-      const yeaCount    = results[11].status === "fulfilled" ? (results[11].value.count ?? 0) : 0;
-      const nayCount    = results[12].status === "fulfilled" ? (results[12].value.count ?? 0) : 0;
-      const absentCount = results[13].status === "fulfilled" ? (results[13].value.count ?? 0) : 0;
+      const totalCount  = results[11].status === "fulfilled" ? (results[11].value.count ?? 0) : 0;
+      const yeaCount    = results[12].status === "fulfilled" ? (results[12].value.count ?? 0) : 0;
+      const nayCount    = results[13].status === "fulfilled" ? (results[13].value.count ?? 0) : 0;
+      const absentCount = results[14].status === "fulfilled" ? (results[14].value.count ?? 0) : 0;
       setVoteStats({ yea: yeaCount, nay: nayCount, absent: absentCount, total: totalCount });
       const billsData: Bill[] = safe(6) || [];
       setBills(billsData);
@@ -268,6 +271,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           return b.number - a.number;
         });
       setPetitions(allPetitions);
+      if (safe(10)) setSpeechExcerpts(safe(10));
 
       // グローバルMAX取得（SSRで渡されていない場合のみ）
       if (!initialGlobalMax) {
@@ -951,6 +955,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           speeches={speeches}
           keywords={keywords}
           voteStats={voteStats}
+          speechExcerpts={speechExcerpts}
         />
       )}
     </div>

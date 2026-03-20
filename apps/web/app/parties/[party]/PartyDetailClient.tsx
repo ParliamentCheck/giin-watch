@@ -14,6 +14,7 @@ import { usePagination } from "../../../hooks/usePagination";
 interface Member {
   id: string;
   name: string;
+  alias_name: string | null;
   house: string;
   district: string;
   terms: number | null;
@@ -133,7 +134,7 @@ function PartyDetailContent() {
       const [membersRes, allMembersRes, committeeRes, alignmentsRes, electionVotesRes] = await Promise.all([
         supabase
           .from("members")
-          .select("id, name, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender, election_type")
+          .select("id, name, alias_name, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender, election_type")
           .eq("party", party)
           .eq("is_active", true)
           .limit(2000),
@@ -541,7 +542,7 @@ function PartyDetailContent() {
                 className="card card-hover"
                 style={{ padding: "12px 16px", "--hover-color": color } as React.CSSProperties}>
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 12px" }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: "#111111", minWidth: 80 }}>{m.name}</span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#111111", minWidth: 80 }}>{m.alias_name ?? m.name}</span>
                   <span style={{ fontSize: 12, color: "#555555" }}>{m.house} · {m.district}{m.terms ? ` · ${m.terms}期` : ""}</span>
                   <div className="member-row-stats" style={{ display: "flex", gap: 12, fontSize: 12, color: "#888888", marginLeft: "auto" }}>
                     <span>発言 {m.session_count  || 0}</span>

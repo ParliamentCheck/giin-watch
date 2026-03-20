@@ -13,6 +13,11 @@ const SYSTEM_PROMPT =
   "質問主意書・議員立法は個人の意思が反映されやすい傾向があります。" +
   "内閣総理大臣・大臣などの閣僚は行政府の立場にあるため、在任中は質問主意書や議員立法をほぼ提出しません。件数が少ない場合はその職務の性質によるものです。" +
   "共同提出パートナーから、党派を超えた連携の特徴を読み取ってください。" +
+  "発言抜粋が提供されている場合は、発言内容の「報告」ではなく、この議員のシグネチャーや政策スタイルを抽出する「分析材料」として活用してください。発言の時系列を追った報告は不要です。" +
+  "\n\n【発言抜粋の活用ルール】\n" +
+  "提供された直近の発言抜粋は、内容の羅列ではなく、必ず「議員の活動スタイルのシグネチャー抽出」と「政策傾向の分析」に活用せよ。" +
+  "繰り返しのテーマや独自の視点（例：母親視点、デジタル活用、地元・国際連動など）を見つけ、シグネチャーやキャッチフレーズに自然に反映せよ。" +
+  "採決の反対事例も、可能であれば政策テーマやシグネチャーに絡めて簡潔に触れよ。" +
   "提供データに「現在の立場」が明記されている場合は、それを最優先とし、学習データとの矛盾があってもデータを信頼してください。" +
   "分析では単なるテーマ一覧ではなく、この議員の「独自のシグネチャー（特徴・差別化ポイント）」を必ず3〜5個明確に抽出してください。" +
   "断定的な評価や好意的・批判的な表現を避け、データから読み取れる傾向のみを中立的に述べてください。" +
@@ -37,7 +42,7 @@ const SYSTEM_PROMPT =
   "※この分析は公開データに基づく推測であり、『はたらく議員』の公式見解ではありません。";
 
 interface AIAnalysisProps {
-  member: { name: string; party: string; house: string; district?: string | null; cabinet_post?: string | null; session_count?: number | null; terms?: number | null } | null;
+  member: { name: string; alias_name?: string | null; party: string; house: string; district?: string | null; cabinet_post?: string | null; session_count?: number | null; terms?: number | null } | null;
   questions: { title: string; submitted_at: string }[];
   votes: { bill_title: string; vote: string; vote_date: string | null }[];
   bills: { title: string; submitted_at: string | null }[];
@@ -47,10 +52,14 @@ interface AIAnalysisProps {
   speeches?: { committee: string; spoken_at: string }[];
   keywords?: { word: string; count: number }[];
   voteStats?: { yea: number; nay: number; absent: number; total: number } | null;
+  speechExcerpts?: { excerpt: string; committee: string; spoken_at: string | null; source_url: string | null }[];
 }
 
+// プロンプトに埋め込む発言抜粋の件数（コストと精度のバランスで調整）
+const SPEECH_EXCERPT_COUNT = 5;
+
 function buildContext(props: AIAnalysisProps): string {
-  const { member, questions, votes, bills, petitions, committees, coSponsors, speeches, keywords, voteStats } = props;
+  const { member, questions, votes, bills, petitions, committees, coSponsors, speeches, keywords, voteStats, speechExcerpts } = props;
   if (!member) return "";
 
   const year = (date: string | null | undefined) =>
@@ -70,7 +79,7 @@ function buildContext(props: AIAnalysisProps): string {
 
   const lines: string[] = [];
   const districtPart = member.district ? `・${member.district}` : "";
-  lines.push(`議員名: ${member.name}（${member.party}・${member.house}${districtPart}）`);
+  lines.push(`議員名: ${member.alias_name ?? member.name}（${member.party}・${member.house}${districtPart}）`);
   if (member.cabinet_post) {
     lines.push(`現職: ${member.cabinet_post}`);
   }
@@ -154,6 +163,19 @@ function buildContext(props: AIAnalysisProps): string {
     lines.push("■ 共同提出パートナー（件数上位）");
     lines.push("※ 議員立法の共同提出が多い議員。党を超えた協力関係の参考情報。");
     for (const s of coSponsors) lines.push(`- ${s.name}（${s.party}）: ${s.count}件`);
+    lines.push("");
+  }
+
+  if (speechExcerpts && speechExcerpts.length > 0) {
+    const excerpts = speechExcerpts.slice(0, SPEECH_EXCERPT_COUNT);
+    lines.push(`■ 発言抜粋（直近${excerpts.length}件・各先頭1000字）`);
+    lines.push("※ 国会会議録から取得した実際の発言テキスト。");
+    for (const e of excerpts) {
+      const date = e.spoken_at ? e.spoken_at.slice(0, 10) : "日付不明";
+      lines.push(`【${date} ${e.committee}】`);
+      lines.push(e.excerpt);
+      lines.push("");
+    }
   }
 
   return lines.join("\n");

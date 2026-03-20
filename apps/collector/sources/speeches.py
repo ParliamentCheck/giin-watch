@@ -2,6 +2,7 @@
 はたらく議員 — NDL API 発言メタデータ収集
 国会会議録 API から発言データを取得し、メタデータのみを speeches テーブルに保存する。
 speech_text は保存しない（キーワード構築は keywords.py が別途処理）。
+ただし長文発言（300字以上）の先頭1000字は speech_excerpts テーブルに最大10件保持する。
 
 APIドキュメント: https://kokkai.ndl.go.jp/api.html
 """
@@ -35,6 +36,21 @@ except Exception:
     _KEYWORDS_AVAILABLE = False
 
 logger = logging.getLogger("ndl_api")
+
+# 発言抜粋の設定
+EXCERPT_MIN_LENGTH = 300   # ヘッダー除去後この文字数以上を「長文」とみなす
+EXCERPT_MAX_LENGTH = 1000  # 保存する文字数
+EXCERPT_KEEP_COUNT = 10    # 議員ごとに保持する最大件数
+
+# NDL発言テキストの冒頭ヘッダーを除去するパターン
+# 例: 「○梅村みずほ君　」「○委員長（田中一郎君）　」
+_HEADER_RE = re.compile(r"^○[^　]{1,40}　")
+
+
+def clean_speech_text(text: str) -> str:
+    """冒頭の発言者ヘッダー（○名前　）を除去して本文を返す。"""
+    return _HEADER_RE.sub("", text).strip()
+
 
 # ============================================================
 # NDL API リクエスト
@@ -87,6 +103,9 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
 
     # キーワード構築用テキスト蓄積バッファ
     member_texts: dict[str, list[tuple[str, str]]] = defaultdict(list)
+
+    # 発言抜粋バッファ: member_id -> [{id, spoken_at, ...}]
+    member_excerpts: dict[str, list[dict]] = defaultdict(list)
 
     records_per_page = 100
     start_record = 1
@@ -160,6 +179,20 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
             if not procedural and member_id and speech_text:
                 member_texts[member_id].append((speech_text, spoken_at or ""))
 
+                # 発言抜粋の候補として蓄積（長文のみ）
+                cleaned = clean_speech_text(speech_text)
+                if len(cleaned) >= EXCERPT_MIN_LENGTH:
+                    member_excerpts[member_id].append({
+                        "id": speech_id,
+                        "member_id": member_id,
+                        "spoken_at": spoken_at if spoken_at else None,
+                        "committee": committee,
+                        "session_number": session_number,
+                        "source_url": speech_url,
+                        "excerpt": cleaned[:EXCERPT_MAX_LENGTH],
+                        "original_length": len(cleaned),
+                    })
+
             # NDL URL
             speech_url = rec.get("speechURL", "")
 
@@ -205,6 +238,47 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
         time.sleep(NDL_RATE_LIMIT_SEC)
 
     logger.info("Speech collection complete. Saved %d records.", total_saved)
+
+    # 発言抜粋の保存
+    if member_excerpts:
+        logger.info("Saving speech excerpts for %d members ...", len(member_excerpts))
+        all_excerpt_rows = []
+        for rows_for_member in member_excerpts.values():
+            all_excerpt_rows.extend(rows_for_member)
+
+        if all_excerpt_rows:
+            batch_upsert("speech_excerpts", all_excerpt_rows, on_conflict="id", label="speech_excerpts")
+
+        # 議員ごとに最新 EXCERPT_KEEP_COUNT 件を超える古い行を削除
+        updated_member_ids = list(member_excerpts.keys())
+        for member_id in updated_member_ids:
+            try:
+                # 保持対象のIDを取得
+                keep_res = execute_with_retry(
+                    lambda mid=member_id: (
+                        client.table("speech_excerpts")
+                        .select("id")
+                        .eq("member_id", mid)
+                        .order("spoken_at", desc=True)
+                        .limit(EXCERPT_KEEP_COUNT)
+                    ),
+                    label=f"excerpt_keep_{member_id}",
+                )
+                keep_ids = [r["id"] for r in (keep_res.data or [])]
+                if keep_ids:
+                    execute_with_retry(
+                        lambda mid=member_id, ids=keep_ids: (
+                            client.table("speech_excerpts")
+                            .delete()
+                            .eq("member_id", mid)
+                            .not_.in_("id", ids)
+                        ),
+                        label=f"excerpt_cleanup_{member_id}",
+                    )
+            except Exception:
+                logger.warning("Failed to cleanup excerpts for %s", member_id, exc_info=True)
+
+        logger.info("Speech excerpts saved.")
 
     # キーワード構築（MeCab が利用可能な場合のみ）
     if _KEYWORDS_AVAILABLE and member_texts:
