@@ -123,7 +123,7 @@ async function getCrossPartyBills() {
   try {
     const { data: bills } = await supabase
       .from("bills")
-      .select("id, title, session_number, source_url, submitter_ids")
+      .select("id, title, session_number, submitted_at, source_url, submitter_ids")
       .eq("bill_type", "議員立法")
       .limit(1000);
     if (!bills || bills.length === 0) return [];
@@ -132,22 +132,32 @@ async function getCrossPartyBills() {
     if (allIds.length === 0) return [];
 
     const memberParty: Record<string, string> = {};
+    const memberPrevParty: Record<string, string | null> = {};
     for (let i = 0; i < allIds.length; i += 50) {
       const { data: members } = await supabase
         .from("members")
-        .select("id, party")
+        .select("id, party, prev_party")
         .in("id", allIds.slice(i, i + 50));
-      for (const m of members || []) memberParty[(m as any).id] = (m as any).party;
+      for (const m of members || []) {
+        memberParty[(m as any).id] = (m as any).party;
+        memberPrevParty[(m as any).id] = (m as any).prev_party ?? null;
+      }
     }
 
-
     const EXCLUDE = new Set(["無所属", "不明（前議員）"]);
+    const CHUDOKAIKAKU = "中道改革連合";
 
     return bills
       .map((b: any) => {
+        const beforeChudo = !b.submitted_at || b.submitted_at < "2026-01";
         const parties = [...new Set<string>(
           ((b.submitter_ids as string[]) || [])
-            .map((id) => memberParty[id])
+            .map((id) => {
+              const p = memberParty[id];
+              // 2026年1月以前の法案で中道改革連合員は prev_party（立憲・公明等）を使う
+              if (beforeChudo && p === CHUDOKAIKAKU) return memberPrevParty[id] ?? null;
+              return p;
+            })
             .filter((p): p is string => !!p && !EXCLUDE.has(p))
         )];
         return { id: b.id as string, title: b.title as string, session: b.session_number as number, source_url: b.source_url as string | null, parties };
