@@ -185,7 +185,7 @@ export default function AIAnalysis(props: AIAnalysisProps) {
   if (!props.member) return null;
 
   const contextText = buildContext(props);
-  const memberName = props.member.name;
+  const memberName = props.member.alias_name ?? props.member.name;
 
   return (
     <AIAnalysisBase
