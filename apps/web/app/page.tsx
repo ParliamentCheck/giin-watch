@@ -327,14 +327,21 @@ async function getPartyAlignmentMatrix() {
 
 // 質問主意書の月別推移（政党別）
 async function getMonthlyQuestions() {
-  const { data } = await supabase
-    .from("questions")
-    .select("submitted_at, members(party)")
-    .like("submitted_at", "令和%")
-    .limit(5000);
+  const [{ data: shuData }, { data: sanData }] = await Promise.all([
+    supabase
+      .from("questions")
+      .select("submitted_at, members(party)")
+      .like("submitted_at", "令和%")
+      .limit(5000),
+    supabase
+      .from("sangiin_questions")
+      .select("submitted_at, members(party)")
+      .not("submitted_at", "is", null)
+      .limit(5000),
+  ]);
 
-  // "令和 7年10月21日" / "令和元年11月 1日" → "2025-10"
-  function toYearMonth(s: string): string | null {
+  // 衆院: "令和 7年10月21日" / "令和元年11月 1日" → "2025-10"
+  function shuToYearMonth(s: string): string | null {
     const m = s.match(/^令和\s*(\d+|元)年\s*(\d+)月/);
     if (!m) return null;
     const y = m[1] === "元" ? 2019 : 2018 + parseInt(m[1]);
@@ -342,10 +349,25 @@ async function getMonthlyQuestions() {
     return `${y}-${mo}`;
   }
 
+  // 参院: "2025-05-14" → "2025-05"
+  function sanToYearMonth(s: string): string | null {
+    const m = s.match(/^(\d{4})-(\d{2})/);
+    return m ? `${m[1]}-${m[2]}` : null;
+  }
+
   const monthMap: Record<string, Record<string, number>> = {};
   const partyTotal: Record<string, number> = {};
-  for (const q of data || []) {
-    const ym = toYearMonth(q.submitted_at as string);
+
+  for (const q of shuData || []) {
+    const ym = shuToYearMonth(q.submitted_at as string);
+    if (!ym) continue;
+    const party = (q.members as any)?.party || "その他";
+    if (!monthMap[ym]) monthMap[ym] = {};
+    monthMap[ym][party] = (monthMap[ym][party] || 0) + 1;
+    partyTotal[party] = (partyTotal[party] || 0) + 1;
+  }
+  for (const q of sanData || []) {
+    const ym = sanToYearMonth(q.submitted_at as string);
     if (!ym) continue;
     const party = (q.members as any)?.party || "その他";
     if (!monthMap[ym]) monthMap[ym] = {};
