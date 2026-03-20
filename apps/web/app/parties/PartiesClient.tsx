@@ -123,7 +123,8 @@ function ElectionDivergenceSection() {
           {label} ／ 総投票数: {totalVotes.toLocaleString()} ／ 総議席: {totalSeats}
           　※ 得票率は小選挙区（選挙区）・比例の合算票を総投票数で割った値（独自指標）。報道各社が主に使う小選挙区のみの数値とは異なります。議席数は選挙確定時点の数値で、当選後の追加公認・会派移籍は反映していません。出典: 総務省公式資料。
         </p>
-        <div style={{ overflowX: "auto" }}>
+        {/* PC: テーブル */}
+        <div className="hidden-mobile">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e0e0e0" }}>
@@ -156,35 +157,18 @@ function ElectionDivergenceSection() {
                         {r.prVotes > 0 && <span>比{r.prVotes.toLocaleString()}</span>}
                       </div>
                     </td>
-                    <td style={{ textAlign: "right", padding: "8px 8px", color: "#444" }}>
-                      {r.votePct.toFixed(1)}%
-                    </td>
-                    <td style={{ textAlign: "right", padding: "8px 8px", color: "#444" }}>
-                      {r.seatPct.toFixed(1)}%
-                    </td>
-                    <td style={{ textAlign: "right", padding: "8px 8px", fontWeight: 700,
-                      color: isPositive ? "#c0392b" : "#2980b9" }}>
+                    <td style={{ textAlign: "right", padding: "8px 8px", color: "#444" }}>{r.votePct.toFixed(1)}%</td>
+                    <td style={{ textAlign: "right", padding: "8px 8px", color: "#444" }}>{r.seatPct.toFixed(1)}%</td>
+                    <td style={{ textAlign: "right", padding: "8px 8px", fontWeight: 700, color: isPositive ? "#c0392b" : "#2980b9" }}>
                       {isPositive ? "+" : ""}{r.gap.toFixed(1)}%
                     </td>
                     <td style={{ padding: "8px 8px" }}>
-                      {/* 乖離バー */}
                       <div style={{ position: "relative", height: 14, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                        {/* 得票率 */}
-                        <div style={{
-                          position: "absolute", top: 0, left: 0, height: "100%",
-                          width: `${Math.min(r.votePct, 100)}%`,
-                          background: color, opacity: 0.35,
-                        }} />
-                        {/* 議席率 */}
-                        <div style={{
-                          position: "absolute", top: 0, left: 0, height: "100%",
-                          width: `${Math.min(r.seatPct, 100)}%`,
-                          background: color, opacity: 0.85,
-                        }} />
+                        <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min(r.votePct, 100)}%`, background: color, opacity: 0.35 }} />
+                        <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min(r.seatPct, 100)}%`, background: color, opacity: 0.85 }} />
                       </div>
                       <div style={{ fontSize: 10, color: "#aaa", marginTop: 2, display: "flex", justifyContent: "space-between" }}>
-                        <span>薄: 得票率</span>
-                        <span>濃: 議席率</span>
+                        <span>薄: 得票率</span><span>濃: 議席率</span>
                       </div>
                     </td>
                   </tr>
@@ -192,6 +176,55 @@ function ElectionDivergenceSection() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* モバイル: flex-wrap */}
+        <div className="show-mobile" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {computed.map(r => {
+            const color = ELECTION_PARTY_COLORS[r.party] || "#7f8c8d";
+            const isPositive = r.gap >= 0;
+            return (
+              <div key={r.party} style={{ borderBottom: "1px solid #f0f0f0", padding: "10px 4px", fontSize: 13 }}>
+                {/* 上段: 政党名・議席数・得票数 */}
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "4px 8px", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                    <span style={{ fontWeight: 600, color: "#111" }}>{r.party}</span>
+                    <span style={{ fontSize: 11, color: "#999", whiteSpace: "nowrap" }}>{r.seats}議席</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: "#aaa" }}>
+                    {r.votes.toLocaleString()}票
+                    {(r.smdVotes > 0 || r.prVotes > 0) && (
+                      <span style={{ marginLeft: 3 }}>
+                        （{r.smdVotes > 0 && `選${r.smdVotes.toLocaleString()}`}{r.smdVotes > 0 && r.prVotes > 0 && " / "}{r.prVotes > 0 && `比${r.prVotes.toLocaleString()}`}）
+                      </span>
+                    )}
+                  </span>
+                </div>
+                {/* 下段: 数値 + バー */}
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
+                  <span style={{ color: "#444", whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: 11, color: "#999" }}>得票率 </span>{r.votePct.toFixed(1)}%
+                  </span>
+                  <span style={{ color: "#444", whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: 11, color: "#999" }}>議席率 </span>{r.seatPct.toFixed(1)}%
+                  </span>
+                  <span style={{ fontWeight: 700, color: isPositive ? "#c0392b" : "#2980b9", whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: 11, color: "#999", fontWeight: 400 }}>乖離 </span>{isPositive ? "+" : ""}{r.gap.toFixed(1)}%
+                  </span>
+                  <div style={{ flex: "1 1 100%", marginTop: 4 }}>
+                    <div style={{ position: "relative", height: 14, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min(r.votePct, 100)}%`, background: color, opacity: 0.35 }} />
+                      <div style={{ position: "absolute", top: 0, left: 0, height: "100%", width: `${Math.min(r.seatPct, 100)}%`, background: color, opacity: 0.85 }} />
+                    </div>
+                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 2, display: "flex", justifyContent: "space-between" }}>
+                      <span>薄: 得票率</span><span>濃: 議席率</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -322,10 +355,10 @@ function PartiesContent() {
                       style={{ padding: "14px 20px", "--hover-color": color } as React.CSSProperties}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 16, fontWeight: 700, color: "#111111", flex: 1 }}>
+                        <span style={{ fontSize: 16, fontWeight: 700, color: "#111111", flex: 1, minWidth: 0 }}>
                           {p.party}
                         </span>
-                        <span style={{ fontSize: 13, color: "#888888" }}>{p.total}名</span>
+                        <span style={{ fontSize: 13, color: "#888888", whiteSpace: "nowrap" }}>{p.total}名</span>
                       </div>
                     </div>
                   );
