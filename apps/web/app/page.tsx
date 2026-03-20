@@ -240,7 +240,7 @@ const PARTY_SHORT: Record<string, string> = {
 };
 
 async function getCurrentSessionStats() {
-  const [qShuRes, votedBillsRes] = await Promise.all([
+  const [qShuRes, votedBillsRes, billsRes, latestBillRes, latestVoteRes, latestQRes] = await Promise.all([
     supabase.from("questions")
       .select("id", { count: "exact", head: true })
       .eq("session", CURRENT_SESSION),
@@ -248,13 +248,53 @@ async function getCurrentSessionStats() {
       .select("bill_title")
       .eq("session_number", CURRENT_SESSION)
       .limit(2000),
+    supabase.from("bills")
+      .select("id", { count: "exact", head: true })
+      .gte("submitted_at", "2026-01-01"),
+    supabase.from("bills")
+      .select("submitted_at")
+      .gte("submitted_at", "2026-01-01")
+      .order("submitted_at", { ascending: false })
+      .limit(1),
+    supabase.from("votes")
+      .select("vote_date")
+      .eq("session_number", CURRENT_SESSION)
+      .order("vote_date", { ascending: false })
+      .limit(1),
+    supabase.from("questions")
+      .select("submitted_at")
+      .eq("session", CURRENT_SESSION)
+      .order("id", { ascending: false })
+      .limit(5),
   ]);
-  const billsRes = await supabase.from("bills")
-    .select("id", { count: "exact", head: true })
-    .gte("submitted_at", "2026-01-01");
 
   const adoptedBills = new Set((votedBillsRes.data || []).map((v: any) => v.bill_title)).size;
-  return { questions: qShuRes.count || 0, bills: billsRes.count || 0, adoptedBills };
+
+  // 令和7年 3月18日 → Date
+  function parseWareki(s: string): Date | null {
+    const m = s.match(/^令和\s*(\d+|元)年\s*(\d+)月\s*(\d+)日/);
+    if (!m) return null;
+    const y = m[1] === "元" ? 2019 : 2018 + parseInt(m[1]);
+    return new Date(`${y}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`);
+  }
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 5);
+
+  const latestBill  = latestBillRes.data?.[0]?.submitted_at ? new Date(latestBillRes.data[0].submitted_at as string) : null;
+  const latestVote  = latestVoteRes.data?.[0]?.vote_date    ? new Date(latestVoteRes.data[0].vote_date as string)    : null;
+  const latestQ     = (latestQRes.data || []).reduce<Date | null>((best, q) => {
+    const d = parseWareki(q.submitted_at as string);
+    return d && (!best || d > best) ? d : best;
+  }, null);
+
+  const isNew = {
+    questions: latestQ    ? latestQ    >= cutoff : false,
+    bills:     latestBill ? latestBill >= cutoff : false,
+    votes:     latestVote ? latestVote >= cutoff : false,
+  };
+
+  return { questions: qShuRes.count || 0, bills: billsRes.count || 0, adoptedBills, isNew };
 }
 
 // 採決一致率（全会期・ページネーションで全件取得）
@@ -695,11 +735,14 @@ export default async function TopPage() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "質問主意書", value: currentStats.questions,    note: "衆議院" },
-              { label: "議員立法",   value: currentStats.bills,        note: "提出" },
-              { label: "採決",       value: currentStats.adoptedBills, note: "参議院本会議" },
+              { label: "質問主意書", value: currentStats.questions,    note: "衆議院",       isNew: currentStats.isNew.questions },
+              { label: "議員立法",   value: currentStats.bills,        note: "提出",         isNew: currentStats.isNew.bills },
+              { label: "採決",       value: currentStats.adoptedBills, note: "参議院本会議", isNew: currentStats.isNew.votes },
             ].map((item) => (
-              <div key={item.label} className="bg-white border border-neutral-200 rounded-xl px-4 py-5 text-center">
+              <div key={item.label} className="relative bg-white border border-neutral-200 rounded-xl px-4 py-5 text-center">
+                {item.isNew && (
+                  <span className="absolute top-2 right-2 text-[9px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 leading-none">NEW</span>
+                )}
                 <div className="text-2xl font-extrabold tabular-nums text-neutral-900">{item.value.toLocaleString()}</div>
                 <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
                 <div className="text-[10px] text-neutral-400">{item.note}</div>
