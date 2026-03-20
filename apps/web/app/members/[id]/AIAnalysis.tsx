@@ -39,6 +39,8 @@ const SYSTEM_PROMPT =
   "### 3. 所属政党・連携での立ち位置\n（文章中心、データ根拠付き）\n\n" +
   "### 4. 直近の注目活動\n（最近の動きをストーリー的に）\n\n" +
   "### 5. まとめと一言キャッチフレーズ\n（全体を振り返るまとめ文＋キャッチフレーズ）\n\n" +
+  "### 6. 主な出典\n" +
+  "分析の根拠として使用した一次データを列挙する。国会会議録ID（speechID）・質問主意書の提出日とタイトル・議員立法のタイトルと提出日など、ユーザーが原文を確認できる情報を箇条書きで記載すること。提供データに含まれていないものは記載しない。\n\n" +
   "※この分析は公開データに基づく推測であり、『はたらく議員』の公式見解ではありません。";
 
 interface AIAnalysisProps {
@@ -172,7 +174,8 @@ function buildContext(props: AIAnalysisProps): string {
     lines.push("※ 国会会議録から取得した実際の発言テキスト。");
     for (const e of excerpts) {
       const date = e.spoken_at ? e.spoken_at.slice(0, 10) : "日付不明";
-      lines.push(`【${date} ${e.committee}】`);
+      const urlNote = e.source_url ? ` URL: ${e.source_url}` : "";
+      lines.push(`【${date} ${e.committee}${urlNote}】`);
       lines.push(e.excerpt);
       lines.push("");
     }
