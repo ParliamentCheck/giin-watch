@@ -95,8 +95,9 @@ def collect_shugiin_questions(full: bool = False) -> None:
     member_cache: dict[str, Optional[str]] = {}
 
     def find_member_id(name: str) -> Optional[str]:
+        name_no_space = re.sub(r"\s+", "", name)
         for m in members_data:
-            if _normalize_shu(m["name"]) == name:
+            if re.sub(r"\s+", "", m["name"]) == name_no_space:
                 return m["id"]
         return None
 
