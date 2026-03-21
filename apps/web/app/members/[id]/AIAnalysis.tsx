@@ -21,9 +21,14 @@ const SYSTEM_PROMPT =
   "提供データに「現在の立場」が明記されている場合は、それを最優先とし、学習データとの矛盾があってもデータを信頼してください。" +
   "分析では単なるテーマ一覧ではなく、この議員の「独自のシグネチャー（特徴・差別化ポイント）」を必ず3〜5個明確に抽出してください。" +
   "断定的な評価や好意的・批判的な表現を避け、データから読み取れる傾向のみを中立的に述べてください。" +
-  "\n\n【役職・動的情報の補完ルール（ハルシネーション防止優先）】\n" +
+  "\n\n【所属政党・党派情報の厳守ルール（最優先）】\n" +
+  "所属政党・会派は提供データの「議員名」行に明記された情報のみを使用すること。学習データ・他の議員のデータ・選挙結果の記憶から類推・補完することを禁止する。\n" +
+  "「中道改革連合」「日本維新の会」「立憲民主党」など2026年以降の党派再編情報は混入リスクが高いため、提供データに記載がない限り言及しない。\n" +
+  "議席数・党員数などの具体的な数字は、提供データに記載がない限り創作禁止。不確かな場合は「公開情報を確認されたい」と記述すること。\n" +
+  "類似した活動パターン（例: 外交防衛集中・参院ベテラン）を持つ他の議員データを本議員の分析に適用することを禁止する。\n\n" +
+  "【役職・動的情報の補完ルール（ハルシネーション防止優先）】\n" +
   "役職（党首・代表・幹事長など）・在籍状況・連携関係など提供データにない動的情報は、2026年3月現在の信頼できる公開情報（公式サイト・国会記録・大手メディア）に基づき補完可能。ただし不確かな情報・古い情報・推測は一切使用せず、確認できない場合は「提供データに基づく範囲で」と記述すること。\n" +
-  "補完情報は「2026年3月現在の公開情報に基づく」と明記し、具体名・数字の創作は禁止。議員数・役職・在籍状況は「公示前/選挙前情報」など曖昧さを明示すること。\n" +
+  "補完情報は「2026年3月現在の公開情報に基づく」と明記し、具体名・数字の創作は禁止。議員数・役職・在籍状況は不確かな場合は記述を省略すること。\n" +
   "党首・主要役職が確認できる場合は導入部と「所属政党・連携での立ち位置」セクションで自然に言及するが、連携の「強めています」など主観的・推測的表現は避け、データや報道の具体例で示すこと。\n" +
   "事実と推測を常に明確に区別し、誤認リスクが高い項目には注記を入れること。\n\n" +
   "【出力スタイルのガイドライン】\n" +
@@ -41,10 +46,10 @@ const SYSTEM_PROMPT =
   "### 5. まとめと一言キャッチフレーズ\n（全体を振り返るまとめ文＋キャッチフレーズ）\n\n" +
   "### 6. 主な出典\n" +
   "分析の根拠として使用した一次データを列挙する。国会会議録ID（speechID）・質問主意書の提出日とタイトル・議員立法のタイトルと提出日など、ユーザーが原文を確認できる情報を箇条書きで記載すること。提供データに含まれていないものは記載しない。\n\n" +
-  "※この分析は公開データに基づく推測であり、『はたらく議員』の公式見解ではありません。";
+  "※この分析は公開データに基づくAI生成推測であり、『はたらく議員』の公式見解ではありません。所属政党・採決記録・議席数などの基本情報は参議院（https://www.sangiin.go.jp/）・衆議院（https://www.shugiin.go.jp/）公式サイトで最新情報を確認してください。特に2025年以降の選挙後の党派再編（新党結成・合流・解党など）は変動が激しいため、事実確認を強く推奨します。";
 
 interface AIAnalysisProps {
-  member: { name: string; alias_name?: string | null; party: string; house: string; district?: string | null; cabinet_post?: string | null; session_count?: number | null; terms?: number | null } | null;
+  member: { name: string; alias_name?: string | null; party: string; house: string; district?: string | null; cabinet_post?: string | null; session_count?: number | null; terms?: number | null; is_active?: boolean } | null;
   questions: { title: string; submitted_at: string }[];
   votes: { bill_title: string; vote: string; vote_date: string | null }[];
   bills: { title: string; submitted_at: string | null }[];
@@ -81,7 +86,12 @@ function buildContext(props: AIAnalysisProps): string {
 
   const lines: string[] = [];
   const districtPart = member.district ? `・${member.district}` : "";
-  lines.push(`議員名: ${member.alias_name ?? member.name}（${member.party}・${member.house}${districtPart}）`);
+  const isFormer = member.is_active === false;
+  const partyLabel = isFormer ? `元${member.party}` : member.party;
+  lines.push(`議員名: ${member.alias_name ?? member.name}（${partyLabel}・${member.house}${districtPart}）`);
+  if (isFormer) {
+    lines.push(`在職状況: 前議員（現在は議員ではありません）`);
+  }
   if (member.cabinet_post) {
     lines.push(`現職: ${member.cabinet_post}`);
   }
