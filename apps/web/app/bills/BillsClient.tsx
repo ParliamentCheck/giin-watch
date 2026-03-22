@@ -15,7 +15,9 @@ interface Bill {
   session_number: number | null;
   house: string | null;
   submitter_ids: string[] | null;
-  source_url: string | null;
+  submitter_extra_count: number | null;
+  honbun_url: string | null;
+  keika_url: string | null;
   bill_type: string | null;
   committee_san: string | null;
   vote_date_san: string | null;
@@ -44,9 +46,9 @@ type StatusCategory = "成立" | "廃案" | "閉会中審査" | "審議中";
 
 function classifyStatus(status: string | null): StatusCategory {
   if (status === "成立") return "成立";
-  if (status === "未了" || status === "撤回") return "廃案";
+  if (status === "廃案" || status === "撤回" || status === "未了") return "廃案";
   if (status?.includes("閉会中")) return "閉会中審査";
-  return "審議中"; // null・空・審議中・本院議了 など
+  return "審議中"; // null・空・審議中 など
 }
 
 function getEffectiveParty(m: MemberInfo, billDate: string | null): string {
@@ -197,13 +199,13 @@ export default function BillsClient() {
       const [memberBillsRes, cabinetBillsRes, membersRes] = await Promise.all([
         supabase
           .from("bills")
-          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type,committee_san,vote_date_san,committee_shu,vote_date_shu")
+          .select("id,title,submitted_at,status,session_number,house,submitter_ids,submitter_extra_count,honbun_url,keika_url,bill_type,committee_san,vote_date_san,committee_shu,vote_date_shu")
           .eq("bill_type", "議員立法")
           .order("submitted_at", { ascending: false })
           .limit(1000),
         supabase
           .from("bills")
-          .select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url,bill_type,committee_san,vote_date_san,committee_shu,vote_date_shu")
+          .select("id,title,submitted_at,status,session_number,house,submitter_ids,submitter_extra_count,honbun_url,keika_url,bill_type,committee_san,vote_date_san,committee_shu,vote_date_shu")
           .eq("bill_type", "閣法")
           .order("submitted_at", { ascending: false })
           .limit(1000),
@@ -390,7 +392,8 @@ export default function BillsClient() {
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 12 }}>※ 第208回〜（2022年〜）の記録に基づく</div>
+                <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 4 }}>※ 第208回〜（2022年〜）の記録に基づく</div>
+                <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 12 }}>※ 本文・経過リンクは最初に提出された院（衆議院または参議院）のサイトに遷移します</div>
                 {statusFilter !== "all" && (
                   <div style={{ fontSize: 12, color: "#555555", marginBottom: 12 }}>
                     「{statusFilter}」で絞り込み中 — {filtered.length}件
@@ -434,22 +437,15 @@ export default function BillsClient() {
                     {filtered.slice((billsPage - 1) * PAGE_SIZE, billsPage * PAGE_SIZE).map((b) => (
                       <div key={b.id} className="card" style={{ padding: "16px 20px" }}>
                         <div style={{ marginBottom: 8 }}>
-                          {b.source_url ? (
-                            <a href={b.source_url} target="_blank" rel="noopener noreferrer"
-                              style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a",
-                                textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>
-                              {b.title}
-                              <span style={{ marginLeft: 4, color: "#aaaaaa", fontSize: 11 }}>↗</span>
-                            </a>
-                          ) : (
-                            <span style={{ color: "#888888", fontWeight: 600, fontSize: 14 }}>{b.title}</span>
-                          )}
+                          <span style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{b.title}</span>
                         </div>
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#555555", marginBottom: 8 }}>
                           {b.submitted_at && <span>{b.submitted_at}</span>}
                           {b.session_number && <span>第{b.session_number}回国会</span>}
                           {b.house && <span className="badge badge-house">{b.house}</span>}
                           {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
+                          {b.honbun_url && <a href={b.honbun_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>本文↗</a>}
+                          {b.keika_url && <a href={b.keika_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>経過↗</a>}
                         </div>
                         {b.submitter_ids && b.submitter_ids.length > 0 && (
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -459,6 +455,9 @@ export default function BillsClient() {
                               const name = id.split("-").slice(1).join("-");
                               return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                             })}
+                            {(b.submitter_extra_count ?? 0) > 0 && (
+                              <span style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>他{b.submitter_extra_count}名</span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -636,22 +635,15 @@ export default function BillsClient() {
                         {pairBills.map((b) => (
                           <div key={b.id} className="card" style={{ padding: "14px 18px" }}>
                             <div style={{ marginBottom: 6 }}>
-                              {b.source_url ? (
-                                <a href={b.source_url} target="_blank" rel="noopener noreferrer"
-                                  style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a",
-                                    textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>
-                                  {b.title}
-                                  <span style={{ marginLeft: 4, color: "#aaaaaa", fontSize: 11 }}>↗</span>
-                                </a>
-                              ) : (
-                                <span style={{ fontWeight: 600, fontSize: 13, color: "#555555" }}>{b.title}</span>
-                              )}
+                              <span style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a" }}>{b.title}</span>
                             </div>
                             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "#555555", marginBottom: 6 }}>
                               {b.submitted_at && <span>{b.submitted_at}</span>}
                               {b.session_number && <span>第{b.session_number}回国会</span>}
                               {b.house && <span className="badge badge-house">{b.house}</span>}
                               {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
+                              {b.honbun_url && <a href={b.honbun_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>本文↗</a>}
+                              {b.keika_url && <a href={b.keika_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>経過↗</a>}
                             </div>
                             {b.submitter_ids && b.submitter_ids.length > 0 && (
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -661,6 +653,9 @@ export default function BillsClient() {
                                   const name = id.split("-").slice(1).join("-");
                                   return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                                 })}
+                                {(b.submitter_extra_count ?? 0) > 0 && (
+                                  <span style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>他{b.submitter_extra_count}名</span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -750,22 +745,15 @@ export default function BillsClient() {
                   return (
                     <div key={b.id} className="card" style={{ padding: "16px 20px" }}>
                       <div style={{ marginBottom: 8 }}>
-                        {b.source_url ? (
-                          <a href={b.source_url} target="_blank" rel="noopener noreferrer"
-                            style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a",
-                              textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>
-                            {b.title}
-                            <span style={{ marginLeft: 4, color: "#aaaaaa", fontSize: 11 }}>↗</span>
-                          </a>
-                        ) : (
-                          <span style={{ color: "#888888", fontWeight: 600, fontSize: 14 }}>{b.title}</span>
-                        )}
+                        <span style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{b.title}</span>
                       </div>
                       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#555555", marginBottom: 8 }}>
                         {b.submitted_at && <span>{b.submitted_at}</span>}
                         {b.session_number && <span>第{b.session_number}回国会</span>}
                         {b.house && <span className="badge badge-house">{b.house}</span>}
                         {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
+                        {b.honbun_url && <a href={b.honbun_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>本文↗</a>}
+                        {b.keika_url && <a href={b.keika_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>経過↗</a>}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 12, color: "#888888" }}>内閣提出</span>

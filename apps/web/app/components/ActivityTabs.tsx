@@ -40,7 +40,9 @@ interface Bill {
   submitted_at: string | null;
   status: string | null;
   house: string | null;
-  source_url: string | null;
+  honbun_url: string | null;
+  keika_url: string | null;
+  submitter_extra_count: number | null;
   submitters: { id: string; name: string; party: string }[];
 }
 
@@ -158,15 +160,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                     {b.house === "衆議院" ? "衆" : "参"}
                   </span>
                 )}
-                {b.source_url ? (
-                  <a href={b.source_url} target="_blank" rel="noopener noreferrer"
-                    className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2 underline underline-offset-2 decoration-neutral-400">
-                    {b.title}
-                    <span className="inline-block ml-1 text-neutral-400 text-[11px] no-underline">↗</span>
-                  </a>
-                ) : (
-                  <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{b.title}</span>
-                )}
+                <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{b.title}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6 flex-wrap">
                 {b.submitted_at && <span className="tabular-nums">{b.submitted_at}</span>}
@@ -176,11 +170,16 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                     <span>{b.status}</span>
                   </>
                 )}
+                {b.honbun_url && <a href={b.honbun_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 decoration-neutral-400 hover:text-neutral-700">本文↗</a>}
+                {b.keika_url && <a href={b.keika_url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 decoration-neutral-400 hover:text-neutral-700">経過↗</a>}
                 {b.submitters.length > 0 && (
                   <span className="flex flex-wrap gap-1">
                     {b.submitters.map((s) => (
                       <MemberChip key={s.id} id={s.id} name={s.name} party={s.party} />
                     ))}
+                    {(b.submitter_extra_count ?? 0) > 0 && (
+                      <span className="text-xs text-neutral-400">他{b.submitter_extra_count}名</span>
+                    )}
                   </span>
                 )}
               </div>

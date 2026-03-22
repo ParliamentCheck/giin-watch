@@ -42,6 +42,7 @@ def main() -> None:
         "shugiin-questions",
         "sangiin-questions",
         "petitions-collect",
+        "bills-submitters",
     ])
     parser.add_argument("--years", type=int, default=4, help="keyword-full-rebuild の遡及年数")
     args = parser.parse_args()
@@ -114,6 +115,10 @@ def main() -> None:
     elif task == "sangiin-questions":
         from sources.questions import collect_sangiin_questions
         collect_sangiin_questions(full=True)
+
+    elif task == "bills-submitters":
+        from sources.bills import backfill_submitters
+        backfill_submitters()
 
     elif task == "petitions-collect":
         from sources.petitions import collect_shugiin_petitions, collect_sangiin_petitions

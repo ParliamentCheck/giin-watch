@@ -97,7 +97,7 @@ function FavoritesContent() {
             .order("submitted_at", { ascending: false })
             .limit(memberIds.length * 3),
           supabase.from("bills")
-            .select("submitter_ids, title, submitted_at, source_url")
+            .select("submitter_ids, title, submitted_at, honbun_url")
             .containedBy("submitter_ids", memberIds)
             .order("submitted_at", { ascending: false })
             .limit(memberIds.length * 3),
@@ -138,7 +138,7 @@ function FavoritesContent() {
         acts.push({
           memberId: submitterId, memberName: nameMap[submitterId] || "",
           type: "bill", label: b.title || "",
-          date: b.submitted_at || "", url: b.source_url || null,
+          date: b.submitted_at || "", url: b.honbun_url || null,
         });
       }
       for (const v of safe(5)) {

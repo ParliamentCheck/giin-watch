@@ -1,18 +1,30 @@
 """
-はたらく議員 — 議員立法・閣法スクレイパー
-衆議院・参議院から議員提出法案と閣法データを取得して bills テーブルに保存する。
+はたらく議員 — 法案スクレイパー
+
+衆院kaiji一覧（208〜現在）から衆法・参法・閣法を全収集し、
+honbun_url をキーに最新会期の1レコードに統合して bills テーブルに保存する。
 
 データソース:
   衆院一覧: https://www.shugiin.go.jp/internet/itdb_gian.nsf/html/gian/kaiji{session}.htm
-  参院一覧: https://www.sangiin.go.jp/japanese/joho1/kousei/gian/{session}/gian.htm
-  提出者・日付: 各法案の「経過」詳細ページから取得
+  各セクション: 衆法の一覧 / 参法の一覧 / 閣法の一覧
 
-閣法の取得方針:
-  閣法は衆参両院のサイトに同一法案が掲載されるが、参議院の詳細ページ（meisai）に
-  衆参両院の委員会付託・採決情報が集約されるため、参議院サイトのみを正とする。
-  衆議院側の閣法（cabinet-shu-*）は取得しない。
-  衆院ページにHTML法律案があるが当サイトでは法律案本文は取得対象外であり、
-  参院ページにPDF版があるため衆院HTMLの取得理由もない。
+ステータス変換ルール:
+  成立                  → 成立         （終端）
+  参議院回付案（同意）    → 成立         （終端）
+  撤回                  → 撤回         （終端）
+  未了                  → 廃案         （終端: 会期で決まらず消滅）
+  衆議院で閉会中審査      → 閉会中審査   （非終端: 次会期持越）
+  参議院で閉会中審査      → 閉会中審査   （非終端: 次会期持越）
+  衆議院で審議中          → 審議中       （非終端: 現会期中）
+  参議院で審議中          → 審議中       （非終端: 現会期中）
+  （空）                 → 審議中       （非終端: 現会期中）
+  本院議了               → keikaページ確認
+                           衆院結果=否決 → 廃案（終端）
+                           衆院結果=可決 → 参院送り（参院レコードで追跡）
+
+honbun_url による同一法案の統合:
+  同一の honbun_url は同一法案。繰り越しのたびに会期番号が変わるが本文URLは不変。
+  複数会期に存在する場合は最新会期のレコードのみ残す。
 """
 
 from __future__ import annotations
@@ -21,21 +33,44 @@ import logging
 import re
 import sys
 import time
+from collections import defaultdict
 from typing import Any
 from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
 
-from db import batch_upsert
+from db import batch_upsert, get_client
 from utils import make_member_id
 
 logger = logging.getLogger("bill_scraper")
 
 HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research)"}
+KAIJI_URL = "https://www.shugiin.go.jp/internet/itdb_gian.nsf/html/gian/kaiji{session}.htm"
+START_SESSION = 208
 
-# 和暦オフセット（元号の初年が西暦何年か - 1）
 ERA_OFFSETS = {"令和": 2018, "平成": 1988, "昭和": 1925}
+
+# kaijiページのステータス → 正規ステータス
+STATUS_MAP: dict[str, str] = {
+    "成立":                 "成立",
+    "参議院回付案（同意）":   "成立",
+    "撤回":                 "撤回",
+    "未了":                 "廃案",
+    "衆議院で閉会中審査":    "閉会中審査",
+    "参議院で閉会中審査":    "閉会中審査",
+    "衆議院で審議中":        "審議中",
+    "参議院で審議中":        "審議中",
+    "本院議了":              "本院議了",  # → keika確認が必要
+    "":                     "審議中",
+}
+
+# kaijiセクション名 → (house, bill_type, id_prefix)
+SECTION_META: dict[str, tuple[str, str, str]] = {
+    "衆法の一覧": ("衆議院", "議員立法", "bill-shu"),
+    "参法の一覧": ("参議院", "議員立法", "bill-san"),
+    "閣法の一覧": ("参議院", "閣法",     "cabinet-san"),
+}
 
 
 # ============================================================
@@ -43,225 +78,30 @@ ERA_OFFSETS = {"令和": 2018, "平成": 1988, "昭和": 1925}
 # ============================================================
 
 def _parse_jp_date(text: str) -> str | None:
-    """和暦日付（例: 令和6年1月26日、令和 7年 2月 5日）を YYYY-MM-DD に変換する。"""
     for era, offset in ERA_OFFSETS.items():
         m = re.search(rf"{era}\s*(\d+)年\s*(\d+)月\s*(\d+)日", text)
         if m:
             return f"{offset + int(m.group(1))}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-    m = re.search(r"(\d{4})[年./](\d{1,2})[月./](\d{1,2})", text)
-    if m:
-        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
     return None
 
 
-def _find_section_table(soup: BeautifulSoup, keyword: str):
-    """keyword を含む見出し直後のテーブルを返す。"""
-    for tag in soup.find_all(["h2", "h3", "h4", "caption", "p", "td", "th"]):
-        if keyword in tag.get_text():
-            # caption はテーブル内にあるので親テーブルを直接返す
-            if tag.name == "caption":
-                parent = tag.find_parent("table")
-                if parent:
-                    return parent
-            for sibling in tag.find_all_next():
-                if sibling.name == "table":
-                    return sibling
-                if sibling.name in ["h2", "h3", "h4"]:
-                    break
-    return None
-
-
-_BILL_TYPE_HOUSE = {"衆法": "衆議院", "参法": "参議院"}
-
-
-def _parse_name_cell(cell_el: Any, house: str) -> list[str]:
-    """提出者セルから member_id リストを返す。"""
-    raw = re.sub(r"外[〇一二三四五六七八九十百千\d]+名", "", cell_el.get_text()).strip()
-    result = []
-    for part in re.split(r"[、,，；;]+", raw):
-        name = re.sub(r"[君氏]$", "", part.strip())
-        name = re.sub(r"\s+", "", name)
-        if 2 <= len(name) <= 10:
-            result.append(make_member_id(house, name))
-    return result
-
-
-def _fetch_detail(url: str, house: str) -> tuple[list[str], str | None, str]:
-    """経過詳細ページから提出者リスト・提出日・ステータスを取得する。
-    衆院 keika ページと参院 meisai ページ両方に対応する。
-    戻り値: (submitter_ids, submitted_at, status)
-    """
+def _fetch(url: str, encoding: str = "shift_jis") -> BeautifulSoup | None:
     try:
         resp = requests.get(url, headers=HEADERS, timeout=30)
         if resp.status_code != 200:
-            return [], None, ""
-        resp.encoding = resp.apparent_encoding or "utf-8"
-        soup = BeautifulSoup(resp.text, "html.parser")
+            return None
+        resp.encoding = resp.apparent_encoding or encoding
+        return BeautifulSoup(resp.text, "html.parser")
     except requests.RequestException as exc:
-        logger.warning("Detail fetch failed %s: %s", url, exc)
-        return [], None, ""
-
-    primary_ids: list[str] = []   # 議案提出者 / 発議者（筆頭のみ）
-    full_ids: list[str] = []      # 議案提出者一覧（全員 / 衆院のみ）
-    submitted_at: str | None = None
-    status: str = ""
-    actual_house = house
-
-    for cell in soup.find_all(["th", "td"]):
-        text = cell.get_text(strip=True)
-        sibling = cell.find_next_sibling(["th", "td"])
-        if sibling is None:
-            continue
-        sib_text = sibling.get_text(strip=True)
-
-        if text == "議案種類":
-            # 衆院 keika ページ: 衆法/参法から提出者の院を確定
-            actual_house = _BILL_TYPE_HOUSE.get(sib_text, house)
-
-        elif text in ("議案提出者", "提出者", "発議者"):
-            if not primary_ids:
-                primary_ids = _parse_name_cell(sibling, actual_house)
-
-        elif text == "議案提出者一覧":
-            # 衆院 keika ページ: 全提出者リスト（優先使用）
-            full_ids = _parse_name_cell(sibling, actual_house)
-
-        elif text == "提出日" or f"{actual_house}議案受理年月日" in text or "提出年月日" in text:
-            if submitted_at is None:
-                submitted_at = _parse_jp_date(sib_text)
-
-        elif "公布" in text and sib_text:
-            status = "成立"
-
-        elif text == "継続区分" and sib_text:
-            if not status:
-                status = "参議院で閉会中審査"
-
-    if not status and "未了" in soup.get_text():
-        status = "未了"
-
-    return (full_ids if full_ids else primary_ids), submitted_at, status
-
-
-# ============================================================
-# 衆議院 議員提出法案
-# ============================================================
-SHUGIIN_LIST_URL = "https://www.shugiin.go.jp/internet/itdb_gian.nsf/html/gian/kaiji{session}.htm"
-
-
-def scrape_shugiin_bills(session: int) -> list[dict[str, Any]]:
-    """衆議院の議員提出法案（衆法）を取得する。"""
-    url = SHUGIIN_LIST_URL.format(session=session)
-    logger.info("Fetching Shugiin bills session %d", session)
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
-        resp.raise_for_status()
-    except requests.RequestException as exc:
-        logger.warning("Failed session %d: %s", session, exc)
-        return []
-
-    resp.encoding = resp.apparent_encoding or "shift_jis"
-    soup = BeautifulSoup(resp.text, "html.parser")
-
-    table = _find_section_table(soup, "衆法")
-    if table is None:
-        logger.warning("Shugiin session %d: 衆法テーブルが見つからない", session)
-        return []
-
-    rows: list[dict[str, Any]] = []
-    for tr in table.find_all("tr"):
-        tds = tr.find_all("td")
-        if len(tds) < 3:
-            continue
-        # tds[0]=提出回次, tds[1]=番号, tds[2]=議案名称, tds[3]=審議状況, tds[4]=経過リンク
-        bill_num_text = tds[1].get_text(strip=True)
-        if not re.fullmatch(r"\d+", bill_num_text):
-            continue
-        title = tds[2].get_text(strip=True)
-        if not title:
-            continue
-        status = tds[3].get_text(strip=True) if len(tds) > 3 else ""
-
-        submitter_ids: list[str] = []
-        submitted_at: str | None = None
-        source_url: str | None = None
-        if len(tds) > 4:
-            link = tds[4].find("a")
-            if link and link.get("href"):
-                detail_url = urljoin(url, link["href"])
-                submitter_ids, submitted_at, _ = _fetch_detail(detail_url, "衆議院")
-                time.sleep(1)
-        if len(tds) > 5:
-            text_link = tds[5].find("a")
-            if text_link and text_link.get("href"):
-                source_url = urljoin(url, text_link["href"])
-
-        rows.append({
-            "id": f"bill-shu-{session}-{bill_num_text}",
-            "title": title,
-            "submitter_ids": submitter_ids,
-            "submitted_at": submitted_at,
-            "session_number": session,
-            "status": status,
-            "house": "衆議院",
-            "source_url": source_url,
-        })
-
-    logger.info("Shugiin session %d: %d bills", session, len(rows))
-    return rows
-
-
-# ============================================================
-# 参議院 議員提出法案
-# ============================================================
-SANGIIN_LIST_URL = "https://www.sangiin.go.jp/japanese/joho1/kousei/gian/{session}/gian.htm"
-
-
-def _fetch_sangiin_statuses_from_shugiin(session: int) -> dict[str, str]:
-    """衆院 kaiji ページの「参法の一覧」セクションから 法案番号→審議状況 マップを返す。
-
-    衆院 kaiji ページには参法のステータス列があり（未了・成立・両院承認等）、
-    参院 meisai ページから検出できないステータスの補完ソースとして使用する。
-    """
-    url = SHUGIIN_LIST_URL.format(session=session)
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
-        if resp.status_code != 200:
-            return {}
-        resp.encoding = resp.apparent_encoding or "shift_jis"
-        soup = BeautifulSoup(resp.text, "html.parser")
-    except requests.RequestException as exc:
-        logger.warning("Failed to fetch shugiin kaiji for session %d: %s", session, exc)
-        return {}
-
-    table = _find_section_table(soup, "参法")
-    if table is None:
-        return {}
-
-    result: dict[str, str] = {}
-    for tr in table.find_all("tr"):
-        tds = tr.find_all("td")
-        if len(tds) < 4:
-            continue
-        bill_num_text = tds[1].get_text(strip=True)
-        if not re.fullmatch(r"\d+", bill_num_text):
-            continue
-        status = tds[3].get_text(strip=True)
-        if status:
-            result[bill_num_text] = status
-
-    logger.info("Shugiin kaiji session %d: %d 参法 statuses", session, len(result))
-    return result
-
-
-_KNOWN_SESSION = 221  # 既知の最新回次
+        logger.warning("Fetch failed %s: %s", url, exc)
+        return None
 
 
 def _detect_current_session() -> int:
     """参議院法案一覧ページの存在確認で現在の国会回次を検出する。"""
-    session = _KNOWN_SESSION
+    session = START_SESSION
     while True:
-        url = SANGIIN_LIST_URL.format(session=session + 1)
+        url = f"https://www.sangiin.go.jp/japanese/joho1/kousei/gian/{session + 1}/gian.htm"
         try:
             r = requests.head(url, headers=HEADERS, timeout=10)
             if r.status_code == 200:
@@ -273,244 +113,408 @@ def _detect_current_session() -> int:
     return session
 
 
-def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
-    """参議院の議員提出法案（参法）を取得する。"""
-    url = SANGIIN_LIST_URL.format(session=session)
-    logger.info("Fetching Sangiin bills session %d", session)
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
-        resp.raise_for_status()
-    except requests.RequestException as exc:
-        logger.warning("Failed session %d: %s", session, exc)
+# ============================================================
+# kaijiページのスクレイプ
+# ============================================================
+
+def _scrape_kaiji(session: int) -> list[dict[str, Any]]:
+    """
+    指定会期のkaijiページから衆法・参法・閣法の全行を返す。
+    各行: id, title, session_number, house, bill_type, raw_status,
+          honbun_url, keika_url
+    """
+    url = KAIJI_URL.format(session=session)
+    soup = _fetch(url)
+    if soup is None:
+        logger.warning("kaiji fetch failed: session %d", session)
         return []
-
-    resp.encoding = resp.apparent_encoding or "utf-8"
-    soup = BeautifulSoup(resp.text, "html.parser")
-
-    table = _find_section_table(soup, "参法")
-    if table is None:
-        logger.warning("Sangiin session %d: 参法テーブルが見つからない", session)
-        return []
-
-    # 衆院 kaiji ページの参法ステータスを先に取得（meisai から検出できない未了等の補完用）
-    shugiin_statuses = _fetch_sangiin_statuses_from_shugiin(session)
 
     rows: list[dict[str, Any]] = []
-    for tr in table.find_all("tr"):
-        tds = tr.find_all("td")
-        if len(tds) < 3:
-            continue
-        bill_num_text = tds[1].get_text(strip=True)
-        if not re.fullmatch(r"\d+", bill_num_text):
-            continue
-        title = tds[2].get_text(strip=True)
-        if not title:
-            continue
-        submitter_ids: list[str] = []
-        submitted_at: str | None = None
-        status: str = ""
-        source_url: str | None = None
-        # tds[2]（件名）のリンクが meisai 詳細ページ（tds[4] は PDF）
-        link = tds[2].find("a")
-        if link and link.get("href"):
-            detail_url = urljoin(url, link["href"])
-            source_url = detail_url
-            submitter_ids, submitted_at, status = _fetch_detail(detail_url, "参議院")
-            time.sleep(1)
 
-        # meisai からステータスを取得できなかった場合、衆院 kaiji の参法列で補完する
-        if not status and bill_num_text in shugiin_statuses:
-            status = shugiin_statuses[bill_num_text]
-            logger.debug("Session %d 参法 %s: meisai status empty, using shugiin kaiji status '%s'",
-                         session, bill_num_text, status)
+    for caption in soup.find_all("caption"):
+        caption_text = caption.get_text(strip=True)
+        if caption_text not in SECTION_META:
+            continue
+        house, bill_type, id_prefix = SECTION_META[caption_text]
+        table = caption.find_parent("table")
+        if table is None:
+            continue
 
-        rows.append({
-            "id": f"bill-san-{session}-{bill_num_text}",
-            "title": title,
-            "submitter_ids": submitter_ids,
-            "submitted_at": submitted_at,
-            "session_number": session,
-            "status": status,
-            "house": "参議院",
-            "source_url": source_url,
-        })
+        for tr in table.find_all("tr"):
+            tds = tr.find_all("td")
+            if len(tds) < 4:
+                continue
+            bill_num = tds[1].get_text(strip=True)
+            if not re.fullmatch(r"\d+", bill_num):
+                continue
+            title = tds[2].get_text(strip=True)
+            if not title:
+                continue
+            raw_status = tds[3].get_text(strip=True) if len(tds) > 3 else ""
 
-    logger.info("Sangiin session %d: %d bills", session, len(rows))
+            keika_url: str | None = None
+            honbun_url: str | None = None
+            if len(tds) > 4:
+                a = tds[4].find("a")
+                if a and a.get("href"):
+                    keika_url = urljoin(url, a["href"])
+            if len(tds) > 5:
+                a = tds[5].find("a")
+                if a and a.get("href"):
+                    honbun_url = urljoin(url, a["href"])
+
+            rows.append({
+                "id":             f"{id_prefix}-{session}-{bill_num}",
+                "title":          title,
+                "session_number": session,
+                "house":          house,
+                "bill_type":      bill_type,
+                "raw_status":     raw_status,
+                "keika_url":      keika_url,
+                "honbun_url":     honbun_url,
+            })
+
+    logger.info("kaiji session %d: %d rows", session, len(rows))
     return rows
 
 
 # ============================================================
-# 参議院 閣法
+# keikaページから詳細取得（衆法）
 # ============================================================
-# 衆院閣法スクレイパーは廃止済み（→ モジュール docstring 参照）
 
+def _fetch_keika_detail(keika_url: str) -> dict[str, Any]:
+    """
+    衆院keikaページから提出者・提出日・衆院審議結果を取得する。
 
-def _fetch_cabinet_detail(meisai_url: str) -> dict[str, Any]:
-    """参院 meisai 詳細ページから閣法の詳細情報を取得する。
+    ページには2種類の構造が混在する:
+      1. KOMOKU/NAIYO属性付きtd（メタ情報テーブル）
+      2. th/td隣接ペア（「議案提出者一覧」等の別テーブル）
 
-    取得フィールド:
-      status, law_number, promulgated_at,
-      committee_shu, committee_san,
-      vote_date_shu, vote_date_san,
-      vote_result_shu, vote_result_san
+    両方を走査して「議案提出者一覧」（全提出者名）を優先取得する。
+    一覧がない場合は「議案提出者」（筆頭＋外N名）を使用。
+
+    戻り値: {submitter_ids, submitter_extra_count, submitted_at, shu_result}
     """
     result: dict[str, Any] = {
-        "status": "", "law_number": None, "promulgated_at": None,
-        "committee_shu": None, "committee_san": None,
-        "vote_date_shu": None, "vote_date_san": None,
-        "vote_result_shu": None, "vote_result_san": None,
+        "submitter_ids":         [],
+        "submitter_extra_count": 0,
+        "submitted_at":          None,
+        "shu_result":            None,
     }
-    try:
-        resp = requests.get(meisai_url, headers=HEADERS, timeout=30)
-        if resp.status_code != 200:
-            return result
-        resp.encoding = resp.apparent_encoding or "utf-8"
-        soup = BeautifulSoup(resp.text, "html.parser")
-    except requests.RequestException:
+    soup = _fetch(keika_url)
+    if soup is None:
         return result
 
-    current_house: str | None = None
+    actual_house = "衆議院"
+    primary_ids:   list[str] = []
+    primary_extra: int = 0
+    full_ids:      list[str] = []
+    full_extra:    int = 0
 
-    for tag in soup.find_all(["h3", "h4", "th", "td", "caption"]):
-        text = tag.get_text(strip=True)
+    # パス1: KOMOKU/NAIYO属性付きtd（衆院keikaページの標準構造）
+    komokus = soup.find_all("td", headers="KOMOKU")
+    naiyos  = soup.find_all("td", headers="NAIYO")
 
-        # 院セクション見出しの検出
-        if "衆議院" in text and tag.name in ["h3", "h4", "caption", "th"]:
-            current_house = "shu"
-        elif "参議院" in text and tag.name in ["h3", "h4", "caption", "th"]:
-            current_house = "san"
+    for k, v in zip(komokus, naiyos):
+        ktext = k.get_text(strip=True)
+        vtext = v.get_text(strip=True)
 
-        if tag.name != "th":
+        if ktext == "議案種類":
+            if "参法" in vtext:
+                actual_house = "参議院"
+
+        elif ktext in ("議案提出者", "提出者", "発議者"):
+            if not primary_ids:
+                primary_ids, primary_extra = _parse_submitters(v, actual_house)
+
+        elif ktext == "議案提出者一覧":
+            full_ids, full_extra = _parse_submitters(v, actual_house)
+
+        elif "提出日" in ktext or "受理年月日" in ktext or "提出年月日" in ktext:
+            if result["submitted_at"] is None and vtext:
+                result["submitted_at"] = _parse_jp_date(vtext)
+
+        elif "衆議院審議結果" in ktext or "衆議院審査結果" in ktext:
+            if "否決" in vtext:
+                result["shu_result"] = "否決"
+            elif "可決" in vtext:
+                result["shu_result"] = "可決"
+
+    # パス2: th/td隣接ペア（「議案提出者一覧」が別テーブルに置かれている場合に対応）
+    # パス1で取得できなかった項目を補完する
+    for cell in soup.find_all(["th", "td"]):
+        text = cell.get_text(strip=True)
+        sibling = cell.find_next_sibling(["th", "td"])
+        if sibling is None:
             continue
+        sib_text = sibling.get_text(strip=True)
 
-        val_cell = tag.find_next_sibling("td")
-        val = val_cell.get_text(strip=True) if val_cell else ""
+        if text == "議案種類" and not full_ids:
+            actual_house = {"衆法": "衆議院", "参法": "参議院"}.get(sib_text, actual_house)
 
-        if "公布" in text:
-            if val:
-                result["promulgated_at"] = _parse_jp_date(val)
-                result["status"] = "成立"
-        elif "法律番号" in text:
-            result["law_number"] = val or None
-        elif current_house and "付託委員会" in text:
-            result[f"committee_{current_house}"] = val or None
-        elif current_house and "議決日" in text:
-            parsed = _parse_jp_date(val)
-            if parsed:
-                result[f"vote_date_{current_house}"] = parsed
-        elif current_house and "採決態様" in text:
-            result[f"vote_result_{current_house}"] = val or None
+        elif text in ("議案提出者", "提出者", "発議者") and not primary_ids:
+            primary_ids, primary_extra = _parse_submitters(sibling, actual_house)
 
-    if not result["status"] and "未了" in soup.get_text():
-        result["status"] = "未了"
+        elif text == "議案提出者一覧" and not full_ids:
+            full_ids, full_extra = _parse_submitters(sibling, actual_house)
 
+        elif ("提出日" in text or "受理年月日" in text or "提出年月日" in text) and result["submitted_at"] is None:
+            result["submitted_at"] = _parse_jp_date(sib_text)
+
+        elif ("衆議院審議結果" in text or "衆議院審査結果" in text) and result["shu_result"] is None:
+            if "否決" in sib_text:
+                result["shu_result"] = "否決"
+            elif "可決" in sib_text:
+                result["shu_result"] = "可決"
+
+    if full_ids:
+        result["submitter_ids"]         = full_ids
+        result["submitter_extra_count"] = full_extra
+    else:
+        result["submitter_ids"]         = primary_ids
+        result["submitter_extra_count"] = primary_extra
     return result
 
-def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
-    """参議院の閣法（内閣提出法案）を取得する。"""
-    url = SANGIIN_LIST_URL.format(session=session)
-    logger.info("Fetching Sangiin cabinet bills session %d", session)
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
-        resp.raise_for_status()
-    except requests.RequestException as exc:
-        logger.warning("Failed session %d: %s", session, exc)
-        return []
 
-    resp.encoding = resp.apparent_encoding or "utf-8"
-    soup = BeautifulSoup(resp.text, "html.parser")
+# 漢数字→算用数字マップ
+_KANJI_DIGIT = str.maketrans("〇一二三四五六七八九", "0123456789")
 
-    table = _find_section_table(soup, "内閣提出")
-    if table is None:
-        logger.warning("Sangiin session %d: 内閣提出テーブルが見つからない", session)
-        return []
+def _parse_submitters(cell, house: str) -> tuple[list[str], int]:
+    """
+    提出者セルから (member_id リスト, 外N名のN) を返す。
+    「足立康史君外2名」→ (["衆議院-足立康史"], 2)
+    """
+    raw = cell.get_text()
 
-    rows: list[dict[str, Any]] = []
-    for tr in table.find_all("tr"):
-        tds = tr.find_all("td")
-        if len(tds) < 3:
-            continue
-        bill_num_text = tds[1].get_text(strip=True)
-        if not re.fullmatch(r"\d+", bill_num_text):
-            continue
+    # 「外N名」を抽出してから除去
+    extra_count = 0
+    m = re.search(r"外([〇一二三四五六七八九十百千\d]+)名", raw)
+    if m:
+        num_str = m.group(1).translate(_KANJI_DIGIT)
+        try:
+            extra_count = int(num_str)
+        except ValueError:
+            extra_count = 0
+    raw = re.sub(r"外[〇一二三四五六七八九十百千\d]+名", "", raw).strip()
 
-        title_cell = tds[2]
-        title = title_cell.get_text(strip=True)
-        if not title:
-            continue
-
-        submitted_at: str | None = None
-        source_url: str | None = None
-        detail: dict[str, Any] = {}
-        link = title_cell.find("a")
-        if link and link.get("href"):
-            detail_url = urljoin(url, link["href"])
-            source_url = detail_url
-            _, submitted_at, _ = _fetch_detail(detail_url, "参議院")
-            detail = _fetch_cabinet_detail(detail_url)
-            time.sleep(1)
-
-        rows.append({
-            "id": f"cabinet-san-{session}-{bill_num_text}",
-            "title": title,
-            "submitter_ids": [],
-            "submitted_at": submitted_at,
-            "session_number": session,
-            "status": detail.get("status", ""),
-            "house": "参議院",
-            "source_url": source_url,
-            "bill_type": "閣法",
-            "law_number":     detail.get("law_number"),
-            "promulgated_at": detail.get("promulgated_at"),
-            "committee_shu":  detail.get("committee_shu"),
-            "committee_san":  detail.get("committee_san"),
-            "vote_date_shu":  detail.get("vote_date_shu"),
-            "vote_date_san":  detail.get("vote_date_san"),
-            "vote_result_shu": detail.get("vote_result_shu"),
-            "vote_result_san": detail.get("vote_result_san"),
-        })
-
-    logger.info("Sangiin cabinet bills session %d: %d bills", session, len(rows))
-    return rows
+    ids = []
+    for part in re.split(r"[、,，；;]+", raw):
+        name = re.sub(r"[君氏]$", "", part.strip())
+        name = re.sub(r"\s+", "", name)
+        if 2 <= len(name) <= 10:
+            ids.append(make_member_id(house, name))
+    return ids, extra_count
 
 
 # ============================================================
-# メイン
+# ステータス解決
 # ============================================================
-def collect_bills(sessions: list[int] | None = None, daily: bool = False) -> None:
-    """議員立法・閣法を収集する。daily=True のときは現在進行中のセッションのみ対象。"""
+
+def _resolve_status(row: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """
+    row の raw_status を正規ステータスに変換し、keikaページから詳細を取得する。
+    閣法は提出者取得をスキップ（内閣提出のため個々の議員名なし）。
+    戻り値: (status, detail_dict)
+      detail_dict: submitter_ids, submitter_extra_count, submitted_at
+    """
+    raw = row["raw_status"]
+    detail: dict[str, Any] = {
+        "submitter_ids":         [],
+        "submitter_extra_count": 0,
+        "submitted_at":          None,
+    }
+
+    keika_url = row.get("keika_url")
+    is_giin_rippo = row["bill_type"] == "議員立法"  # 衆法・参法（閣法は除く）
+
+    # 本院議了: keikaで衆院審議結果を確認
+    if raw == "本院議了":
+        if keika_url:
+            d = _fetch_keika_detail(keika_url)
+            detail["submitter_ids"]         = d["submitter_ids"]
+            detail["submitter_extra_count"] = d["submitter_extra_count"]
+            detail["submitted_at"]          = d["submitted_at"]
+            if d["shu_result"] == "否決":
+                return "廃案", detail
+            elif d["shu_result"] == "可決":
+                # 参院に送られている。参法レコードで追跡するため衆法側はスキップ。
+                return "_skip", detail
+            else:
+                logger.warning("本院議了 but no shu_result: %s", keika_url)
+                return "廃案", detail
+        return "廃案", detail
+
+    # 議員立法（衆法・参法）: keikaから提出者・提出日を常に取得
+    if is_giin_rippo and keika_url:
+        d = _fetch_keika_detail(keika_url)
+        detail["submitter_ids"]         = d["submitter_ids"]
+        detail["submitter_extra_count"] = d["submitter_extra_count"]
+        detail["submitted_at"]          = d["submitted_at"]
+
+    return STATUS_MAP.get(raw, "審議中"), detail
+
+
+# ============================================================
+# メイン収集
+# ============================================================
+
+def collect_bills(daily: bool = False) -> None:
+    """
+    法案データを収集してDBに保存する。
+
+    daily=True: 現在会期のみスクレイプし、非終端の既存レコードも再チェックする。
+    daily=False: START_SESSION から現在会期まで全件収集する。
+    """
+    current_session = _detect_current_session()
+
     if daily:
-        current = _detect_current_session()
-        sessions = [current]
-        logger.info("日次モード: 第%d回国会のみ対象", current)
+        sessions = [current_session]
+        logger.info("日次モード: 第%d回国会", current_session)
     else:
-        sessions = sessions or list(range(208, 222))
+        sessions = list(range(START_SESSION, current_session + 1))
+        logger.info("全収集モード: 第%d〜%d回国会", START_SESSION, current_session)
 
-    total_saved = 0
+    # --- 全会期をスクレイプ ---
+    all_rows: list[dict[str, Any]] = []
     for session in sessions:
-        for scrape_fn, label in [
-            (scrape_shugiin_bills,         f"bills_shu:{session}"),
-            (scrape_sangiin_bills,         f"bills_san:{session}"),
-            (scrape_sangiin_cabinet_bills, f"cabinet_san:{session}"),
-        ]:
-            rows = scrape_fn(session)
-            if rows:
-                seen: set[str] = set()
-                deduped = [r for r in rows if not (r["id"] in seen or seen.add(r["id"]))]
-                batch_upsert("bills", deduped, on_conflict="id", label=label)
-                total_saved += len(deduped)
-        time.sleep(2)
+        all_rows.extend(_scrape_kaiji(session))
+        time.sleep(1)
 
-    logger.info("Bill collection complete. Saved %d records.", total_saved)
+    # --- honbun_url でグループ化し最新会期のみ残す ---
+    by_honbun: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    no_honbun: list[dict[str, Any]] = []
+    for row in all_rows:
+        if row["honbun_url"]:
+            by_honbun[row["honbun_url"]].append(row)
+        else:
+            no_honbun.append(row)
+
+    deduped: list[dict[str, Any]] = []
+    for honbun_url, group in by_honbun.items():
+        latest = max(group, key=lambda r: r["session_number"])
+        deduped.append(latest)
+    deduped.extend(no_honbun)
+
+    logger.info("重複統合: %d行 → %d行", len(all_rows), len(deduped))
+
+    # --- ステータス解決・詳細取得 ---
+    to_upsert: list[dict[str, Any]] = []
+    to_delete_ids: list[str] = []  # 古い会期の重複レコードID
+
+    # 削除対象: 最新でないレコードのID
+    for honbun_url, group in by_honbun.items():
+        if len(group) > 1:
+            latest = max(group, key=lambda r: r["session_number"])
+            for row in group:
+                if row["id"] != latest["id"]:
+                    to_delete_ids.append(row["id"])
+
+    for row in deduped:
+        raw = row["raw_status"]
+        logger.debug("Resolving %s [%s]", row["id"], raw)
+
+        status, detail = _resolve_status(row)
+        if status == "_skip":
+            logger.info("Skip (参院送り): %s", row["id"])
+            continue
+
+        record = _make_record(
+            row, status,
+            detail["submitter_ids"],
+            detail["submitter_extra_count"],
+            detail["submitted_at"],
+        )
+        to_upsert.append(record)
+        time.sleep(0.5)
+
+    # --- 古い重複レコードを削除 ---
+    if to_delete_ids:
+        client = get_client()
+        logger.info("古い重複レコード削除: %d件", len(to_delete_ids))
+        for bill_id in to_delete_ids:
+            client.table("bills").delete().eq("id", bill_id).execute()
+
+    # --- IDで最終重複除去（同一IDが複数ある場合は最後のものを採用）---
+    seen_ids: dict[str, dict[str, Any]] = {}
+    for record in to_upsert:
+        seen_ids[record["id"]] = record
+    to_upsert = list(seen_ids.values())
+
+    # --- upsert ---
+    batch_upsert("bills", to_upsert, on_conflict="id", label="bills")
+    logger.info("収集完了: %d件保存", len(to_upsert))
+
+
+def backfill_submitters() -> None:
+    """
+    DBにある議員立法のうち提出者が1件以下のレコードに対してのみ
+    keika ページを再フェッチし、submitter_ids / submitter_extra_count を UPDATE する。
+
+    kaiji ページの再スクレイプは行わない。
+    他フィールドを上書きしないよう upsert ではなく UPDATE を使用する。
+    """
+    client = get_client()
+    res = client.table("bills") \
+        .select("id, keika_url, submitter_ids") \
+        .eq("bill_type", "議員立法") \
+        .not_.is_("keika_url", "null") \
+        .execute()
+
+    # array_length フィルタは PostgREST では使えないため Python 側で絞り込む
+    targets = [
+        r for r in (res.data or [])
+        if len(r.get("submitter_ids") or []) <= 1
+    ]
+    logger.info("提出者バックフィル対象: %d件", len(targets))
+
+    updated = 0
+    for r in targets:
+        detail = _fetch_keika_detail(r["keika_url"])
+        if len(detail["submitter_ids"]) > 1:
+            client.table("bills").update({
+                "submitter_ids":         detail["submitter_ids"],
+                "submitter_extra_count": detail["submitter_extra_count"],
+            }).eq("id", r["id"]).execute()
+            updated += 1
+            logger.info(
+                "%s: %d名取得",
+                r["id"], len(detail["submitter_ids"]) + detail["submitter_extra_count"],
+            )
+        time.sleep(0.3)
+
+    logger.info("提出者バックフィル完了: %d件更新", updated)
+
+
+def _make_record(
+    row: dict[str, Any],
+    status: str,
+    submitter_ids: list[str],
+    submitter_extra_count: int,
+    submitted_at: str | None,
+) -> dict[str, Any]:
+    return {
+        "id":                     row["id"],
+        "title":                  row["title"],
+        "session_number":         row["session_number"],
+        "house":                  row["house"],
+        "bill_type":              row["bill_type"],
+        "status":                 status,
+        "submitter_ids":          submitter_ids,
+        "submitter_extra_count":  submitter_extra_count,
+        "submitted_at":           submitted_at,
+        "honbun_url":             row["honbun_url"],
+        "keika_url":              row["keika_url"],
+    }
 
 
 if __name__ == "__main__":
     import argparse
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--daily", action="store_true", help="現在進行中の国会回次のみ収集")
+    parser.add_argument("--daily", action="store_true", help="現在会期のみ収集")
     args = parser.parse_args()
     try:
         collect_bills(daily=args.daily)
     except Exception:
-        logger.exception("Bill collection failed")
+        logger.exception("収集失敗")
         sys.exit(1)

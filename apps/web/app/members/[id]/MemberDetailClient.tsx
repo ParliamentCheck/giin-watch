@@ -66,7 +66,9 @@ interface Bill {
   status: string | null;
   session_number: number;
   house: string;
-  source_url: string | null;
+  honbun_url: string | null;
+  keika_url: string | null;
+  submitter_extra_count: number | null;
   submitter_ids: string[] | null;
 }
 
@@ -185,8 +187,8 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         supabase.from("committee_members").select("*").eq("member_id", memberId),
         supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
           .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(100),
-        supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids,source_url")
-          .contains("submitter_ids", [memberId]).limit(50),
+        supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids,submitter_extra_count,honbun_url,keika_url")
+          .contains("submitter_ids", [memberId]).order("submitted_at", { ascending: false }).limit(50),
         supabase.from("member_keywords").select("word,count")
           .eq("member_id", memberId).order("count", { ascending: false }).limit(50),
         supabase.from("petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
@@ -881,11 +883,18 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                       <span>{b.submitted_at || "日付不明"}</span>
                       <span>第{b.session_number}回国会</span>
                       {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
-                      {b.source_url && (
-                        <a href={b.source_url} target="_blank" rel="noopener noreferrer"
+                      {b.honbun_url && (
+                        <a href={b.honbun_url} target="_blank" rel="noopener noreferrer"
                           style={{ color: "#333333", textDecoration: "none" }}
                           onClick={(e) => e.stopPropagation()}>
-                          📄 本文を見る ↗
+                          本文↗
+                        </a>
+                      )}
+                      {b.keika_url && (
+                        <a href={b.keika_url} target="_blank" rel="noopener noreferrer"
+                          style={{ color: "#333333", textDecoration: "none" }}
+                          onClick={(e) => e.stopPropagation()}>
+                          経過↗
                         </a>
                       )}
                     </div>

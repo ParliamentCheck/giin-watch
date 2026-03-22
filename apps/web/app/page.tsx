@@ -123,7 +123,7 @@ async function getCrossPartyBills() {
   try {
     const { data: bills } = await supabase
       .from("bills")
-      .select("id, title, session_number, submitted_at, source_url, submitter_ids")
+      .select("id, title, session_number, submitted_at, honbun_url, keika_url, submitter_ids")
       .eq("bill_type", "議員立法")
       .limit(1000);
     if (!bills || bills.length === 0) return [];
@@ -160,7 +160,7 @@ async function getCrossPartyBills() {
             })
             .filter((p): p is string => !!p && !EXCLUDE.has(p))
         )];
-        return { id: b.id as string, title: b.title as string, session: b.session_number as number, source_url: b.source_url as string | null, parties };
+        return { id: b.id as string, title: b.title as string, session: b.session_number as number, honbun_url: b.honbun_url as string | null, keika_url: b.keika_url as string | null, parties };
       })
       .filter((b) => b.parties.length >= 3)
       .sort((a, b) => b.parties.length - a.parties.length)
@@ -174,7 +174,7 @@ async function getCrossPartyBills() {
 async function getRecentBills() {
   const billsRes = await supabase
     .from("bills")
-    .select("id, title, submitted_at, status, house, source_url, submitter_ids")
+    .select("id, title, submitted_at, status, house, honbun_url, keika_url, submitter_ids, submitter_extra_count")
     .order("submitted_at", { ascending: false })
     .limit(10);
 
@@ -707,10 +707,11 @@ export default async function TopPage() {
                         </span>
                         <span className="text-[11px] text-neutral-400">第{bill.session}回国会</span>
                       </div>
-                      <a href={bill.source_url || "#"} target="_blank" rel="noopener noreferrer"
-                        className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug line-clamp-2 transition-colors">
-                        {bill.title}
-                      </a>
+                      <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{bill.title}</span>
+                      <div className="flex gap-3 mt-1">
+                        {bill.honbun_url && <a href={bill.honbun_url} target="_blank" rel="noopener noreferrer" className="text-xs text-neutral-500 underline underline-offset-2 decoration-neutral-400 hover:text-neutral-700">本文↗</a>}
+                        {bill.keika_url && <a href={bill.keika_url} target="_blank" rel="noopener noreferrer" className="text-xs text-neutral-500 underline underline-offset-2 decoration-neutral-400 hover:text-neutral-700">経過↗</a>}
+                      </div>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {bill.parties.map((party: string) => (
                           <span key={party} className="inline-flex items-center gap-1 text-[10px] text-neutral-600">
