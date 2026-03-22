@@ -38,6 +38,7 @@ interface Bill {
   id: string;
   title: string;
   submitted_at: string | null;
+  session_number: number | null;
   status: string | null;
   house: string | null;
   honbun_url: string | null;
@@ -163,7 +164,9 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                 <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{b.title}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6 flex-wrap">
-                {b.submitted_at && <span className="tabular-nums">{b.submitted_at}</span>}
+                <span className="tabular-nums">
+                  {b.submitted_at ?? (b.session_number ? `第${b.session_number}回国会` : "")}
+                </span>
                 {b.status && (
                   <>
                     <span className="text-neutral-400">·</span>
@@ -219,7 +222,10 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6 flex-wrap">
-                  <span>第{p.session}回 #{p.number}</span>
+                  {p.result_date
+                    ? <span className="tabular-nums">{p.result_date}</span>
+                    : <span>第{p.session}回 #{p.number}</span>
+                  }
                   {p.committee_name && (
                     <>
                       <span className="text-neutral-600">·</span>
@@ -230,12 +236,6 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                     <>
                       <span className="text-neutral-600">·</span>
                       <span style={{ color: resultColor, fontWeight: 700 }}>{p.result}</span>
-                    </>
-                  )}
-                  {p.result_date && (
-                    <>
-                      <span className="text-neutral-600">·</span>
-                      <span className="tabular-nums">{p.result_date}</span>
                     </>
                   )}
                 </div>

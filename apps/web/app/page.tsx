@@ -174,14 +174,16 @@ async function getCrossPartyBills() {
 async function getRecentBills() {
   const billsRes = await supabase
     .from("bills")
-    .select("id, title, submitted_at, status, house, honbun_url, keika_url, submitter_ids, submitter_extra_count")
-    .order("submitted_at", { ascending: false })
+    .select("id, title, submitted_at, session_number, status, house, honbun_url, keika_url, submitter_ids, submitter_extra_count")
+    .eq("bill_type", "議員立法")
+    .order("session_number", { ascending: false })
+    .order("id", { ascending: false })
     .limit(10);
 
   const bills = billsRes.data || [];
   const allIds = [...new Set(bills.flatMap((b: any) => b.submitter_ids || []))];
 
-  if (allIds.length === 0) return bills.map((b: any) => ({ ...b, submitterNames: [] }));
+  if (allIds.length === 0) return bills.map((b: any) => ({ ...b, submitters: [] }));
 
   const membersRes = await supabase
     .from("members")
@@ -240,14 +242,10 @@ const PARTY_SHORT: Record<string, string> = {
 };
 
 async function getCurrentSessionStats() {
-  const [qShuRes, votedBillsRes, billsRes, latestBillRes, latestVoteRes, latestQRes] = await Promise.all([
+  const [qShuRes, billsRes, latestBillRes, latestQRes, petitionsShuRes, petitionsSanRes, latestPetitionRes] = await Promise.all([
     supabase.from("questions")
       .select("id", { count: "exact", head: true })
       .eq("session", CURRENT_SESSION),
-    supabase.from("votes")
-      .select("bill_title")
-      .eq("session_number", CURRENT_SESSION)
-      .limit(2000),
     supabase.from("bills")
       .select("id", { count: "exact", head: true })
       .gte("submitted_at", "2026-01-01"),
@@ -256,19 +254,24 @@ async function getCurrentSessionStats() {
       .gte("submitted_at", "2026-01-01")
       .order("submitted_at", { ascending: false })
       .limit(1),
-    supabase.from("votes")
-      .select("vote_date")
-      .eq("session_number", CURRENT_SESSION)
-      .order("vote_date", { ascending: false })
-      .limit(1),
     supabase.from("questions")
       .select("submitted_at")
       .eq("session", CURRENT_SESSION)
       .order("id", { ascending: false })
       .limit(5),
+    supabase.from("petitions")
+      .select("id", { count: "exact", head: true })
+      .eq("session", CURRENT_SESSION),
+    supabase.from("sangiin_petitions")
+      .select("id", { count: "exact", head: true })
+      .eq("session", CURRENT_SESSION),
+    supabase.from("petitions")
+      .select("result_date")
+      .eq("session", CURRENT_SESSION)
+      .not("result_date", "is", null)
+      .order("result_date", { ascending: false })
+      .limit(1),
   ]);
-
-  const adoptedBills = new Set((votedBillsRes.data || []).map((v: any) => v.bill_title)).size;
 
   // 令和7年 3月18日 → Date
   function parseWareki(s: string): Date | null {
@@ -281,20 +284,22 @@ async function getCurrentSessionStats() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 5);
 
-  const latestBill  = latestBillRes.data?.[0]?.submitted_at ? new Date(latestBillRes.data[0].submitted_at as string) : null;
-  const latestVote  = latestVoteRes.data?.[0]?.vote_date    ? new Date(latestVoteRes.data[0].vote_date as string)    : null;
-  const latestQ     = (latestQRes.data || []).reduce<Date | null>((best, q) => {
+  const latestBill     = latestBillRes.data?.[0]?.submitted_at ? new Date(latestBillRes.data[0].submitted_at as string) : null;
+  const latestPetition = latestPetitionRes.data?.[0]?.result_date ? new Date(latestPetitionRes.data[0].result_date as string) : null;
+  const latestQ        = (latestQRes.data || []).reduce<Date | null>((best, q) => {
     const d = parseWareki(q.submitted_at as string);
     return d && (!best || d > best) ? d : best;
   }, null);
 
   const isNew = {
-    questions: latestQ    ? latestQ    >= cutoff : false,
-    bills:     latestBill ? latestBill >= cutoff : false,
-    votes:     latestVote ? latestVote >= cutoff : false,
+    questions: latestQ        ? latestQ        >= cutoff : false,
+    bills:     latestBill     ? latestBill     >= cutoff : false,
+    petitions: latestPetition ? latestPetition >= cutoff : false,
   };
 
-  return { questions: qShuRes.count || 0, bills: billsRes.count || 0, adoptedBills, isNew };
+  const petitions = (petitionsShuRes.count || 0) + (petitionsSanRes.count || 0);
+
+  return { questions: qShuRes.count || 0, bills: billsRes.count || 0, petitions, isNew };
 }
 
 // 採決一致率（全会期・ページネーションで全件取得）
@@ -736,9 +741,9 @@ export default async function TopPage() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "質問主意書", value: currentStats.questions,    note: "衆議院",       isNew: currentStats.isNew.questions },
-              { label: "議員立法",   value: currentStats.bills,        note: "提出",         isNew: currentStats.isNew.bills },
-              { label: "採決",       value: currentStats.adoptedBills, note: "参議院本会議", isNew: currentStats.isNew.votes },
+              { label: "質問主意書", value: currentStats.questions, note: "衆議院",   isNew: currentStats.isNew.questions },
+              { label: "議員立法",   value: currentStats.bills,     note: "提出",     isNew: currentStats.isNew.bills },
+              { label: "請願",       value: currentStats.petitions, note: "衆参合計", isNew: currentStats.isNew.petitions },
             ].map((item) => (
               <div key={item.label} className="relative bg-white border border-neutral-200 rounded-xl px-4 py-5 text-center">
                 {item.isNew && (
