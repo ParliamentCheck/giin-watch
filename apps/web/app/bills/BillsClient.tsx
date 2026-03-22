@@ -40,12 +40,13 @@ interface PairStat {
 // 中道改革連合の正式結成日。これ以前の法案は前所属政党として集計する
 const CHUDO_FORMATION_DATE = "2026-01-16";
 
-type StatusCategory = "成立" | "廃案" | "審議中";
+type StatusCategory = "成立" | "廃案" | "閉会中審査" | "審議中";
 
 function classifyStatus(status: string | null): StatusCategory {
   if (status === "成立") return "成立";
   if (status === "未了" || status === "撤回") return "廃案";
-  return "審議中"; // null・空・閉会中審査・審議中・本院議了 など
+  if (status?.includes("閉会中審査")) return "閉会中審査";
+  return "審議中"; // null・空・審議中・本院議了 など
 }
 
 function getEffectiveParty(m: MemberInfo, billDate: string | null): string {
@@ -289,9 +290,10 @@ export default function BillsClient() {
 
   // ステータス別件数（院フィルター・検索は無視して全件から集計）
   const statusCounts = {
-    成立:   currentListBills.filter(b => classifyStatus(b.status) === "成立").length,
-    廃案:   currentListBills.filter(b => classifyStatus(b.status) === "廃案").length,
-    審議中: currentListBills.filter(b => classifyStatus(b.status) === "審議中").length,
+    成立:     currentListBills.filter(b => classifyStatus(b.status) === "成立").length,
+    廃案:     currentListBills.filter(b => classifyStatus(b.status) === "廃案").length,
+    閉会中審査: currentListBills.filter(b => classifyStatus(b.status) === "閉会中審査").length,
+    審議中:   currentListBills.filter(b => classifyStatus(b.status) === "審議中").length,
   };
   const rateBase = statusCounts.成立 + statusCounts.廃案;
   const passRate = rateBase > 0 ? (statusCounts.成立 / rateBase * 100).toFixed(1) : null;
@@ -349,9 +351,10 @@ export default function BillsClient() {
                 {/* ステータスカード */}
                 <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                   {([
-                    { label: "成立"   as const, count: statusCounts.成立,   color: "#22c55e" },
-                    { label: "廃案"   as const, count: statusCounts.廃案,   color: "#ef4444" },
-                    { label: "審議中" as const, count: statusCounts.審議中, color: "#888888" },
+                    { label: "成立"       as const, count: statusCounts.成立,       color: "#22c55e" },
+                    { label: "廃案"       as const, count: statusCounts.廃案,       color: "#ef4444" },
+                    { label: "閉会中審査" as const, count: statusCounts.閉会中審査, color: "#f59e0b" },
+                    { label: "審議中"     as const, count: statusCounts.審議中,     color: "#888888" },
                   ] as { label: StatusCategory; count: number; color: string }[]).map(({ label, count, color }) => {
                     const isActive = statusFilter === label;
                     return (
@@ -662,9 +665,10 @@ export default function BillsClient() {
             {/* ステータスカード */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               {([
-                { label: "成立"   as const, count: statusCounts.成立,   color: "#22c55e" },
-                { label: "廃案"   as const, count: statusCounts.廃案,   color: "#ef4444" },
-                { label: "審議中" as const, count: statusCounts.審議中, color: "#888888" },
+                { label: "成立"       as const, count: statusCounts.成立,       color: "#22c55e" },
+                { label: "廃案"       as const, count: statusCounts.廃案,       color: "#ef4444" },
+                { label: "閉会中審査" as const, count: statusCounts.閉会中審査, color: "#f59e0b" },
+                { label: "審議中"     as const, count: statusCounts.審議中,     color: "#888888" },
               ] as { label: StatusCategory; count: number; color: string }[]).map(({ label, count, color }) => {
                 const isActive = statusFilter === label;
                 return (
