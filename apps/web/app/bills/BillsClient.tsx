@@ -263,7 +263,18 @@ export default function BillsClient() {
     fetchData();
   }, []);
 
-  const memberBills = bills.filter((b) => (b.bill_type ?? "議員立法") === "議員立法");
+  const memberBills = bills
+    .filter((b) => (b.bill_type ?? "議員立法") === "議員立法")
+    .sort((a, b) => {
+      const sd = (b.session_number ?? 0) - (a.session_number ?? 0);
+      if (sd !== 0) return sd;
+      if (a.submitted_at && b.submitted_at) return b.submitted_at.localeCompare(a.submitted_at);
+      if (a.submitted_at) return -1;
+      if (b.submitted_at) return 1;
+      const na = parseInt(a.id.split("-").pop() ?? "0");
+      const nb = parseInt(b.id.split("-").pop() ?? "0");
+      return nb - na;
+    });
   const cabinetBills = bills
     .filter((b) => b.bill_type === "閣法")
     .sort((a, b) => {
@@ -444,7 +455,9 @@ export default function BillsClient() {
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                             {b.submitter_ids.map((id) => {
                               const m = memberMap[id];
-                              return m ? <MemberChip key={id} id={id} name={m.name} party={m.party} /> : null;
+                              if (m) return <MemberChip key={id} id={id} name={m.name} party={m.party} />;
+                              const name = id.split("-").slice(1).join("-");
+                              return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                             })}
                           </div>
                         )}
@@ -644,7 +657,9 @@ export default function BillsClient() {
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                 {b.submitter_ids.map((id) => {
                                   const m = memberMap[id];
-                                  return m ? <MemberChip key={id} id={id} name={m.name} party={m.party} /> : null;
+                                  if (m) return <MemberChip key={id} id={id} name={m.name} party={m.party} />;
+                                  const name = id.split("-").slice(1).join("-");
+                                  return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                                 })}
                               </div>
                             )}
