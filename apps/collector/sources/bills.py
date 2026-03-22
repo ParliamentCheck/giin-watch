@@ -216,6 +216,44 @@ def scrape_shugiin_bills(session: int) -> list[dict[str, Any]]:
 # ============================================================
 SANGIIN_LIST_URL = "https://www.sangiin.go.jp/japanese/joho1/kousei/gian/{session}/gian.htm"
 
+
+def _fetch_sangiin_statuses_from_shugiin(session: int) -> dict[str, str]:
+    """衆院 kaiji ページの「参法の一覧」セクションから 法案番号→審議状況 マップを返す。
+
+    衆院 kaiji ページには参法のステータス列があり（未了・成立・両院承認等）、
+    参院 meisai ページから検出できないステータスの補完ソースとして使用する。
+    """
+    url = SHUGIIN_LIST_URL.format(session=session)
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=30)
+        if resp.status_code != 200:
+            return {}
+        resp.encoding = resp.apparent_encoding or "shift_jis"
+        soup = BeautifulSoup(resp.text, "html.parser")
+    except requests.RequestException as exc:
+        logger.warning("Failed to fetch shugiin kaiji for session %d: %s", session, exc)
+        return {}
+
+    table = _find_section_table(soup, "参法")
+    if table is None:
+        return {}
+
+    result: dict[str, str] = {}
+    for tr in table.find_all("tr"):
+        tds = tr.find_all("td")
+        if len(tds) < 4:
+            continue
+        bill_num_text = tds[1].get_text(strip=True)
+        if not re.fullmatch(r"\d+", bill_num_text):
+            continue
+        status = tds[3].get_text(strip=True)
+        if status:
+            result[bill_num_text] = status
+
+    logger.info("Shugiin kaiji session %d: %d 参法 statuses", session, len(result))
+    return result
+
+
 _KNOWN_SESSION = 221  # 既知の最新回次
 
 
@@ -254,6 +292,9 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
         logger.warning("Sangiin session %d: 参法テーブルが見つからない", session)
         return []
 
+    # 衆院 kaiji ページの参法ステータスを先に取得（meisai から検出できない未了等の補完用）
+    shugiin_statuses = _fetch_sangiin_statuses_from_shugiin(session)
+
     rows: list[dict[str, Any]] = []
     for tr in table.find_all("tr"):
         tds = tr.find_all("td")
@@ -276,6 +317,12 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
             source_url = detail_url
             submitter_ids, submitted_at, status = _fetch_detail(detail_url, "参議院")
             time.sleep(1)
+
+        # meisai からステータスを取得できなかった場合、衆院 kaiji の参法列で補完する
+        if not status and bill_num_text in shugiin_statuses:
+            status = shugiin_statuses[bill_num_text]
+            logger.debug("Session %d 参法 %s: meisai status empty, using shugiin kaiji status '%s'",
+                         session, bill_num_text, status)
 
         rows.append({
             "id": f"bill-san-{session}-{bill_num_text}",
