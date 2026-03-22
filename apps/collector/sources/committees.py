@@ -106,10 +106,10 @@ def collect_shugiin_committees() -> None:
             f"衆院委員会スクレイピング件数が異常 ({len(all_rows)}件、期待値 50件以上) — "
             "衆院サイトの構造変更の可能性があります。"
         )
-    # null member_id 行は UNIQUE 制約をくぐって毎日蓄積するため、挿入前に削除
+    # 全件削除してから再登録（退会済み委員の古いレコードが残らないように）
     execute_with_retry(
-        lambda: client.table("committee_members").delete().eq("house", "衆議院").is_("member_id", "null"),
-        label="delete_null_shugiin",
+        lambda: client.table("committee_members").delete().eq("house", "衆議院"),
+        label="delete_shugiin_committees",
     )
     batch_upsert("committee_members", all_rows, on_conflict="member_id,committee,role", label="shugiin_committee")
     logger.info("衆院委員会 完了: %d件", len(all_rows))
@@ -241,10 +241,10 @@ def collect_sangiin_committees() -> None:
             f"参院委員会スクレイピング件数が異常 ({len(all_rows)}件、期待値 50件以上) — "
             "参院サイトの構造変更の可能性があります。"
         )
-    # null member_id 行は UNIQUE 制約をくぐって毎日蓄積するため、挿入前に削除
+    # 全件削除してから再登録（退会済み委員の古いレコードが残らないように）
     execute_with_retry(
-        lambda: client.table("committee_members").delete().eq("house", "参議院").is_("member_id", "null"),
-        label="delete_null_sangiin",
+        lambda: client.table("committee_members").delete().eq("house", "参議院"),
+        label="delete_sangiin_committees",
     )
     batch_upsert("committee_members", all_rows, on_conflict="member_id,committee,role", label="sangiin_committee")
     logger.info("参院委員会 完了: %d件", len(all_rows))
