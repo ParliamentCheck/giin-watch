@@ -55,9 +55,10 @@ function CommitteeDetailContent() {
   const router = useRouter();
   const committeeName = decodeURIComponent(params.name as string);
   const searchParams = useSearchParams();
-  const [members,   setMembers]   = useState<CommitteeMember[]>([]);
-  const [petitions, setPetitions] = useState<Petition[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  const [members,       setMembers]       = useState<CommitteeMember[]>([]);
+  const [petitions,     setPetitions]     = useState<Petition[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [selectedHouse, setSelectedHouse] = useState<string>("");
   const tab = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
   const COMMITTEE_TAB_LABELS: Record<string, string> = {
     chairs: "委員長・理事", members: "議員一覧", petitions: "請願",
@@ -167,13 +168,20 @@ function CommitteeDetailContent() {
     return () => clearTimeout(fallbackTimer);
   }, [committeeName]);
 
+  // 衆参両方存在するか
+  const houses = [...new Set(members.map((m) => m.house).filter(Boolean))];
+  const hasBothHouses = houses.length >= 2;
+
+  // 院フィルター適用
+  const displayMembers = selectedHouse ? members.filter((m) => m.house === selectedHouse) : members;
+
   // 役職別
-  const chairList = members.filter((m) => m.role === "委員長" || m.role === "会長");
-  const execList  = members.filter((m) => m.role === "理事"   || m.role === "副会長");
+  const chairList = displayMembers.filter((m) => m.role === "委員長" || m.role === "会長");
+  const execList  = displayMembers.filter((m) => m.role === "理事"   || m.role === "副会長");
 
   // 党別構成
   const partyCount: Record<string, number> = {};
-  for (const m of members) {
+  for (const m of displayMembers) {
     partyCount[m.party] = (partyCount[m.party] || 0) + 1;
   }
   const partyBreakdown = Object.entries(partyCount)
@@ -181,14 +189,12 @@ function CommitteeDetailContent() {
   const maxPartyCount = partyBreakdown[0]?.[1] || 1;
 
   // ソート
-  const sorted = [...members].sort((a, b) => {
+  const sorted = [...displayMembers].sort((a, b) => {
     if (sortBy === "role") return roleRank(a.role) - roleRank(b.role);
     return a.name.localeCompare(b.name, "ja");
   });
 
-  // 院の色
-  const houseColor = committeeName.includes("参議院") || committeeName.includes("参院")
-    ? "#333333" : "#888888";
+  const houseColor = "#333333";
 
   if (loading) return (
     <div className="loading-block" style={{ minHeight: "100vh" }}>
@@ -215,11 +221,21 @@ function CommitteeDetailContent() {
             {committeeName}
           </h1>
         </div>
+        {hasBothHouses && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            {["", "衆議院", "参議院"].map((h) => (
+              <button key={h} onClick={() => setSelectedHouse(h)}
+                className={`filter-btn${selectedHouse === h ? " active" : ""}`}>
+                {h || "両院"}
+              </button>
+            ))}
+          </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
-            { label: "所属議員数",   value: members.length,      unit: "名" },
-            { label: "委員長・会長", value: chairList.length,     unit: "名" },
-            { label: "理事・副会長", value: execList.length,      unit: "名" },
+            { label: "所属議員数",   value: displayMembers.length, unit: "名" },
+            { label: "委員長・会長", value: chairList.length,       unit: "名" },
+            { label: "理事・副会長", value: execList.length,        unit: "名" },
           ].map((item) => (
             <div key={item.label} style={{ background: "#e0e0e0", borderRadius: 12,
               padding: 16, textAlign: "center" }}>
@@ -265,8 +281,8 @@ function CommitteeDetailContent() {
       {/* タブバー */}
       <div className="tab-bar tab-bar-container">
         {([
-          { id: "chairs"   as const, label: `🏛 委員長・理事 (${chairList.length + execList.length})` },
-          { id: "members"  as const, label: `👤 議員一覧 (${members.length})` },
+          { id: "chairs"    as const, label: "🏛 委員長・理事" },
+          { id: "members"   as const, label: "👤 議員一覧" },
           { id: "petitions" as const, label: `📜 請願 (${petitions.length})` },
         ]).map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
