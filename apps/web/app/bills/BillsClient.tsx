@@ -45,7 +45,7 @@ type StatusCategory = "成立" | "廃案" | "閉会中審査" | "審議中";
 function classifyStatus(status: string | null): StatusCategory {
   if (status === "成立") return "成立";
   if (status === "未了" || status === "撤回") return "廃案";
-  if (status?.includes("閉会中審査")) return "閉会中審査";
+  if (status?.includes("閉会中")) return "閉会中審査";
   return "審議中"; // null・空・審議中・本院議了 など
 }
 

@@ -86,23 +86,25 @@ def _parse_name_cell(cell_el: Any, house: str) -> list[str]:
     return result
 
 
-def _fetch_detail(url: str, house: str) -> tuple[list[str], str | None]:
-    """経過詳細ページから提出者リストと提出日を取得する。
+def _fetch_detail(url: str, house: str) -> tuple[list[str], str | None, str]:
+    """経過詳細ページから提出者リスト・提出日・ステータスを取得する。
     衆院 keika ページと参院 meisai ページ両方に対応する。
+    戻り値: (submitter_ids, submitted_at, status)
     """
     try:
         resp = requests.get(url, headers=HEADERS, timeout=30)
         if resp.status_code != 200:
-            return [], None
+            return [], None, ""
         resp.encoding = resp.apparent_encoding or "utf-8"
         soup = BeautifulSoup(resp.text, "html.parser")
     except requests.RequestException as exc:
         logger.warning("Detail fetch failed %s: %s", url, exc)
-        return [], None
+        return [], None, ""
 
     primary_ids: list[str] = []   # 議案提出者 / 発議者（筆頭のみ）
     full_ids: list[str] = []      # 議案提出者一覧（全員 / 衆院のみ）
     submitted_at: str | None = None
+    status: str = ""
     actual_house = house
 
     for cell in soup.find_all(["th", "td"]):
@@ -128,7 +130,17 @@ def _fetch_detail(url: str, house: str) -> tuple[list[str], str | None]:
             if submitted_at is None:
                 submitted_at = _parse_jp_date(sib_text)
 
-    return (full_ids if full_ids else primary_ids), submitted_at
+        elif "公布" in text and sib_text:
+            status = "成立"
+
+        elif text == "継続区分" and sib_text:
+            if not status:
+                status = "参議院で閉会中審査"
+
+    if not status and "未了" in soup.get_text():
+        status = "未了"
+
+    return (full_ids if full_ids else primary_ids), submitted_at, status
 
 
 # ============================================================
@@ -177,7 +189,7 @@ def scrape_shugiin_bills(session: int) -> list[dict[str, Any]]:
             link = tds[4].find("a")
             if link and link.get("href"):
                 detail_url = urljoin(url, link["href"])
-                submitter_ids, submitted_at = _fetch_detail(detail_url, "衆議院")
+                submitter_ids, submitted_at, _ = _fetch_detail(detail_url, "衆議院")
                 time.sleep(1)
         if len(tds) > 5:
             text_link = tds[5].find("a")
@@ -253,17 +265,16 @@ def scrape_sangiin_bills(session: int) -> list[dict[str, Any]]:
         title = tds[2].get_text(strip=True)
         if not title:
             continue
-        status = tds[3].get_text(strip=True) if len(tds) > 3 else ""
-
         submitter_ids: list[str] = []
         submitted_at: str | None = None
+        status: str = ""
         source_url: str | None = None
         # tds[2]（件名）のリンクが meisai 詳細ページ（tds[4] は PDF）
         link = tds[2].find("a")
         if link and link.get("href"):
             detail_url = urljoin(url, link["href"])
             source_url = detail_url
-            submitter_ids, submitted_at = _fetch_detail(detail_url, "参議院")
+            submitter_ids, submitted_at, status = _fetch_detail(detail_url, "参議院")
             time.sleep(1)
 
         rows.append({
@@ -388,7 +399,7 @@ def scrape_sangiin_cabinet_bills(session: int) -> list[dict[str, Any]]:
         if link and link.get("href"):
             detail_url = urljoin(url, link["href"])
             source_url = detail_url
-            _, submitted_at = _fetch_detail(detail_url, "参議院")
+            _, submitted_at, _ = _fetch_detail(detail_url, "参議院")
             detail = _fetch_cabinet_detail(detail_url)
             time.sleep(1)
 
