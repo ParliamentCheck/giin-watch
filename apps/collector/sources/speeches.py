@@ -423,7 +423,7 @@ def collect_speech_excerpts_only(date_from: str | None = None, date_until: str |
                 "member_id": member_id,
                 "spoken_at": rec.get("date") or None,
                 "committee": rec.get("nameOfMeeting", ""),
-                "session_number": int(rec["session"]) if rec.get("session", "").isdigit() else None,
+                "session_number": int(rec["session"]) if rec.get("session") is not None and str(rec["session"]).isdigit() else None,
                 "source_url": rec.get("speechURL", ""),
                 "excerpt": cleaned[:EXCERPT_MAX_LENGTH],
                 "original_length": len(cleaned),
