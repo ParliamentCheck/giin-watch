@@ -2,7 +2,7 @@
 はたらく議員 — NDL API 発言メタデータ収集
 国会会議録 API から発言データを取得し、メタデータのみを speeches テーブルに保存する。
 speech_text は保存しない（キーワード構築は keywords.py が別途処理）。
-ただし長文発言（300字以上）の先頭1000字は speech_excerpts テーブルに最大10件保持する。
+ただし長文発言（300字以上）の先頭1000字は speech_excerpts テーブルに最大30件保持する。
 
 APIドキュメント: https://kokkai.ndl.go.jp/api.html
 """
@@ -40,7 +40,7 @@ logger = logging.getLogger("ndl_api")
 # 発言抜粋の設定
 EXCERPT_MIN_LENGTH = 300   # ヘッダー除去後この文字数以上を「長文」とみなす
 EXCERPT_MAX_LENGTH = 1000  # 保存する文字数
-EXCERPT_KEEP_COUNT = 10    # 議員ごとに保持する最大件数
+EXCERPT_KEEP_COUNT = 30    # 議員ごとに保持する最大件数
 
 # NDL発言テキストの冒頭ヘッダーを除去するパターン
 # 例: 「○梅村みずほ君　」「○委員長（田中一郎君）　」

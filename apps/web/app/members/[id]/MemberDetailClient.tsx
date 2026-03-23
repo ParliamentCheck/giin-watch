@@ -196,7 +196,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         supabase.from("sangiin_petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
           .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
         supabase.from("speech_excerpts").select("excerpt,committee,spoken_at,source_url")
-          .eq("member_id", memberId).order("spoken_at", { ascending: false }).limit(10),
+          .eq("member_id", memberId).order("spoken_at", { ascending: true }).limit(30),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "賛成"),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "反対"),
