@@ -62,42 +62,14 @@ interface AIAnalysisProps {
   speechExcerpts?: { excerpt: string; committee: string; spoken_at: string | null; source_url: string | null }[];
 }
 
-// プロンプトに埋め込む発言抜粋の件数（コストと精度のバランスで調整）
-const SPEECH_EXCERPT_COUNT = 5;
-
-// 議員ごとの発言期間全体を等分割し、各バケツから1件選ぶ
-// → 直近だけでなく活動の変遷・一貫性をAIが読み取れるようにする
-function selectByTimeBuckets(
-  excerpts: { excerpt: string; committee: string; spoken_at: string | null; source_url: string | null }[],
-  count: number
+// DBがすでに「直近5件 + 5グループ×バケツ分散5件」で整理済みのため、
+// フロントでは日付昇順に並べてそのまま渡す
+function prepareSpeechExcerpts(
+  excerpts: { excerpt: string; committee: string; spoken_at: string | null; source_url: string | null }[]
 ) {
-  const dated = excerpts.filter((e) => e.spoken_at);
-  if (dated.length <= count) return [...dated].sort((a, b) => (a.spoken_at! > b.spoken_at! ? 1 : -1));
-
-  const sorted = [...dated].sort((a, b) => (a.spoken_at! > b.spoken_at! ? 1 : -1));
-  const oldestMs = new Date(sorted[0].spoken_at!).getTime();
-  const newestMs = new Date(sorted[sorted.length - 1].spoken_at!).getTime();
-
-  // 期間がほぼ同じ場合は等分できないので先頭からcount件
-  if (newestMs - oldestMs < 1000 * 60 * 60 * 24 * 30) return sorted.slice(0, count);
-
-  const bucketMs = (newestMs - oldestMs) / count;
-  const selected: typeof sorted = [];
-  const used = new Set<number>();
-
-  for (let i = 0; i < count; i++) {
-    const mid = oldestMs + bucketMs * i + bucketMs / 2;
-    let bestIdx = -1;
-    let bestDiff = Infinity;
-    for (let j = 0; j < sorted.length; j++) {
-      if (used.has(j)) continue;
-      const diff = Math.abs(new Date(sorted[j].spoken_at!).getTime() - mid);
-      if (diff < bestDiff) { bestDiff = diff; bestIdx = j; }
-    }
-    if (bestIdx >= 0) { selected.push(sorted[bestIdx]); used.add(bestIdx); }
-  }
-
-  return selected.sort((a, b) => (a.spoken_at! > b.spoken_at! ? 1 : -1));
+  return [...excerpts]
+    .filter((e) => e.spoken_at)
+    .sort((a, b) => (a.spoken_at! > b.spoken_at! ? 1 : -1));
 }
 
 function buildContext(props: AIAnalysisProps): string {
@@ -214,9 +186,9 @@ function buildContext(props: AIAnalysisProps): string {
   }
 
   if (speechExcerpts && speechExcerpts.length > 0) {
-    const excerpts = selectByTimeBuckets(speechExcerpts, SPEECH_EXCERPT_COUNT);
+    const excerpts = prepareSpeechExcerpts(speechExcerpts);
     const spanLabel = excerpts.length >= 2
-      ? `${excerpts[0].spoken_at?.slice(0, 7)}〜${excerpts[excerpts.length - 1].spoken_at?.slice(0, 7)}・時系列分散`
+      ? `${excerpts[0].spoken_at?.slice(0, 7)}〜${excerpts[excerpts.length - 1].spoken_at?.slice(0, 7)}`
       : "直近";
     lines.push(`■ 発言抜粋（${excerpts.length}件・${spanLabel}・各先頭1000字）`);
     lines.push("※ 国会会議録から取得した実際の発言テキスト。");
