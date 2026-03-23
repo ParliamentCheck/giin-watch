@@ -250,6 +250,24 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
 
     logger.info("Speech collection complete. Saved %d records.", total_saved)
 
+    _save_and_trim_excerpts(client, member_excerpts)
+
+    # キーワード構築（MeCab が利用可能な場合のみ）
+    if _KEYWORDS_AVAILABLE and member_texts:
+        logger.info("Building keywords for %d members ...", len(member_texts))
+        try:
+            updated = save_member_keywords_from_texts(member_texts, member_info)
+            logger.info("Keywords built for %d members.", updated)
+            rebuild_party_keywords()
+        except Exception:
+            logger.warning("Keyword build failed", exc_info=True)
+
+
+def _save_and_trim_excerpts(client, member_excerpts: dict) -> None:
+    """speech_excerpts をupsertし、グループ分散トリムを実行する。speeches テーブルには触れない。"""
+    if not member_excerpts:
+        return
+
     # 発言抜粋の保存
     if member_excerpts:
         logger.info("Saving speech excerpts for %d members ...", len(member_excerpts))
@@ -329,15 +347,95 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
 
         logger.info("Speech excerpts saved.")
 
-    # キーワード構築（MeCab が利用可能な場合のみ）
-    if _KEYWORDS_AVAILABLE and member_texts:
-        logger.info("Building keywords for %d members ...", len(member_texts))
-        try:
-            updated = save_member_keywords_from_texts(member_texts, member_info)
-            logger.info("Keywords built for %d members.", updated)
-            rebuild_party_keywords()
-        except Exception:
-            logger.warning("Keyword building failed (non-fatal)", exc_info=True)
+
+def collect_speech_excerpts_only(date_from: str | None = None, date_until: str | None = None) -> None:
+    """speech_excerpts のみを更新する。speeches テーブル・スコア・キーワードには触れない。
+    バックフィルや再整理の際にサイトへの影響なしで実行できる。"""
+    date_from = date_from or NDL_DATE_FROM
+    date_until = date_until or NDL_DATE_UNTIL
+    logger.info("Collecting speech excerpts only: %s to %s", date_from, date_until)
+
+    client = get_client()
+    members_result = execute_with_retry(
+        lambda: client.table("members").select("id, name, house, ndl_names").limit(2000),
+        label="fetch_members",
+    )
+    ndl_name_to_id: dict[str, str] = {}
+    for m in (members_result.data or []):
+        for ndl_name in (m.get("ndl_names") or []):
+            ndl_name_to_id[re.sub(r"\s+", "", ndl_name)] = m["id"]
+        if m.get("name"):
+            ndl_name_to_id.setdefault(re.sub(r"\s+", "", m["name"]), m["id"])
+
+    member_excerpts: dict[str, list[dict]] = defaultdict(list)
+    records_per_page = 100
+    start_record = 1
+    total_api_records = None
+
+    while True:
+        data = None
+        for attempt in range(3):
+            try:
+                data = fetch_speeches_from_ndl(date_from, date_until, start_record)
+                break
+            except requests.RequestException as exc:
+                logger.warning("NDL request failed at %d (attempt %d/3): %s", start_record, attempt + 1, exc)
+                if attempt < 2:
+                    time.sleep(5)
+        if data is None:
+            start_record += records_per_page
+            continue
+
+        speech_records = data.get("speechRecord", [])
+        if not speech_records:
+            num = data.get("numberOfRecords", 0)
+            if isinstance(num, str):
+                num = int(num) if num.isdigit() else 0
+            if num == 0:
+                break
+            start_record += records_per_page
+            continue
+
+        if total_api_records is None:
+            num = data.get("numberOfRecords", 0)
+            total_api_records = int(num) if isinstance(num, str) else num
+
+        for rec in speech_records:
+            speech_id = rec.get("speechID", "")
+            if not speech_id:
+                continue
+            name_of_house = rec.get("nameOfHouse", "")
+            house = "衆議院" if "衆議院" in name_of_house else ("参議院" if "参議院" in name_of_house else "")
+            if not house:
+                continue
+            speaker = re.sub(r"\s+", "", rec.get("speaker", "").strip())
+            member_id = ndl_name_to_id.get(speaker)
+            if not member_id:
+                continue
+            speech_text = rec.get("speech", "")
+            if is_procedural_speech(speech_text):
+                continue
+            cleaned = clean_speech_text(speech_text)
+            if len(cleaned) < EXCERPT_MIN_LENGTH:
+                continue
+            member_excerpts[member_id].append({
+                "id": speech_id,
+                "member_id": member_id,
+                "spoken_at": rec.get("date") or None,
+                "committee": rec.get("nameOfMeeting", ""),
+                "session_number": int(rec["session"]) if rec.get("session", "").isdigit() else None,
+                "source_url": rec.get("speechURL", ""),
+                "excerpt": cleaned[:EXCERPT_MAX_LENGTH],
+                "original_length": len(cleaned),
+            })
+
+        start_record += len(speech_records)
+        if total_api_records and start_record > total_api_records:
+            break
+        time.sleep(NDL_RATE_LIMIT_SEC)
+
+    logger.info("Excerpt collection complete. %d members found.", len(member_excerpts))
+    _save_and_trim_excerpts(client, member_excerpts)
 
 
 # ============================================================

@@ -43,6 +43,7 @@ def main() -> None:
         "sangiin-questions",
         "petitions-collect",
         "bills-submitters",
+        "excerpts-backfill",
     ])
     parser.add_argument("--years", type=int, default=4, help="keyword-full-rebuild の遡及年数")
     args = parser.parse_args()
@@ -124,6 +125,17 @@ def main() -> None:
         from sources.petitions import collect_shugiin_petitions, collect_sangiin_petitions
         collect_shugiin_petitions(full=True)
         collect_sangiin_petitions(full=True)
+
+    elif task == "excerpts-backfill":
+        # speech_excerpts のみ更新。speeches テーブル・スコア・キーワードには触れない。
+        from sources.speeches import collect_speech_excerpts_only
+        start_year = 2022
+        for y in range(start_year, current_year + 1):
+            date_from = f"{y}-01-01"
+            date_until = f"{y}-12-31" if y < current_year else date.today().isoformat()
+            logger.info("=== excerpts-backfill %s 〜 %s ===", date_from, date_until)
+            collect_speech_excerpts_only(date_from, date_until)
+        return  # スコア再計算不要
 
     from processors.scoring import recalculate_scores as _rescore
     if task not in ("scoring-only", "migrate-member-ids") and not task.startswith("speeches-"):

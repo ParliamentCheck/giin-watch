@@ -24,6 +24,7 @@ on:
           - "shugiin-questions"
           - "sangiin-questions"
           - "petitions-collect"
+          - "excerpts-backfill"
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
