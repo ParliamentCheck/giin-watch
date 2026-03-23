@@ -1,4 +1,11 @@
-export const metadata = { title: "このサイトについて" };
+export const metadata = {
+  title: "このサイトについて",
+  description: "「はたらく議員」は、国会議員の活動を公開記録のデータで可視化する情報サイトです。有権者が議員の実績を客観的に確認し、政治をより身近に感じるためのサポートを目的としています。",
+  openGraph: {
+    title: "このサイトについて | はたらく議員",
+    description: "「はたらく議員」は、国会議員の活動を公開記録のデータで可視化する情報サイトです。有権者が議員の実績を客観的に確認し、政治をより身近に感じるためのサポートを目的としています。",
+  },
+};
 
 export default function AboutPage() {
   return (

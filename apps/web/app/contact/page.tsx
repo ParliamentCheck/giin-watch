@@ -1,4 +1,11 @@
-export const metadata = { title: "お問い合わせ" };
+export const metadata = {
+  title: "お問い合わせ",
+  description: "「はたらく議員」へのお問い合わせ窓口。データの誤りのご指摘・ご質問・ご要望はGoogleフォームよりお送りください。",
+  openGraph: {
+    title: "お問い合わせ | はたらく議員",
+    description: "「はたらく議員」へのお問い合わせ窓口。データの誤りのご指摘・ご質問・ご要望はGoogleフォームよりお送りください。",
+  },
+};
 
 export default function ContactPage() {
   return (

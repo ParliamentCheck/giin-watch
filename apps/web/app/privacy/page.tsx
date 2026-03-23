@@ -1,4 +1,11 @@
-export const metadata = { title: "プライバシーポリシー" };
+export const metadata = {
+  title: "プライバシーポリシー",
+  description: "「はたらく議員」のプライバシーポリシー。アクセス解析（Googleアナリティクス）の利用方法や、当サイトにおける個人情報の取り扱いについて説明しています。",
+  openGraph: {
+    title: "プライバシーポリシー | はたらく議員",
+    description: "「はたらく議員」のプライバシーポリシー。アクセス解析（Googleアナリティクス）の利用方法や、当サイトにおける個人情報の取り扱いについて説明しています。",
+  },
+};
 
 export default function PrivacyPage() {
   return (

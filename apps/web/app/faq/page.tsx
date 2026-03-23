@@ -1,4 +1,11 @@
-export const metadata = { title: "データ仕様" };
+export const metadata = {
+  title: "データ仕様",
+  description: "「はたらく議員」に掲載しているデータの収集方法・集計ルール・各指標の算出方法を解説。発言数・質問主意書・委員会出席・活動バランスチャートなど、各機能の仕様を確認できます。",
+  openGraph: {
+    title: "データ仕様 | はたらく議員",
+    description: "「はたらく議員」に掲載しているデータの収集方法・集計ルール・各指標の算出方法を解説。発言数・質問主意書・委員会出席・活動バランスチャートなど、各機能の仕様を確認できます。",
+  },
+};
 
 const sectionStyle = { marginBottom: 32 } as const;
 const h2Style = {

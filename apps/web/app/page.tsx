@@ -1,5 +1,12 @@
 export const revalidate = 3600;
-export const metadata = { title: { absolute: "はたらく議員 — 国会議員の活動を、データで見える化" } };
+export const metadata = {
+  title: { absolute: "はたらく議員 — 国会議員の活動を、データで見える化" },
+  description: "「あの議員、どれだけ国会で働いてる？」国会議員の本当の働きぶりが客観データで丸裸！公的記録から発言・質問主意書・議員立法・採決などを自動集計・毎日処理。有権者が公平に実績を比べられる、有権者のための議員チェックツール「はたらく議員」",
+  openGraph: {
+    title: "はたらく議員 — 国会議員の活動を、データで見える化",
+    description: "「あの議員、どれだけ国会で働いてる？」国会議員の本当の働きぶりが客観データで丸裸！公的記録から発言・質問主意書・議員立法・採決などを自動集計・毎日処理。有権者が公平に実績を比べられる、有権者のための議員チェックツール「はたらく議員」",
+  },
+};
 import { supabase } from "../lib/supabase";
 import Link from "next/link";
 import ActivityTabs from "./components/ActivityTabs";

@@ -1,4 +1,11 @@
-export const metadata = { title: "利用規約" };
+export const metadata = {
+  title: "利用規約",
+  description: "「はたらく議員」の利用規約。当サイトは国会の公開記録をもとに議員の活動データを提供するサービスです。ご利用前に本規約をご確認ください。",
+  openGraph: {
+    title: "利用規約 | はたらく議員",
+    description: "「はたらく議員」の利用規約。当サイトは国会の公開記録をもとに議員の活動データを提供するサービスです。ご利用前に本規約をご確認ください。",
+  },
+};
 
 export default function TermsPage() {
   return (

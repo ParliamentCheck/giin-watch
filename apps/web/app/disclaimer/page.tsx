@@ -1,4 +1,11 @@
-export const metadata = { title: "免責事項" };
+export const metadata = {
+  title: "免責事項",
+  description: "「はたらく議員」の免責事項。掲載データは国会の公開記録に基づく集計であり、議員の活動の良否を判定するものではありません。データの正確性・完全性について詳しくはこちらをご確認ください。",
+  openGraph: {
+    title: "免責事項 | はたらく議員",
+    description: "「はたらく議員」の免責事項。掲載データは国会の公開記録に基づく集計であり、議員の活動の良否を判定するものではありません。データの正確性・完全性について詳しくはこちらをご確認ください。",
+  },
+};
 
 export default function DisclaimerPage() {
   return (
