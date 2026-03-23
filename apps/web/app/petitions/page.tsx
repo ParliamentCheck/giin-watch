@@ -14,7 +14,7 @@ async function fetchAllServer(table: string, house: "衆" | "参") {
   while (true) {
     const { data } = await supabase
       .from(table)
-      .select("id,session,number,title,committee_name,result,result_date,source_url,introducer_names")
+      .select("id,session,number,title,committee_name,result,result_date,source_url,introducer_ids,introducer_names")
       .range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
     for (const d of data) all.push({ ...d, house });

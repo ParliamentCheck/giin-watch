@@ -17,6 +17,7 @@ interface Petition {
   result: string | null;
   result_date: string | null;
   source_url: string | null;
+  introducer_ids: string[] | null;
   introducer_names: string[] | null;
   house: "衆" | "参";
 }
@@ -36,7 +37,7 @@ async function fetchAll(table: string, house: "衆" | "参"): Promise<Petition[]
   while (true) {
     const { data } = await supabase
       .from(table)
-      .select("id,session,number,title,committee_name,result,result_date,source_url,introducer_names")
+      .select("id,session,number,title,committee_name,result,result_date,source_url,introducer_ids,introducer_names")
       .range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
     for (const d of data) all.push({ ...d, house });
@@ -130,24 +131,19 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
     const partyIntroducerCounts: Record<string, number> = {}; // 延べ紹介回数（複数人いればその分カウント）
     const memberCounts: Record<string, number> = {};
 
+    // 統計は scoring.py と同じく introducer_ids ベースで集計（petition_count と一致させる）
     for (const p of petitions) {
-      const seenMembers = new Set<string>();
       const seenParties = new Set<string>();
-      for (const name of p.introducer_names ?? []) {
-        const houseLabel = p.house === "衆" ? "衆議院" : "参議院";
-        const memberId = `${houseLabel}-${name}`;
-        if (seenMembers.has(memberId)) continue;
-        seenMembers.add(memberId);
-
+      for (const memberId of p.introducer_ids ?? []) {
         const member = memberMap[memberId];
-        if (member) {
-          if (!seenParties.has(member.party)) {
-            partyPetitionCounts[member.party] = (partyPetitionCounts[member.party] ?? 0) + 1;
-            seenParties.add(member.party);
-          }
-          partyIntroducerCounts[member.party] = (partyIntroducerCounts[member.party] ?? 0) + 1;
-          memberCounts[memberId] = (memberCounts[memberId] ?? 0) + 1;
+        if (!member) continue;
+
+        if (!seenParties.has(member.party)) {
+          partyPetitionCounts[member.party] = (partyPetitionCounts[member.party] ?? 0) + 1;
+          seenParties.add(member.party);
         }
+        partyIntroducerCounts[member.party] = (partyIntroducerCounts[member.party] ?? 0) + 1;
+        memberCounts[memberId] = (memberCounts[memberId] ?? 0) + 1;
       }
     }
 
