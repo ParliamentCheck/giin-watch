@@ -126,10 +126,9 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
   const pending  = petitions.filter(p => classifyResult(p.result) === "審査未了").length;
 
   // 統計: 政党・議員別の紹介件数
-  const { partyTop5, partyIntroducerTop5, memberTop5 } = useMemo(() => {
+  const { partyTop5, partyIntroducerTop5, petitionIntroducerTop5 } = useMemo(() => {
     const partyPetitionCounts: Record<string, number> = {}; // 関わった請願件数（1請願あたり政党1カウント）
     const partyIntroducerCounts: Record<string, number> = {}; // 延べ紹介回数（複数人いればその分カウント）
-    const memberCounts: Record<string, number> = {};
 
     // 統計は scoring.py と同じく introducer_ids ベースで集計（petition_count と一致させる）
     for (const p of petitions) {
@@ -143,7 +142,7 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
           seenParties.add(member.party);
         }
         partyIntroducerCounts[member.party] = (partyIntroducerCounts[member.party] ?? 0) + 1;
-        memberCounts[memberId] = (memberCounts[memberId] ?? 0) + 1;
+
       }
     }
 
@@ -157,12 +156,13 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
       .slice(0, 5)
       .map(([party, count]) => ({ party, count }));
 
-    const memberTop5 = Object.entries(memberCounts)
-      .sort((a, b) => b[1] - a[1])
+    const petitionIntroducerTop5 = [...petitions]
+      .filter(p => (p.introducer_ids?.length ?? 0) > 0)
+      .sort((a, b) => (b.introducer_ids?.length ?? 0) - (a.introducer_ids?.length ?? 0))
       .slice(0, 5)
-      .map(([id, count]) => ({ id, name: memberMap[id]?.name ?? id, party: memberMap[id]?.party ?? "", count }));
+      .map(p => ({ id: p.id, title: p.title, session: p.session, number: p.number, house: p.house, source_url: p.source_url, count: p.introducer_ids?.length ?? 0 }));
 
-    return { partyTop5, partyIntroducerTop5, memberTop5 };
+    return { partyTop5, partyIntroducerTop5, petitionIntroducerTop5 };
   }, [petitions, memberMap]);
 
   return (
@@ -392,30 +392,38 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
                 )}
               </section>
 
-              {/* 議員TOP5 */}
-              <section style={{ paddingTop: 32, borderTop: "1px solid #e0e0e0" }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: "#1a1a1a" }}>
-                  請願紹介数が多い議員 TOP5
+              {/* 請願TOP5（紹介人数） */}
+              <section style={{ paddingTop: 32, paddingBottom: 32, borderTop: "1px solid #e0e0e0" }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#1a1a1a" }}>
+                  紹介人数が多い請願 TOP5
                 </h2>
-                {memberTop5.length === 0 ? (
+                <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
+                  紹介議員として記録されている人数（第196回〜第221回国会）
+                </p>
+                {petitionIntroducerTop5.length === 0 ? (
                   <div className="empty-state">データがありません。</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {memberTop5.map(({ id, name, party, count }, i) => {
-                      const color = partyColor(party);
-                      const pct = Math.round((count / memberTop5[0].count) * 100);
+                    {petitionIntroducerTop5.map(({ id, title, session, number, house, source_url, count }, i) => {
+                      const pct = Math.round((count / petitionIntroducerTop5[0].count) * 100);
                       return (
                         <div key={id}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, alignItems: "center" }}>
-                            <span style={{ fontSize: 13 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, alignItems: "flex-start", gap: 12 }}>
+                            <span style={{ fontSize: 13, flex: 1 }}>
                               <span style={{ color: "#888888", marginRight: 6 }}>{i + 1}.</span>
-                              <MemberChip id={id} name={name} party={party}
-                                isFormer={!memberMap[id]?.is_active} />
+                              {source_url ? (
+                                <a href={source_url} target="_blank" rel="noopener noreferrer"
+                                  style={{ color: "#1a1a1a", textDecoration: "underline" }}>
+                                  {title}
+                                </a>
+                              ) : title}
                             </span>
-                            <span style={{ fontSize: 13, color: "#555555" }}>{count.toLocaleString()}件</span>
+                            <span style={{ fontSize: 11, color: "#888888", flexShrink: 0, whiteSpace: "nowrap" }}>
+                              {house}院 第{session}回 #{number} — {count}人
+                            </span>
                           </div>
                           <div style={{ background: "#f0f0f0", borderRadius: 4, height: 8 }}>
-                            <div style={{ width: `${pct}%`, background: color, borderRadius: 4, height: 8 }} />
+                            <div style={{ width: `${pct}%`, background: "#555555", borderRadius: 4, height: 8 }} />
                           </div>
                         </div>
                       );
