@@ -179,22 +179,22 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           ? Promise.resolve({ data: initialMember, error: null })
           : supabase.from("members").select("*").eq("id", memberId).single(),
         supabase.from("speeches").select("*").eq("member_id", memberId)
-          .order("spoken_at", { ascending: false }).limit(200),
+          .order("spoken_at", { ascending: false }).limit(500),
         supabase.from("questions").select("*").eq("member_id", memberId)
-          .order("submitted_at", { ascending: false }).limit(20),
+          .order("submitted_at", { ascending: false }).limit(200),
         supabase.from("sangiin_questions").select("*").eq("member_id", memberId)
-          .order("submitted_at", { ascending: false }).limit(20),
+          .order("submitted_at", { ascending: false }).limit(200),
         supabase.from("committee_members").select("*").eq("member_id", memberId),
         supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
           .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(100),
         supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids,submitter_extra_count,honbun_url,keika_url")
-          .contains("submitter_ids", [memberId]).order("submitted_at", { ascending: false }).limit(50),
+          .contains("submitter_ids", [memberId]).order("submitted_at", { ascending: false }).limit(200),
         supabase.from("member_keywords").select("word,count")
           .eq("member_id", memberId).order("count", { ascending: false }).limit(50),
         supabase.from("petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
-          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
+          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(200),
         supabase.from("sangiin_petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
-          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(50),
+          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(200),
         supabase.from("speech_excerpts").select("excerpt,committee,spoken_at,source_url")
           .eq("member_id", memberId).order("spoken_at", { ascending: true }).limit(30),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId),
@@ -551,7 +551,12 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           ) : (
             <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={{ color: "#888888", fontSize: 13 }}>{sessionGroups.length}件</span>
+              <span style={{ color: "#888888", fontSize: 13 }}>
+                {member.session_count ?? sessionGroups.length}件
+                {member.session_count != null && sessionGroups.length < member.session_count && (
+                  <span style={{ fontSize: 11, marginLeft: 4 }}>（直近{sessionGroups.length}件を表示）</span>
+                )}
+              </span>
               <Paginator total={sessionGroups.length} page={listPage} onPage={setListPage} variant="top" />
             </div>
             {sessionGroups.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE).map((sg) => {
@@ -700,7 +705,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       {tab === "questions" && (
         <div className="card" style={{ padding: 20 }}>
           <h3 className="section-title">
-            質問主意書（最新20件）
+            質問主意書
           </h3>
           <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
             ※ 第196回〜第221回国会の記録に基づく。
