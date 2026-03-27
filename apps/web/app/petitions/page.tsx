@@ -50,7 +50,8 @@ export default async function PetitionsPage() {
     supabase.from("members").select("id,name,party,is_active").limit(2000),
   ]);
 
-  const initialPetitions = [...shu, ...san] as unknown as Parameters<typeof PetitionsClient>[0]["initialPetitions"];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const initialPetitions = [...shu, ...san] as any[];
 
   const initialMemberMap: Record<string, { name: string; party: string; is_active: boolean }> = {};
   for (const m of membersRes.data ?? []) {
@@ -58,7 +59,7 @@ export default async function PetitionsPage() {
   }
 
   // JSON-LD（ItemList: 直近20件）
-  const recent = [...(initialPetitions ?? [])]
+  const recent = [...initialPetitions]
     .filter(p => p.source_url)
     .slice(0, 20);
   const jsonLd = {
