@@ -179,7 +179,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           ? Promise.resolve({ data: initialMember, error: null })
           : supabase.from("members").select("*").eq("id", memberId).single(),
         supabase.from("speeches").select("*").eq("member_id", memberId)
-          .order("spoken_at", { ascending: false }).limit(500),
+          .order("spoken_at", { ascending: false }).limit(1000),
         supabase.from("questions").select("*").eq("member_id", memberId)
           .order("submitted_at", { ascending: false }).limit(200),
         supabase.from("sangiin_questions").select("*").eq("member_id", memberId)
@@ -192,9 +192,9 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         supabase.from("member_keywords").select("word,count")
           .eq("member_id", memberId).order("count", { ascending: false }).limit(50),
         supabase.from("petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
-          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(200),
+          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(1000),
         supabase.from("sangiin_petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
-          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(200),
+          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(1000),
         supabase.from("speech_excerpts").select("excerpt,committee,spoken_at,source_url")
           .eq("member_id", memberId).order("spoken_at", { ascending: true }).limit(30),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId),
@@ -457,11 +457,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
             {[
               { label: "委員会所属",     value: clientLoaded ? committees.length : (initialCommitteeCount ?? null), unit: "件" },
-              { label: "発言セッション", value: member.session_count,                                                  unit: "回" },
-              { label: "質問主意書",     value: member.question_count,                                                 unit: "件" },
+              { label: "発言セッション", value: clientLoaded ? sessionGroups.length : member.session_count,          unit: "回" },
+              { label: "質問主意書",     value: clientLoaded ? questions.length  : member.question_count,  unit: "件" },
               { label: member.house === "衆議院" ? "採決（衆院は非対応）" : "採決", value: member.house === "衆議院" ? undefined : (clientLoaded ? (voteStats?.total ?? votes.length) : (initialVoteCount ?? null)), unit: "件" },
-              { label: "議員立法",       value: member.bill_count,                  unit: "件" },
-              { label: "請願",           value: member.petition_count,              unit: "件" },
+              { label: "議員立法",       value: clientLoaded ? bills.length      : member.bill_count,      unit: "件" },
+              { label: "請願",           value: clientLoaded ? petitions.length  : member.petition_count,  unit: "件" },
             ].map((item) => (
               <div key={item.label} style={{ background: `${color}15`, borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
@@ -551,12 +551,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           ) : (
             <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={{ color: "#888888", fontSize: 13 }}>
-                {member.session_count ?? sessionGroups.length}件
-                {member.session_count != null && sessionGroups.length < member.session_count && (
-                  <span style={{ fontSize: 11, marginLeft: 4 }}>（直近{sessionGroups.length}件を表示）</span>
-                )}
-              </span>
+              <span style={{ color: "#888888", fontSize: 13 }}>{sessionGroups.length}件</span>
               <Paginator total={sessionGroups.length} page={listPage} onPage={setListPage} variant="top" />
             </div>
             {sessionGroups.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE).map((sg) => {
