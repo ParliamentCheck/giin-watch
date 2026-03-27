@@ -394,7 +394,7 @@ export default function BillsClient() {
                 </div>
                 <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 4 }}>※ 第208回〜（2022年〜）の記録に基づく</div>
                 <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 4 }}>※ 本文・経過リンクは最初に提出された院（衆議院または参議院）のサイトに遷移します</div>
-                <div style={{ fontSize: 10, color: "#888888", marginBottom: 12, background: "#f0f4ff", border: "1px solid #c0d0f0", borderRadius: 6, padding: "6px 10px", lineHeight: 1.7, color: "#334499" }}>
+                <div style={{ fontSize: 10, marginBottom: 12, background: "#f0f4ff", border: "1px solid #c0d0f0", borderRadius: 6, padding: "6px 10px", lineHeight: 1.7, color: "#334499" }}>
                   📌 <strong>成立率の計算方法について</strong><br />
                   当サイトでは会期をまたいで継続した法案を同一法案として集計し、最終的に成立したかどうかで判定しています。メディア等でよく引用される「議員立法の成立率は数%」という数字は会期単位の集計で、持ち越された法案をその都度「不成立」としてカウントするため低く出ます。
                 </div>
@@ -708,7 +708,7 @@ export default function BillsClient() {
               )}
             </div>
             <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 4 }}>※ 第208回〜（2022年〜）の記録に基づく</div>
-            <div style={{ fontSize: 10, color: "#888888", marginBottom: 12, background: "#f0f4ff", border: "1px solid #c0d0f0", borderRadius: 6, padding: "6px 10px", lineHeight: 1.7, color: "#334499" }}>
+            <div style={{ fontSize: 10, marginBottom: 12, background: "#f0f4ff", border: "1px solid #c0d0f0", borderRadius: 6, padding: "6px 10px", lineHeight: 1.7, color: "#334499" }}>
               📌 <strong>成立率の計算方法について</strong><br />
               当サイトでは会期をまたいで継続した法案を同一法案として集計し、最終的に成立したかどうかで判定しています。メディア等でよく引用される「議員立法の成立率は数%」という数字は会期単位の集計で、持ち越された法案をその都度「不成立」としてカウントするため低く出ます。
             </div>
