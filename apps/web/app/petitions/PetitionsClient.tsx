@@ -8,7 +8,7 @@ import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
 import { partyColor } from "../../lib/partyColors";
 
-interface Petition {
+export interface Petition {
   id: string;
   session: number;
   number: number;

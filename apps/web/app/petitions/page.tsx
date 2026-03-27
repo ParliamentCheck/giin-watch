@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { supabaseServer as supabase } from "../../lib/supabase-server";
-import PetitionsClient from "./PetitionsClient";
+import PetitionsClient, { type Petition } from "./PetitionsClient";
 
 export const revalidate = 3600;
 
@@ -50,8 +50,7 @@ export default async function PetitionsPage() {
     supabase.from("members").select("id,name,party,is_active").limit(2000),
   ]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const initialPetitions = [...shu, ...san] as any[];
+  const initialPetitions = [...shu, ...san] as Petition[];
 
   const initialMemberMap: Record<string, { name: string; party: string; is_active: boolean }> = {};
   for (const m of membersRes.data ?? []) {
