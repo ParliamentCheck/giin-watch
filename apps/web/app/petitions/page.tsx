@@ -58,7 +58,7 @@ export default async function PetitionsPage() {
   }
 
   // JSON-LD（ItemList: 直近20件）
-  const recent = [...initialPetitions]
+  const recent = [...(initialPetitions ?? [])]
     .filter(p => p.source_url)
     .slice(0, 20);
   const jsonLd = {
