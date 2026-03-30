@@ -49,11 +49,6 @@ async function fetchAll(table: string, house: "衆" | "参"): Promise<Petition[]
 
 function sortPetitions(petitions: Petition[]): Petition[] {
   return [...petitions].sort((a, b) => {
-    if (a.result_date && !b.result_date) return -1;
-    if (!a.result_date && b.result_date) return 1;
-    if (a.result_date && b.result_date && a.result_date !== b.result_date) {
-      return a.result_date > b.result_date ? -1 : 1;
-    }
     if (a.session !== b.session) return b.session - a.session;
     return b.number - a.number;
   });

@@ -337,8 +337,14 @@ def _scrape_sangiin_futaku(futaku_url: str) -> Optional[dict]:
     result_date: Optional[str] = None
 
     for table in soup.find_all("table"):
-        headers = [th.get_text(strip=True) for th in table.find_all("th")]
-        if "紹介議員" not in headers:
+        # 「紹介議員」を含む行のthだけ使う（テーブル全体のthをまとめるとインデックスがズレる）
+        headers = None
+        for tr in table.find_all("tr"):
+            ths = [th.get_text(strip=True) for th in tr.find_all("th")]
+            if "紹介議員" in ths:
+                headers = ths
+                break
+        if headers is None:
             continue
         name_idx   = headers.index("紹介議員")
         result_idx = headers.index("結果")       if "結果"      in headers else -1
@@ -346,7 +352,7 @@ def _scrape_sangiin_futaku(futaku_url: str) -> Optional[dict]:
 
         for tr in table.find_all("tr"):
             tds = tr.find_all("td")
-            if len(tds) <= name_idx:
+            if len(tds) < len(headers):
                 continue
             name = re.sub(r"[\s\u3000]+", "", tds[name_idx].get_text(strip=True))
             if len(name) >= 2:
@@ -398,11 +404,19 @@ def collect_sangiin_petitions(full: bool = False) -> None:
                 time.sleep(0.5)
                 continue
 
-            introducer_ids = [
+            # 同一議員が複数回紹介した場合の重複を除去（順序保持）
+            seen_names: set[str] = set()
+            unique_names: list[str] = []
+            for n in futaku["introducer_names"]:
+                if n not in seen_names:
+                    seen_names.add(n)
+                    unique_names.append(n)
+
+            introducer_ids = list(dict.fromkeys(
                 make_member_id("参議院", n)
-                for n in futaku["introducer_names"]
+                for n in unique_names
                 if make_member_id("参議院", n) in member_ids_set
-            ]
+            ))
 
             records.append({
                 "id":               f"sangi-{session}-{item['number']}",
@@ -413,7 +427,7 @@ def collect_sangiin_petitions(full: bool = False) -> None:
                 "result":           futaku["result"],
                 "result_date":      futaku["result_date"],
                 "introducer_ids":   introducer_ids or None,
-                "introducer_names": futaku["introducer_names"] or None,
+                "introducer_names": unique_names or None,
                 "source_url":       item["yousi_url"],
             })
             time.sleep(0.5)

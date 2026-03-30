@@ -141,19 +141,24 @@ function CommitteeDetailContent() {
       const [pRes, spRes] = await Promise.all([
         supabase
           .from("petitions")
-          .select("id,session,number,title,result,introducer_names,source_url")
+          .select("id,session,number,title,result,result_date,introducer_names,source_url")
           .eq("committee_name", committeeName)
           .order("session", { ascending: false })
+          .order("number", { ascending: false })
           .limit(30),
         supabase
           .from("sangiin_petitions")
-          .select("id,session,number,title,result,introducer_names,source_url")
+          .select("id,session,number,title,result,result_date,introducer_names,source_url")
           .eq("committee_name", committeeName)
           .order("session", { ascending: false })
+          .order("number", { ascending: false })
           .limit(30),
       ]);
       const allPetitions = [...(pRes.data || []), ...(spRes.data || [])]
-        .sort((a, b) => b.session - a.session);
+        .sort((a, b) => {
+          if (b.session !== a.session) return b.session - a.session;
+          return b.number - a.number;
+        });
       setPetitions(allPetitions);
 
       setLoading(false);

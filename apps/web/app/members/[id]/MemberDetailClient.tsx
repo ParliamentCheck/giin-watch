@@ -192,9 +192,9 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         supabase.from("member_keywords").select("word,count")
           .eq("member_id", memberId).order("count", { ascending: false }).limit(50),
         supabase.from("petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
-          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(1000),
+          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).order("number", { ascending: false }).limit(1000),
         supabase.from("sangiin_petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
-          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).limit(1000),
+          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).order("number", { ascending: false }).limit(1000),
         supabase.from("speech_excerpts").select("excerpt,committee,spoken_at,source_url")
           .eq("member_id", memberId).order("spoken_at", { ascending: true }).limit(30),
         supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId),
@@ -266,9 +266,6 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       const sangiinP = safe(9) || [];
       const allPetitions = [...shugiinP, ...sangiinP]
         .sort((a: any, b: any) => {
-          if (a.result_date && b.result_date) return b.result_date.localeCompare(a.result_date);
-          if (a.result_date && !b.result_date) return -1;
-          if (!a.result_date && b.result_date) return 1;
           if (b.session !== a.session) return b.session - a.session;
           return b.number - a.number;
         });
