@@ -47,14 +47,21 @@ export default async function PetitionsPage() {
   const [shu, san, membersRes] = await Promise.all([
     fetchAllServer("petitions", "衆"),
     fetchAllServer("sangiin_petitions", "参"),
-    supabase.from("members").select("id,name,party,is_active").limit(2000),
+    supabase.from("members").select("id,name,party,is_active,alias_name").limit(2000),
   ]);
 
   const initialPetitions = [...shu, ...san] as Petition[];
 
   const initialMemberMap: Record<string, { name: string; party: string; is_active: boolean }> = {};
   for (const m of membersRes.data ?? []) {
-    initialMemberMap[m.id] = { name: m.name, party: m.party, is_active: m.is_active };
+    const info = { name: m.name, party: m.party, is_active: m.is_active };
+    initialMemberMap[m.id] = info;
+    // alias_name（通称名）でも引けるようにする
+    if (m.alias_name) {
+      const houseLabel = m.id.startsWith("衆議院") ? "衆議院" : "参議院";
+      const aliasId = `${houseLabel}-${m.alias_name.replace(/[\s\u3000]/g, "")}`;
+      initialMemberMap[aliasId] = info;
+    }
   }
 
   // JSON-LD（ItemList: 直近20件）

@@ -94,11 +94,18 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
       const [shu, san, membersRes] = await Promise.all([
         fetchAll("petitions", "衆"),
         fetchAll("sangiin_petitions", "参"),
-        supabase.from("members").select("id,name,party,is_active").limit(2000),
+        supabase.from("members").select("id,name,party,is_active,alias_name").limit(2000),
       ]);
       setPetitions(sortPetitions([...shu, ...san]));
       const map: Record<string, MemberInfo> = {};
-      for (const m of membersRes.data ?? []) map[m.id] = { name: m.name, party: m.party, is_active: m.is_active };
+      for (const m of membersRes.data ?? []) {
+        const info = { name: m.name, party: m.party, is_active: m.is_active };
+        map[m.id] = info;
+        if (m.alias_name) {
+          const houseLabel = m.id.startsWith("衆議院") ? "衆議院" : "参議院";
+          map[`${houseLabel}-${m.alias_name.replace(/[\s\u3000]/g, "")}`] = info;
+        }
+      }
       setMemberMap(map);
       setLoading(false);
     }
