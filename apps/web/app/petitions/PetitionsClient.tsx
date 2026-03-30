@@ -87,6 +87,7 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
   const [isComposing, setIsComposing] = useState(false);
   const [houseFilter, setHouseFilter] = useState<"全て" | "衆" | "参">("全て");
   const [resultFilter, setResultFilter] = useState<ResultFilter | "all">("all");
+  const [sessionFilter, setSessionFilter] = useState<number | null>(null);
 
   useEffect(() => {
     if (initialPetitions) return; // SSRデータがあればクライアントフェッチ不要
@@ -112,9 +113,15 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
     load();
   }, []);
 
+  const sessions = useMemo(() =>
+    [...new Set(petitions.map(p => p.session))].sort((a, b) => b - a),
+    [petitions]
+  );
+
   const filtered = petitions.filter((p) => {
     if (houseFilter !== "全て" && p.house !== houseFilter) return false;
     if (resultFilter !== "all" && classifyResult(p.result) !== resultFilter) return false;
+    if (sessionFilter !== null && p.session !== sessionFilter) return false;
     if (search && !isComposing) {
       if (!p.title.toLowerCase().includes(search.toLowerCase())) return false;
     }
@@ -226,6 +233,19 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
                 </button>
               ))}
             </div>
+            <select
+              value={sessionFilter ?? ""}
+              onChange={(e) => { setSessionFilter(e.target.value ? Number(e.target.value) : null); setPage(1); }}
+              style={{
+                padding: "7px 10px", borderRadius: 8, border: "1px solid #e0e0e0",
+                fontSize: 13, background: "#fff", cursor: "pointer", outline: "none",
+              }}
+            >
+              <option value="">全会期</option>
+              {sessions.map(s => (
+                <option key={s} value={s}>第{s}回国会</option>
+              ))}
+            </select>
             <input
               type="text" placeholder="タイトルで検索..." value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
