@@ -50,7 +50,7 @@ export default async function PetitionsPage() {
     supabase.from("members").select("id,name,party,is_active,alias_name").limit(2000),
   ]);
 
-  const initialPetitions = [...shu, ...san] as Petition[];
+  const initialPetitions = [...shu, ...san] as unknown as Petition[];
 
   const initialMemberMap: Record<string, { name: string; party: string; is_active: boolean }> = {};
   for (const m of membersRes.data ?? []) {
