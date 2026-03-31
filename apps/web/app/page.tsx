@@ -58,22 +58,43 @@ async function getRecentQuestions() {
 async function getRecentPetitions() {
   const [shuRes, sanRes] = await Promise.all([
     supabase.from("petitions")
-      .select("id, session, number, title, committee_name, result, result_date, source_url, introducer_names")
+      .select("id, session, number, title, committee_name, result, result_date, source_url, introducer_ids, introducer_names")
       .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
     supabase.from("sangiin_petitions")
-      .select("id, session, number, title, committee_name, result, result_date, source_url, introducer_names")
+      .select("id, session, number, title, committee_name, result, result_date, source_url, introducer_ids, introducer_names")
       .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
   ]);
 
   const shu = (shuRes.data || []).map((p: any) => ({ ...p, house: "衆" as const }));
   const san = (sanRes.data || []).map((p: any) => ({ ...p, house: "参" as const }));
 
-  return [...shu, ...san]
+  const petitions = [...shu, ...san]
     .sort((a, b) => {
       if (b.session !== a.session) return b.session - a.session;
       return b.number - a.number;
     })
     .slice(0, 10);
+
+  const allIds = [...new Set(petitions.flatMap((p: any) => (p.introducer_ids as string[]) || []))];
+  const memberMap: Record<string, { name: string; party: string; is_active: boolean }> = {};
+  if (allIds.length > 0) {
+    const { data: members } = await supabase
+      .from("members")
+      .select("id, name, party, is_active, alias_name")
+      .in("id", allIds)
+      .limit(500);
+    for (const m of members || []) {
+      const info = { name: (m as any).name, party: (m as any).party, is_active: (m as any).is_active };
+      memberMap[(m as any).id] = info;
+      if ((m as any).alias_name) {
+        const houseLabel = (m as any).id.startsWith("衆議院") ? "衆議院" : "参議院";
+        const aliasId = `${houseLabel}-${(m as any).alias_name.replace(/[\s\u3000]/g, "")}`;
+        memberMap[aliasId] = info;
+      }
+    }
+  }
+
+  return { petitions, memberMap };
 }
 
 async function getLatestCommitteeActivity() {
@@ -456,7 +477,7 @@ async function getMonthlyQuestions() {
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
-  const [stats, recentQuestions, committeeActivities, partyBreakdown, recentPetitions, recentBills, currentStats, alignmentMatrix, monthlyQuestions, crossPartyBills] = await Promise.all([
+  const [stats, recentQuestions, committeeActivities, partyBreakdown, petitionsResult, recentBills, currentStats, alignmentMatrix, monthlyQuestions, crossPartyBills] = await Promise.all([
     getStats(),
     getRecentQuestions(),
     getLatestCommitteeActivity(),
@@ -469,6 +490,7 @@ export default async function TopPage() {
     getCrossPartyBills(),
   ]);
 
+  const { petitions: recentPetitions, memberMap: petitionMemberMap } = petitionsResult;
   const maxPartyCount = partyBreakdown[0]?.total || 1;
 
   return (
@@ -769,6 +791,7 @@ export default async function TopPage() {
           recentQuestions={recentQuestions as any}
           committeeActivities={committeeActivities}
           recentPetitions={recentPetitions as any}
+          petitionMemberMap={petitionMemberMap}
           recentBills={recentBills as any}
         />
 

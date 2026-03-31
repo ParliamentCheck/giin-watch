@@ -51,10 +51,11 @@ interface Props {
   recentQuestions: Question[];
   committeeActivities: CommitteeActivity[];
   recentPetitions: Petition[];
+  petitionMemberMap: Record<string, { name: string; party: string; is_active: boolean }>;
   recentBills: Bill[];
 }
 
-export default function ActivityTabs({ recentQuestions, committeeActivities, recentPetitions, recentBills }: Props) {
+export default function ActivityTabs({ recentQuestions, committeeActivities, recentPetitions, petitionMemberMap, recentBills }: Props) {
   const [tab, setTab] = useState<"questions" | "committee" | "petitions" | "bills">("committee");
 
   const tabs = [
@@ -241,12 +242,23 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                 </div>
                 {p.introducer_names && p.introducer_names.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5 pl-6">
-                    {p.introducer_names.map((name) => (
-                      <span key={name}
-                        className="text-[11px] text-neutral-700 bg-neutral-100/60 px-1.5 py-0.5 rounded">
-                        {name}
-                      </span>
-                    ))}
+                    {p.introducer_names.map((name) => {
+                      const houseLabel = p.house === "衆" ? "衆議院" : "参議院";
+                      const memberId = `${houseLabel}-${name}`;
+                      const member = petitionMemberMap[memberId];
+                      if (member) {
+                        return (
+                          <MemberChip key={memberId} id={memberId} name={name}
+                            party={member.party} isFormer={!member.is_active} />
+                        );
+                      }
+                      return (
+                        <span key={name}
+                          className="text-[11px] text-neutral-500 bg-neutral-100/60 px-1.5 py-0.5 rounded">
+                          {name}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
