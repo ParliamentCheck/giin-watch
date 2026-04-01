@@ -5,6 +5,7 @@ import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import { usePagination } from "../../../hooks/usePagination";
+import MemberChip from "../../../components/MemberChip";
 
 interface CommitteeMember {
   member_id: string;
@@ -23,6 +24,7 @@ interface Petition {
   result: string | null;
   introducer_names: string[] | null;
   source_url: string | null;
+  house: "衆" | "参";
 }
 
 const PARTY_COLORS: Record<string, string> = {
@@ -55,9 +57,10 @@ function CommitteeDetailContent() {
   const router = useRouter();
   const committeeName = decodeURIComponent(params.name as string);
   const searchParams = useSearchParams();
-  const [members,       setMembers]       = useState<CommitteeMember[]>([]);
-  const [petitions,     setPetitions]     = useState<Petition[]>([]);
-  const [loading,       setLoading]       = useState(true);
+  const [members,            setMembers]            = useState<CommitteeMember[]>([]);
+  const [petitions,          setPetitions]          = useState<Petition[]>([]);
+  const [petitionMemberMap,  setPetitionMemberMap]  = useState<Record<string, { name: string; party: string; is_active: boolean }>>({});
+  const [loading,            setLoading]            = useState(true);
   const [selectedHouse, setSelectedHouse] = useState<string>("");
   const tab = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
   const COMMITTEE_TAB_LABELS: Record<string, string> = {
@@ -154,12 +157,43 @@ function CommitteeDetailContent() {
           .order("number", { ascending: false })
           .limit(30),
       ]);
-      const allPetitions = [...(pRes.data || []), ...(spRes.data || [])]
-        .sort((a, b) => {
-          if (b.session !== a.session) return b.session - a.session;
-          return b.number - a.number;
-        });
+      const allPetitions: Petition[] = [
+        ...(pRes.data || []).map((p: any) => ({ ...p, house: "衆" as const })),
+        ...(spRes.data || []).map((p: any) => ({ ...p, house: "参" as const })),
+      ].sort((a, b) => {
+        if (b.session !== a.session) return b.session - a.session;
+        return b.number - a.number;
+      });
       setPetitions(allPetitions);
+
+      // introducer_names + house からメンバーIDを構築して一括取得
+      const nameBasedIds = [...new Set(
+        allPetitions.flatMap((p) =>
+          (p.introducer_names ?? []).map((name) => {
+            const hl = p.house === "衆" ? "衆議院" : "参議院";
+            return `${hl}-${name.replace(/[\s\u3000]/g, "")}`;
+          })
+        )
+      )];
+      if (nameBasedIds.length > 0) {
+        const map: Record<string, { name: string; party: string; is_active: boolean }> = {};
+        for (let i = 0; i < nameBasedIds.length; i += 50) {
+          const batch = nameBasedIds.slice(i, i + 50);
+          const mRes = await supabase
+            .from("members")
+            .select("id, name, party, is_active, alias_name")
+            .in("id", batch);
+          for (const m of mRes.data || []) {
+            const info = { name: (m as any).name, party: (m as any).party, is_active: (m as any).is_active };
+            map[(m as any).id] = info;
+            if ((m as any).alias_name) {
+              const hl = (m as any).id.startsWith("衆議院") ? "衆議院" : "参議院";
+              map[`${hl}-${(m as any).alias_name.replace(/[\s\u3000]/g, "")}`] = info;
+            }
+          }
+        }
+        setPetitionMemberMap(map);
+      }
 
       setLoading(false);
       } catch (e) {
@@ -431,13 +465,24 @@ function CommitteeDetailContent() {
                     </div>
                     {p.introducer_names && p.introducer_names.length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {p.introducer_names.map((name) => (
-                          <span key={name} style={{ fontSize: 11, color: "#888888",
-                            background: "#e0e0e0", border: "1px solid #c8c8c8",
-                            padding: "1px 6px", borderRadius: 3 }}>
-                            {name}
-                          </span>
-                        ))}
+                        {p.introducer_names.map((name) => {
+                          const houseLabel = p.house === "衆" ? "衆議院" : "参議院";
+                          const memberId = `${houseLabel}-${name.replace(/[\s\u3000]/g, "")}`;
+                          const member = petitionMemberMap[memberId];
+                          if (member) {
+                            return (
+                              <MemberChip key={memberId} id={memberId} name={name}
+                                party={member.party} isFormer={!member.is_active} />
+                            );
+                          }
+                          return (
+                            <span key={name} style={{ fontSize: 11, color: "#888888",
+                              background: "#e0e0e0", border: "1px solid #c8c8c8",
+                              padding: "1px 6px", borderRadius: 3 }}>
+                              {name}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
