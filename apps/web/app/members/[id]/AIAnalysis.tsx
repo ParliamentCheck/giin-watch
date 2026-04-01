@@ -5,6 +5,9 @@ import AIAnalysisBase from "../../components/AIAnalysisBase";
 const DEFAULT_QUESTION =
   "提供された活動データ（質問主意書・議員立法・採決・委員会・請願・発言キーワード・共同提出パートナーなど）から、この議員の独自の特徴・活動スタイルを教えてください。特に「この議員だけが目立つシグネチャー」（繰り返し提出、特定課題での成果、党派を超えた連携など）と、直近の注目活動を重視してください。";
 
+const DEFAULT_QUESTION_FORMER =
+  "提供された在職中の活動データ（質問主意書・議員立法・採決・委員会・請願・発言キーワードなど）から、この前議員が在職中に示した独自の特徴・活動スタイルを分析してください。すべて在職当時の記録として過去形で記述し、現在の活動・立場・所属政党については推測を含め一切言及しないでください。";
+
 const SYSTEM_PROMPT =
   "あなたは日本の国会議員の活動データを分析するアシスタントです。" +
   "提供するデータは国会の公式記録から取得した客観的な情報です。" +
@@ -23,6 +26,13 @@ const SYSTEM_PROMPT =
   "断定的な評価や好意的・批判的な表現を避け、データから読み取れる傾向のみを中立的に述べてください。" +
   "\n\n【所属政党・党派情報の厳守ルール（最優先）】\n" +
   "所属政党・会派は提供データの「議員名」行に明記された情報のみを使用すること。学習データ・他の議員のデータ・選挙結果の記憶から類推・補完することを禁止する。\n" +
+  "\n\n【前議員の分析ルール（最優先・厳守）】\n" +
+  "コンテキストに「在職状況: 前議員」と記載されている場合、以下のルールを最優先で適用すること。\n" +
+  "1. 分析はすべて「在職中の活動記録」として扱い、動詞・表現を過去形（〜していた、〜を示した、〜に取り組んだ）に統一すること。\n" +
+  "2. 「現在」「今後」「引き続き」「今も」など現在進行・将来を示す表現は一切使用禁止。\n" +
+  "3. 退職後・現在の所属政党・役職・活動・立場について、推測・補完・言及を一切禁止する。学習データに現在の情報があっても使用しない。\n" +
+  "4. 所属委員会・共同提出パートナーも「在職中のデータ」として扱うこと。\n" +
+  "5. 出力の冒頭（全体概要の導入文の前）に必ず「**※ 本分析は在職中（〜）の活動記録に基づきます。現在の活動・立場については含まれていません。**」と明記すること。\n\n" +
   "「中道改革連合」「日本維新の会」「立憲民主党」など2026年以降の党派再編情報は混入リスクが高いため、提供データに記載がない限り言及しない。\n" +
   "議席数・党員数などの具体的な数字は、提供データに記載がない限り創作禁止。不確かな場合は「公開情報を確認されたい」と記述すること。\n" +
   "類似した活動パターン（例: 外交防衛集中・参院ベテラン）を持つ他の議員データを本議員の分析に適用することを禁止する。\n\n" +
@@ -95,6 +105,17 @@ function buildContext(props: AIAnalysisProps): string {
   const districtPart = member.district ? `・${member.district}` : "";
   const isFormer = member.is_active === false;
   const partyLabel = isFormer ? `元${member.party}` : member.party;
+
+  if (isFormer) {
+    lines.push("=".repeat(60));
+    lines.push("【重要】この議員は前議員（元議員）です");
+    lines.push("以下のデータはすべて在職中の活動記録です。");
+    lines.push("現在の活動・所属政党・役職・立場は不明であり、分析対象外です。");
+    lines.push("分析はすべて過去形で記述し、現在・将来への言及は禁止します。");
+    lines.push("=".repeat(60));
+    lines.push("");
+  }
+
   lines.push(`議員名: ${member.alias_name ?? member.name}（${partyLabel}・${member.house}${districtPart}）`);
   if (isFormer) {
     lines.push(`在職状況: 前議員（現在は議員ではありません）`);
@@ -209,12 +230,13 @@ export default function AIAnalysis(props: AIAnalysisProps) {
 
   const contextText = buildContext(props);
   const memberName = props.member.alias_name ?? props.member.name;
+  const isFormer = props.member.is_active === false;
 
   return (
     <AIAnalysisBase
       contextText={contextText}
       systemPrompt={SYSTEM_PROMPT}
-      defaultQuestion={DEFAULT_QUESTION}
+      defaultQuestion={isFormer ? DEFAULT_QUESTION_FORMER : DEFAULT_QUESTION}
       downloadFilename={memberName}
       tipContent={
         <>
