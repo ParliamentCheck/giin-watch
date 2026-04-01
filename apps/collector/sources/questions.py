@@ -231,12 +231,13 @@ def _scrape_sangiin_session(session: int) -> list[dict[str, Any]]:
                 submitted_at = f"{y}-{int(m):02d}-{int(d):02d}"
 
         rows.append({
-            "id":           f"sangiin-shitsumon-{session}-{question_number}",
+            "id":           f"sangiin-{session}-{question_number:03d}",
             "member_id":    make_member_id("参議院", submitter) if submitter else None,
             "session":      session,
+            "number":       question_number,
             "title":        title,
             "submitted_at": submitted_at,
-            "url":          question_url,
+            "source_url":   question_url,
         })
 
     logger.info("Session %d: found %d questions", session, len(rows))
