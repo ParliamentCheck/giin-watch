@@ -551,8 +551,9 @@ export default async function TopPage() {
             { icon: "👑", title: "内閣",       desc: "現在の大臣・副大臣・政務官の一覧。各閣僚の議員ページにもリンク",                           path: "/cabinet",    img: "/card-cabinet.jpg"    },
             { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数・活動バランス。採決での政党間距離感やAI分析も確認できます",             path: "/parties",    img: "/card-parties.jpg"    },
             { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",                               path: "/committees", img: "/card-committees.jpg" },
-            { icon: "📋", title: "法案",       desc: "議員立法・閣法（参議院）の一覧。超党派共同提出フィルターと政党間共同提出ネットワーク図も確認できます", path: "/bills",     img: "/card-bills.jpg"      },
-            { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",                 path: "/votes",      img: "/card-votes.jpg"      },
+            { icon: "📋", title: "法案",         desc: "議員立法・閣法（参議院）の一覧。超党派共同提出フィルターと政党間共同提出ネットワーク図も確認できます", path: "/bills",     img: "/card-bills.jpg"      },
+            { icon: "📝", title: "質問主意書", desc: "議員が内閣に文書で提出する質問主意書の一覧。衆院・参院合わせて検索・絞り込みできます",           path: "/questions",  img: "/card-bills.jpg"      },
+            { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",                     path: "/votes",      img: "/card-votes.jpg"      },
           ].map((item) => (
             <Link key={item.path} href={item.path}
               className="group relative block bg-white border border-neutral-200 rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400">
