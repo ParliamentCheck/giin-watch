@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat /Volumes/ACASIS-SSD/Users/ssd/.claude/projects/-Volumes-ACASIS-SSD-Users-ssd/memory/feedback_giin_watch_principles.md"
+          }
+        ]
+      }
+    ]
+  }
+}

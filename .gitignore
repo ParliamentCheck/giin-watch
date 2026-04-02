@@ -2,3 +2,4 @@
 .env
 .next/
 .claude/
+!.claude/settings.json
