@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { label: "政党",         path: "/parties" },
   { label: "委員会",       path: "/committees" },
   { label: "法案",         path: "/bills" },
-  { label: "質問主意書",   path: "/questions" },
+  { label: "質問",         path: "/questions" },
   { label: "請願",         path: "/petitions" },
   { label: "採決",         path: "/votes" },
   { label: "前議員",       path: "/members/former" },
