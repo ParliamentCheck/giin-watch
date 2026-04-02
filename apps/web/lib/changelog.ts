@@ -6,6 +6,10 @@ export interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    date: "2026-04-02",
+    title: "トップページの最新の議員立法に参院提出法案が表示されるよう修正",
+  },
+  {
     date: "2026-03-30",
     title: "請願一覧に国会会期フィルターを追加",
     description: "請願一覧ページ（/petitions）に国会会期（第196回〜第221回）での絞り込みフィルターを追加しました。",
