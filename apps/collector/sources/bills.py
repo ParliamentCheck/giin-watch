@@ -41,7 +41,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from db import batch_upsert, get_client
-from utils import make_member_id
+from utils import make_member_id, build_name_to_id
 
 logger = logging.getLogger("bill_scraper")
 
@@ -182,7 +182,7 @@ def _scrape_kaiji(session: int) -> list[dict[str, Any]]:
 # keikaページから詳細取得（衆法）
 # ============================================================
 
-def _fetch_keika_detail(keika_url: str) -> dict[str, Any]:
+def _fetch_keika_detail(keika_url: str, name_to_id: dict[str, str] | None = None) -> dict[str, Any]:
     """
     衆院keikaページから提出者・提出日・衆院審議結果を取得する。
 
@@ -225,10 +225,10 @@ def _fetch_keika_detail(keika_url: str) -> dict[str, Any]:
 
         elif ktext in ("議案提出者", "提出者", "発議者"):
             if not primary_ids:
-                primary_ids, primary_extra = _parse_submitters(v, actual_house)
+                primary_ids, primary_extra = _parse_submitters(v, actual_house, name_to_id)
 
         elif ktext == "議案提出者一覧":
-            full_ids, full_extra = _parse_submitters(v, actual_house)
+            full_ids, full_extra = _parse_submitters(v, actual_house, name_to_id)
 
         elif "提出日" in ktext or "受理年月日" in ktext or "提出年月日" in ktext:
             if result["submitted_at"] is None and vtext:
@@ -253,10 +253,10 @@ def _fetch_keika_detail(keika_url: str) -> dict[str, Any]:
             actual_house = {"衆法": "衆議院", "参法": "参議院"}.get(sib_text, actual_house)
 
         elif text in ("議案提出者", "提出者", "発議者") and not primary_ids:
-            primary_ids, primary_extra = _parse_submitters(sibling, actual_house)
+            primary_ids, primary_extra = _parse_submitters(sibling, actual_house, name_to_id)
 
         elif text == "議案提出者一覧" and not full_ids:
-            full_ids, full_extra = _parse_submitters(sibling, actual_house)
+            full_ids, full_extra = _parse_submitters(sibling, actual_house, name_to_id)
 
         elif ("提出日" in text or "受理年月日" in text or "提出年月日" in text) and result["submitted_at"] is None:
             result["submitted_at"] = _parse_jp_date(sib_text)
@@ -279,10 +279,11 @@ def _fetch_keika_detail(keika_url: str) -> dict[str, Any]:
 # 漢数字→算用数字マップ
 _KANJI_DIGIT = str.maketrans("〇一二三四五六七八九", "0123456789")
 
-def _parse_submitters(cell, house: str) -> tuple[list[str], int]:
+def _parse_submitters(cell, house: str, name_to_id: dict[str, str] | None = None) -> tuple[list[str], int]:
     """
     提出者セルから (member_id リスト, 外N名のN) を返す。
     「足立康史君外2名」→ (["衆議院-足立康史"], 2)
+    name_to_id が渡された場合はDBルックアップで解決（alias_name・ndl_names対応）。
     """
     raw = cell.get_text()
 
@@ -302,7 +303,11 @@ def _parse_submitters(cell, house: str) -> tuple[list[str], int]:
         name = re.sub(r"[君氏]$", "", part.strip())
         name = re.sub(r"\s+", "", name)
         if 2 <= len(name) <= 10:
-            ids.append(make_member_id(house, name))
+            if name_to_id is not None:
+                member_id = name_to_id.get(name) or make_member_id(house, name)
+            else:
+                member_id = make_member_id(house, name)
+            ids.append(member_id)
     return ids, extra_count
 
 
@@ -310,7 +315,7 @@ def _parse_submitters(cell, house: str) -> tuple[list[str], int]:
 # ステータス解決
 # ============================================================
 
-def _resolve_status(row: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+def _resolve_status(row: dict[str, Any], name_to_id: dict[str, str] | None = None) -> tuple[str, dict[str, Any]]:
     """
     row の raw_status を正規ステータスに変換し、keikaページから詳細を取得する。
     閣法は提出者取得をスキップ（内閣提出のため個々の議員名なし）。
@@ -330,7 +335,7 @@ def _resolve_status(row: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     # 本院議了: keikaで衆院審議結果を確認
     if raw == "本院議了":
         if keika_url:
-            d = _fetch_keika_detail(keika_url)
+            d = _fetch_keika_detail(keika_url, name_to_id)
             detail["submitter_ids"]         = d["submitter_ids"]
             detail["submitter_extra_count"] = d["submitter_extra_count"]
             detail["submitted_at"]          = d["submitted_at"]
@@ -346,7 +351,7 @@ def _resolve_status(row: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
     # 議員立法（衆法・参法）: keikaから提出者・提出日を常に取得
     if is_giin_rippo and keika_url:
-        d = _fetch_keika_detail(keika_url)
+        d = _fetch_keika_detail(keika_url, name_to_id)
         detail["submitter_ids"]         = d["submitter_ids"]
         detail["submitter_extra_count"] = d["submitter_extra_count"]
         detail["submitted_at"]          = d["submitted_at"]
@@ -366,6 +371,16 @@ def collect_bills(daily: bool = False) -> None:
     daily=False: START_SESSION から現在会期まで全件収集する。
     """
     current_session = _detect_current_session()
+
+    client = get_client()
+    members_data = (
+        execute_with_retry(
+            lambda: client.table("members").select("id, name, alias_name, ndl_names").limit(2000),
+            label="fetch_all_members",
+        ).data or []
+    )
+    name_to_id = build_name_to_id(members_data)
+    logger.info("議員名寄せマップ: %d件", len(name_to_id))
 
     if daily:
         sessions = [current_session]
@@ -413,7 +428,7 @@ def collect_bills(daily: bool = False) -> None:
         raw = row["raw_status"]
         logger.debug("Resolving %s [%s]", row["id"], raw)
 
-        status, detail = _resolve_status(row)
+        status, detail = _resolve_status(row, name_to_id)
         if status == "_skip":
             logger.info("Skip (参院送り): %s", row["id"])
             continue
@@ -454,6 +469,14 @@ def backfill_submitters() -> None:
     他フィールドを上書きしないよう upsert ではなく UPDATE を使用する。
     """
     client = get_client()
+    members_data = (
+        execute_with_retry(
+            lambda: client.table("members").select("id, name, alias_name, ndl_names").limit(2000),
+            label="fetch_all_members",
+        ).data or []
+    )
+    name_to_id = build_name_to_id(members_data)
+
     res = client.table("bills") \
         .select("id, keika_url, submitter_ids") \
         .eq("bill_type", "議員立法") \
@@ -469,7 +492,7 @@ def backfill_submitters() -> None:
 
     updated = 0
     for r in targets:
-        detail = _fetch_keika_detail(r["keika_url"])
+        detail = _fetch_keika_detail(r["keika_url"], name_to_id)
         if len(detail["submitter_ids"]) > 1:
             client.table("bills").update({
                 "submitter_ids":         detail["submitter_ids"],

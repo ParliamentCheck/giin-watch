@@ -18,7 +18,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from db import get_client, execute_with_retry, batch_upsert
-from utils import make_member_id
+from utils import make_member_id, build_name_to_id
 
 logger = logging.getLogger("petitions")
 
@@ -169,17 +169,6 @@ def _scrape_shugiin_detail(session: int, number: int) -> Optional[dict]:
     }
 
 
-def _build_name_to_id(members_data: list[dict]) -> dict[str, str]:
-    """name・alias_name 両方から正規化名 → member_id のマップを構築"""
-    name_to_id: dict[str, str] = {}
-    for m in members_data:
-        norm = re.sub(r"[\s\u3000]+", "", m["id"].split("-", 1)[1])
-        name_to_id[norm] = m["id"]
-        if m.get("alias_name"):
-            alias = re.sub(r"[\s\u3000]+", "", m["alias_name"])
-            name_to_id[alias] = m["id"]
-    return name_to_id
-
 
 def collect_shugiin_petitions(full: bool = False) -> None:
     """
@@ -188,11 +177,11 @@ def collect_shugiin_petitions(full: bool = False) -> None:
     """
     client = get_client()
     members_data = execute_with_retry(
-        lambda: client.table("members").select("id,alias_name").eq("house", "衆議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "衆議院").limit(2000),
         label="fetch_shugiin_members",
     ).data or []
     member_ids_set = {m["id"] for m in members_data}
-    name_to_id = _build_name_to_id(members_data)
+    name_to_id = build_name_to_id(members_data)
 
     sessions = _get_shugiin_sessions()
     if not full:
@@ -393,11 +382,11 @@ def collect_sangiin_petitions(full: bool = False) -> None:
     """
     client = get_client()
     members_data = execute_with_retry(
-        lambda: client.table("members").select("id,alias_name").eq("house", "参議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "参議院").limit(2000),
         label="fetch_sangiin_members",
     ).data or []
     member_ids_set = {m["id"] for m in members_data}
-    name_to_id = _build_name_to_id(members_data)
+    name_to_id = build_name_to_id(members_data)
 
     sessions = _get_sangiin_sessions()
     if not full:

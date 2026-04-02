@@ -14,6 +14,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from db import get_client, execute_with_retry, batch_upsert
+from utils import build_name_to_id
 
 logger = logging.getLogger("committees")
 
@@ -71,16 +72,12 @@ def _scrape_shugiin_members(committee_name: str, url: str) -> list[dict]:
 def collect_shugiin_committees() -> None:
     client = get_client()
     logger.info("衆議院議員を取得中...")
-    member_map: dict[str, str] = {
-        re.sub(r"\s+", "", _normalize_shu(m["name"])): m["id"]
-        for m in (
-            execute_with_retry(
-                lambda: client.table("members").select("id, name").eq("house", "衆議院").limit(2000),
-                label="fetch_shugiin_members",
-            ).data or []
-        )
-    }
-    logger.info("衆議院議員: %d名", len(member_map))
+    members_data = execute_with_retry(
+        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "衆議院").limit(2000),
+        label="fetch_shugiin_members",
+    ).data or []
+    member_map = build_name_to_id(members_data)
+    logger.info("衆議院議員: %d名", len(members_data))
 
     committees = _scrape_shugiin_list()
     logger.info("%d件の委員会を発見", len(committees))
@@ -195,22 +192,12 @@ def _scrape_sangiin_committee(url: str) -> tuple[str, list[dict]]:
 def collect_sangiin_committees() -> None:
     client = get_client()
     logger.info("参議院議員を取得中...")
-    member_map: dict[str, str] = {}
-    for m in (
-        execute_with_retry(
-            lambda: client.table("members").select("id, name, ndl_names").eq("house", "参議院").limit(2000),
-            label="fetch_sangiin_members",
-        ).data or []
-    ):
-        # 漢字名
-        key = re.sub(r"\s+", "", m["name"])
-        member_map[key] = m["id"]
-        # ndl_names（ふりがな・旧姓等）もキーに追加
-        for alt in (m.get("ndl_names") or []):
-            alt_key = re.sub(r"\s+", "", alt)
-            if alt_key and alt_key not in member_map:
-                member_map[alt_key] = m["id"]
-    logger.info("参議院議員: %d名", len(member_map))
+    members_data = execute_with_retry(
+        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "参議院").limit(2000),
+        label="fetch_sangiin_members",
+    ).data or []
+    member_map = build_name_to_id(members_data)
+    logger.info("参議院議員: %d名", len(members_data))
 
     urls = _get_sangiin_urls()
     logger.info("%d件の委員会を発見", len(urls))

@@ -20,7 +20,7 @@ from bs4 import BeautifulSoup
 
 from config import SESSION_MAX, SESSION_MAX_NEXT_START
 from db import get_client, execute_with_retry, batch_upsert
-from utils import make_member_id
+from utils import make_member_id, build_name_to_id
 
 logger = logging.getLogger("questions")
 
@@ -87,19 +87,15 @@ def collect_shugiin_questions(full: bool = False) -> None:
     full=True（バックフィル）: 全セッションを再収集。
     """
     client = get_client()
-    members_result = execute_with_retry(
-        lambda: client.table("members").select("id, name").eq("house", "衆議院").limit(2000),
+    members_data = execute_with_retry(
+        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "衆議院").limit(2000),
         label="fetch_shugiin_members",
-    )
-    members_data = members_result.data or []
+    ).data or []
+    name_to_id = build_name_to_id(members_data)
     member_cache: dict[str, Optional[str]] = {}
 
     def find_member_id(name: str) -> Optional[str]:
-        name_no_space = re.sub(r"\s+", "", name)
-        for m in members_data:
-            if re.sub(r"\s+", "", m["name"]) == name_no_space:
-                return m["id"]
-        return None
+        return name_to_id.get(re.sub(r"\s+", "", name))
 
     extra_sessions: dict[int, int] = {}
     session_num = SESSION_MAX_NEXT_START
@@ -191,7 +187,7 @@ def _get_sangiin_sessions() -> list[int]:
     return sessions
 
 
-def _scrape_sangiin_session(session: int) -> list[dict[str, Any]]:
+def _scrape_sangiin_session(session: int, name_to_id: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """
     参院質問主意書ページの構造:
       1列行: タイトル（meisai詳細ページへのリンク付き）
@@ -235,9 +231,13 @@ def _scrape_sangiin_session(session: int) -> list[dict[str, Any]]:
                 raw = tds[1].get_text(strip=True)
                 submitter = re.sub(r"[\s\u3000]+", "", raw).rstrip("君")
 
+                if name_to_id is not None:
+                    member_id = name_to_id.get(submitter) if submitter else None
+                else:
+                    member_id = make_member_id("参議院", submitter) if submitter else None
                 rows.append({
                     "id":           f"sangiin-{session}-{question_number:03d}",
-                    "member_id":    make_member_id("参議院", submitter) if submitter else None,
+                    "member_id":    member_id,
                     "session":      session,
                     "number":       question_number,
                     "title":        pending_title,
@@ -261,19 +261,16 @@ def collect_sangiin_questions(sessions: list[int] | None = None, full: bool = Fa
             sessions = all_known[-2:]
             logger.info("日次モード: 参院セッション %s のみ対象", sessions)
     client = get_client()
-    member_ids = {
-        m["id"]
-        for m in (
-            execute_with_retry(
-                lambda: client.table("members").select("id").eq("house", "参議院").limit(2000),
-                label="fetch_sangiin_members",
-            ).data or []
-        )
-    }
+    members_data = execute_with_retry(
+        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "参議院").limit(2000),
+        label="fetch_sangiin_members",
+    ).data or []
+    name_to_id = build_name_to_id(members_data)
+    member_ids = {m["id"] for m in members_data}
 
     total_saved = 0
     for session in sessions:
-        rows = _scrape_sangiin_session(session)
+        rows = _scrape_sangiin_session(session, name_to_id)
         valid_rows = [r for r in rows if r.get("member_id") in member_ids]
         if valid_rows:
             batch_upsert("sangiin_questions", valid_rows, on_conflict="id", label=f"sq:{session}")

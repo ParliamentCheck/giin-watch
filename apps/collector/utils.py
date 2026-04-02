@@ -20,7 +20,7 @@ from config import (
 
 
 # ============================================================
-# 議員ID生成
+# 議員ID生成・名寄せ
 # ============================================================
 def make_member_id(house: str, name: str) -> str:
     """
@@ -29,6 +29,35 @@ def make_member_id(house: str, name: str) -> str:
     """
     normalized = re.sub(r"\s+", "", name.strip())
     return f"{house}-{normalized}"
+
+
+def build_name_to_id(members_data: list[dict]) -> dict[str, str]:
+    """
+    name・alias_name・ndl_names の全フィールドから
+    正規化済み名前 → member_id のマップを構築する。
+
+    全スクリプトの名寄せはこの関数を唯一の実装とする。
+    名寄せロジックを修正する場合はここだけ直す。
+
+    優先順位: name > alias_name > ndl_names（先勝ち）
+    """
+    name_to_id: dict[str, str] = {}
+    for m in members_data:
+        member_id = m["id"]
+        # 本名
+        norm = re.sub(r"[\s\u3000]+", "", (m.get("name") or ""))
+        if norm and norm not in name_to_id:
+            name_to_id[norm] = member_id
+        # 通称名
+        alias = re.sub(r"[\s\u3000]+", "", (m.get("alias_name") or ""))
+        if alias and alias not in name_to_id:
+            name_to_id[alias] = member_id
+        # NDL名（読み仮名・旧姓等、配列）
+        for ndl in (m.get("ndl_names") or []):
+            ndl_norm = re.sub(r"[\s\u3000]+", "", ndl)
+            if ndl_norm and ndl_norm not in name_to_id:
+                name_to_id[ndl_norm] = member_id
+    return name_to_id
 
 
 # ============================================================
