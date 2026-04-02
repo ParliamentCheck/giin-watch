@@ -7,7 +7,7 @@ export interface ChangelogEntry {
 const changelog: ChangelogEntry[] = [
   {
     date: "2026-04-02",
-    title: "トップページの最新の議員立法に参院提出法案が表示されるよう修正",
+    title: "トップページ最新の議員立法に参法が表示されない問題を修正",
   },
   {
     date: "2026-03-30",
