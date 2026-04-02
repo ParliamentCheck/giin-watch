@@ -192,6 +192,12 @@ def _get_sangiin_sessions() -> list[int]:
 
 
 def _scrape_sangiin_session(session: int) -> list[dict[str, Any]]:
+    """
+    参院質問主意書ページの構造:
+      1列行: タイトル（meisai詳細ページへのリンク付き）
+      4列行: 番号 / 提出者名（〇〇君） / 質問本文リンク / 答弁本文リンク
+    1列行と4列行がペアになっているためセットで処理する。
+    """
     url = f"{SANGIIN_BASE_URL}/{session}/syuisyo.htm"
     logger.info("Fetching session %d: %s", session, url)
     try:
@@ -205,40 +211,41 @@ def _scrape_sangiin_session(session: int) -> list[dict[str, Any]]:
     soup = BeautifulSoup(resp.text, "html.parser")
     rows: list[dict[str, Any]] = []
 
+    pending_title: str | None = None
+    pending_url:   str | None = None
+
     for tr in soup.find_all("tr"):
         tds = tr.find_all("td")
-        if len(tds) < 3:
+
+        # 1列行 = タイトル行
+        if len(tds) == 1:
+            title_link = tds[0].find("a")
+            if title_link and title_link.get("href"):
+                href = title_link["href"]
+                pending_title = tds[0].get_text(strip=True)
+                pending_url = href if href.startswith("http") else f"https://www.sangiin.go.jp/japanese/joho1/kousei/syuisyo/{session}/{href}"
             continue
-        num_match = re.search(r"(\d+)", tds[0].get_text(strip=True))
-        if not num_match:
-            continue
-        question_number = int(num_match.group(1))
 
-        title = tds[1].get_text(strip=True)
-        question_url = ""
-        title_link = tds[1].find("a")
-        if title_link and title_link.get("href"):
-            href = title_link["href"]
-            question_url = href if href.startswith("http") else f"https://www.sangiin.go.jp{href}"
+        # 4列行 = データ行（番号 / 提出者 / 質問本文 / 答弁本文）
+        if len(tds) >= 2 and pending_title is not None:
+            num_match = re.search(r"^\s*(\d+)\s*$", tds[0].get_text(strip=True))
+            if num_match:
+                question_number = int(num_match.group(1))
+                # 「石垣　のりこ君」→「石垣のりこ」（全角スペース除去・末尾の敬称「君」除去）
+                raw = tds[1].get_text(strip=True)
+                submitter = re.sub(r"[\s\u3000]+", "", raw).rstrip("君")
 
-        submitter = tds[2].get_text(strip=True) if len(tds) > 2 else ""
-
-        submitted_at = None
-        if len(tds) > 3:
-            date_match = re.search(r"(\d{4})[./年](\d{1,2})[./月](\d{1,2})", tds[3].get_text(strip=True))
-            if date_match:
-                y, m, d = date_match.groups()
-                submitted_at = f"{y}-{int(m):02d}-{int(d):02d}"
-
-        rows.append({
-            "id":           f"sangiin-{session}-{question_number:03d}",
-            "member_id":    make_member_id("参議院", submitter) if submitter else None,
-            "session":      session,
-            "number":       question_number,
-            "title":        title,
-            "submitted_at": submitted_at,
-            "source_url":   question_url,
-        })
+                rows.append({
+                    "id":           f"sangiin-{session}-{question_number:03d}",
+                    "member_id":    make_member_id("参議院", submitter) if submitter else None,
+                    "session":      session,
+                    "number":       question_number,
+                    "title":        pending_title,
+                    "submitted_at": None,
+                    "source_url":   pending_url,
+                })
+                pending_title = None
+                pending_url   = None
 
     logger.info("Session %d: found %d questions", session, len(rows))
     return rows
