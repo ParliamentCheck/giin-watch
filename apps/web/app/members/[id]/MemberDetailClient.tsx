@@ -186,7 +186,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           .order("submitted_at", { ascending: false }).limit(1000),
         supabase.from("committee_members").select("*").eq("member_id", memberId),
         supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
-          .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(100),
+          .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(1000),
         supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids,submitter_extra_count,honbun_url,keika_url")
           .contains("submitter_ids", [memberId]).order("submitted_at", { ascending: false }).limit(1000),
         supabase.from("member_keywords").select("word,count")
