@@ -423,17 +423,24 @@ async function getPartyAlignmentMatrix() {
 
 // 質問主意書の月別推移（政党別）
 async function getMonthlyQuestions() {
+  // 直近12ヶ月分を表示するため、余裕を持って14ヶ月前以降に絞る
+  // 衆院: submitted_at が和暦文字列のため session カラムでフィルター（直近5回次 ≒ 約2年）
+  // 参院: submitted_at が ISO 日付のため日付でフィルター
+  const cutoffDate = new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth() - 14);
+  const cutoffIso = cutoffDate.toISOString().slice(0, 10);
+
   const [{ data: shuData }, { data: sanData }] = await Promise.all([
     supabase
       .from("questions")
       .select("submitted_at, members(party)")
-      .like("submitted_at", "令和%")
-      .limit(5000),
+      .gte("session", CURRENT_SESSION - 4)
+      .limit(2000),
     supabase
       .from("sangiin_questions")
       .select("submitted_at, members(party)")
-      .not("submitted_at", "is", null)
-      .limit(5000),
+      .gte("submitted_at", cutoffIso)
+      .limit(2000),
   ]);
 
   // 衆院: "令和 7年10月21日" / "令和元年11月 1日" → "2025-10"
