@@ -200,15 +200,28 @@ async function getCrossPartyBills() {
 }
 
 async function getRecentBills() {
-  const billsRes = await supabase
-    .from("bills")
-    .select("id, title, submitted_at, session_number, status, house, honbun_url, keika_url, submitter_ids, submitter_extra_count")
-    .eq("bill_type", "議員立法")
-    .order("session_number", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(10);
+  // 衆法・参法を別々に取得してマージ（id降順ソートだと衆法が参法より辞書順で大きく参法が埋もれるため）
+  const SELECT = "id, title, submitted_at, session_number, status, house, honbun_url, keika_url, submitter_ids, submitter_extra_count";
+  const [shuRes, sanRes] = await Promise.all([
+    supabase.from("bills").select(SELECT)
+      .eq("bill_type", "議員立法").eq("house", "衆議院")
+      .order("session_number", { ascending: false })
+      .order("submitted_at", { ascending: false, nullsFirst: false })
+      .limit(6),
+    supabase.from("bills").select(SELECT)
+      .eq("bill_type", "議員立法").eq("house", "参議院")
+      .order("session_number", { ascending: false })
+      .order("submitted_at", { ascending: false, nullsFirst: false })
+      .limit(6),
+  ]);
 
-  const bills = billsRes.data || [];
+  const bills = [...(shuRes.data || []), ...(sanRes.data || [])].sort((a: any, b: any) => {
+    if ((b.session_number ?? 0) !== (a.session_number ?? 0)) return (b.session_number ?? 0) - (a.session_number ?? 0);
+    if (a.submitted_at && b.submitted_at) return b.submitted_at.localeCompare(a.submitted_at);
+    if (a.submitted_at) return -1;
+    if (b.submitted_at) return 1;
+    return b.id.localeCompare(a.id);
+  }).slice(0, 10);
   const allIds = [...new Set(bills.flatMap((b: any) => b.submitter_ids || []))];
 
   if (allIds.length === 0) return bills.map((b: any) => ({ ...b, submitters: [] }));
