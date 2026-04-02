@@ -181,9 +181,9 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         supabase.from("speeches").select("*").eq("member_id", memberId)
           .order("spoken_at", { ascending: false }).limit(1000),
         supabase.from("questions").select("*").eq("member_id", memberId)
-          .order("submitted_at", { ascending: false }).limit(200),
+          .order("submitted_at", { ascending: false }).limit(1000),
         supabase.from("sangiin_questions").select("*").eq("member_id", memberId)
-          .order("submitted_at", { ascending: false }).limit(200),
+          .order("submitted_at", { ascending: false }).limit(1000),
         supabase.from("committee_members").select("*").eq("member_id", memberId),
         supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
           .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(100),
@@ -455,7 +455,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             {[
               { label: "委員会所属",     value: clientLoaded ? committees.length : (initialCommitteeCount ?? null), unit: "件" },
               { label: "発言セッション", value: clientLoaded ? sessionGroups.length : member.session_count,          unit: "回" },
-              { label: "質問主意書",     value: clientLoaded ? questions.length  : member.question_count,  unit: "件" },
+              { label: "質問主意書",     value: member.question_count ?? (clientLoaded ? questions.length : null), unit: "件" },
               { label: member.house === "衆議院" ? "採決（衆院は非対応）" : "採決", value: member.house === "衆議院" ? undefined : (clientLoaded ? (voteStats?.total ?? votes.length) : (initialVoteCount ?? null)), unit: "件" },
               { label: "議員立法",       value: clientLoaded ? bills.length      : member.bill_count,      unit: "件" },
               { label: "請願",           value: clientLoaded ? petitions.length  : member.petition_count,  unit: "件" },
