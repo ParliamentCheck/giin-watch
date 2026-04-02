@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cat /Volumes/ACASIS-SSD/Users/ssd/.claude/projects/-Volumes-ACASIS-SSD-Users-ssd/memory/feedback_giin_watch_principles.md"
+            "command": "echo '=== 作業前チェック（必須・省略不可） ===\n\n以下をこの順番で必ず実行すること。スキップは禁止。\n\n【STEP 1】REBUILD.mdを読み、未解決の問題（D-1〜R-3）の中で今回の作業と関係するものを列挙する。\n【STEP 2】今回の作業はREBUILD.mdの優先順位と整合しているか確認する。\n　- 「表示の正確さ」の問題が未解決のまま、システム改善・UI整備・新機能追加を進めることは禁止。\n　- 整合していない場合は作業を止め、ユーザーに報告・相談する。\n【STEP 3】作業による影響範囲を宣言する（どのファイル・機能に影響するか）。\n【STEP 4】同種の問題が他にないか横断的に確認する。\n\nこれらを完了してから初めて作業に入ること。' && cat /Volumes/ACASIS-SSD/Users/ssd/.claude/projects/-Volumes-ACASIS-SSD-Users-ssd/memory/feedback_giin_watch_principles.md"
           }
         ]
       }
