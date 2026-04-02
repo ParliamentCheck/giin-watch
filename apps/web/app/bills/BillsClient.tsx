@@ -455,7 +455,7 @@ export default function BillsClient() {
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                             {b.submitter_ids.map((id) => {
                               const m = memberMap[id];
-                              if (m) return <MemberChip key={id} id={id} name={m.name} party={m.party} />;
+                              if (m) return <MemberChip key={id} id={id} name={m.name} party={m.party} isFormer={!m.is_active} />;
                               const name = id.split("-").slice(1).join("-");
                               return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                             })}
@@ -653,7 +653,7 @@ export default function BillsClient() {
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                 {b.submitter_ids.map((id) => {
                                   const m = memberMap[id];
-                                  if (m) return <MemberChip key={id} id={id} name={m.name} party={m.party} />;
+                                  if (m) return <MemberChip key={id} id={id} name={m.name} party={m.party} isFormer={!m.is_active} />;
                                   const name = id.split("-").slice(1).join("-");
                                   return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                                 })}
