@@ -37,6 +37,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await getMember(memberId);
   if (!data) return { title: "議員詳細" };
 
+  const isFormer = !data.is_active;
   const parts = [data.party, data.house, data.district, data.terms ? `${data.terms}期` : null, data.cabinet_post].filter(Boolean);
   const stats = [
     data.session_count  ? `発言セッション数${data.session_count}回`  : null,
@@ -44,7 +45,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     data.bill_count     ? `議員立法${data.bill_count}件`              : null,
   ].filter(Boolean).join("、");
   const displayName = (data as any).alias_name ?? data.name;
-  const description = `${displayName}（${parts.join("・")}）の国会活動データ。${stats ? stats + "。" : ""}発言・質問主意書・議員立法・採決・委員会活動を可視化。`;
+  const formerPrefix = isFormer ? "元" : "";
+  const description = `${displayName}（${formerPrefix}${parts.join("・")}）の国会活動データ。${stats ? stats + "。" : ""}発言・質問主意書・議員立法・採決・委員会活動を可視化。`;
   const url = `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`;
 
   return {
@@ -73,7 +75,7 @@ export default async function MemberDetailPage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "Person",
     "name": (member as any).alias_name ?? member.name,
-    "jobTitle": member.cabinet_post || (member.house === "衆議院" ? "衆議院議員" : "参議院議員"),
+    "jobTitle": member.is_active ? (member.cabinet_post || (member.house === "衆議院" ? "衆議院議員" : "参議院議員")) : `元${member.house === "衆議院" ? "衆議院議員" : "参議院議員"}`,
     "affiliation": { "@type": "Organization", "name": member.party },
     "url": `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`,
     "description": `${member.name}（${member.party}・${member.house}・${member.district}${member.terms ? `・${member.terms}期` : ""}）。発言セッション数${member.session_count ?? 0}回、質問主意書${member.question_count ?? 0}件、議員立法${member.bill_count ?? 0}件、請願${member.petition_count ?? 0}件。`,

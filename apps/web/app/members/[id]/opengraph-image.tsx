@@ -36,7 +36,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || "";
 
   const res = await fetch(
-    `${supabaseUrl}/rest/v1/members?id=eq.${encodeURIComponent(memberId)}&select=name,alias_name,party,house,district,session_count,question_count,bill_count,petition_count,cabinet_post`,
+    `${supabaseUrl}/rest/v1/members?id=eq.${encodeURIComponent(memberId)}&select=name,alias_name,party,house,district,session_count,question_count,bill_count,petition_count,cabinet_post,is_active`,
     { headers: { apikey: supabaseKey } }
   );
   const [member] = await res.json();
@@ -88,7 +88,16 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               <span style={{ fontSize: 28, color: "#555" }}>
                 {member.house} · {member.district}
               </span>
-              {member.cabinet_post && (
+              {!member.is_active && (
+                <span style={{
+                  background: "#888", color: "#fff",
+                  fontSize: 24, fontWeight: 700,
+                  padding: "6px 16px", borderRadius: 8,
+                }}>
+                  前議員
+                </span>
+              )}
+              {member.is_active && member.cabinet_post && (
                 <span style={{
                   background: "#f59e0b", color: "#fff",
                   fontSize: 24, fontWeight: 700,
