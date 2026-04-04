@@ -61,13 +61,15 @@ const PARTY_COLORS: Record<string, string> = {
   "無所属":       "#7f8c8d",
 };
 
-export default function CabinetClient() {
+export default function CabinetClient({ initialMembers }: { initialMembers?: Member[] }) {
   const router = useRouter();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-
+  const [members, setMembers] = useState<Member[]>(
+    initialMembers ? [...initialMembers].sort((a, b) => postPriority(a.cabinet_post) - postPriority(b.cabinet_post)) : []
+  );
+  const [loading, setLoading] = useState(!initialMembers);
 
   useEffect(() => {
+    if (initialMembers) return;
     async function fetchCabinet() {
       const { data, error } = await supabase
         .from("members")

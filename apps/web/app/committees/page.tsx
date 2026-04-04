@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { supabaseServer as supabase } from "../../lib/supabase-server";
 import CommitteesClient from "./CommitteesClient";
+
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "委員会一覧",
@@ -11,6 +14,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://www.hataraku-giin.com/committees" },
 };
 
-export default function CommitteesPage() {
-  return <CommitteesClient />;
+export default async function CommitteesPage() {
+  const { data } = await supabase
+    .from("committee_members")
+    .select("committee, house")
+    .limit(2000);
+
+  return <CommitteesClient initialRaw={data ?? []} />;
 }

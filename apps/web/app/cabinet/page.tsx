@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { supabaseServer as supabase } from "../../lib/supabase-server";
 import CabinetClient from "./CabinetClient";
+
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "内閣一覧",
@@ -11,6 +14,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://www.hataraku-giin.com/cabinet" },
 };
 
-export default function CabinetPage() {
-  return <CabinetClient />;
+export default async function CabinetPage() {
+  const { data } = await supabase
+    .from("members")
+    .select("id, name, party, house, district, cabinet_post")
+    .eq("is_active", true)
+    .not("cabinet_post", "is", null);
+
+  return <CabinetClient initialMembers={data ?? []} />;
 }

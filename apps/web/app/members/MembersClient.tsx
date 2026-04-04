@@ -57,11 +57,11 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "terms",          label: "当選回数順" },
 ];
 
-function MembersContent() {
+function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<Member[]>(initialMembers ?? []);
+  const [loading, setLoading] = useState(!initialMembers);
   const [inputValue, setInputValue] = useState("");
   const [favIds, setFavIds] = useState<string[]>([]);
   const isComposing = useRef(false);
@@ -92,6 +92,7 @@ function MembersContent() {
   };
 
   useEffect(() => {
+    if (initialMembers) return;
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
@@ -262,14 +263,14 @@ function MembersContent() {
   );
 }
 
-export default function MembersClient() {
+export default function MembersClient({ initialMembers }: { initialMembers?: Member[] }) {
   return (
     <Suspense
       fallback={
         <div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>
       }
     >
-      <MembersContent />
+      <MembersContent initialMembers={initialMembers} />
     </Suspense>
   );
 }

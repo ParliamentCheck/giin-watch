@@ -96,15 +96,22 @@ function alignTextColor(rate: number): string {
   return "#991b1b";
 }
 
-function VotesContent() {
+function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
+  initialRawVotes?: VoteRow[];
+  initialMemberPartyMap?: Record<string, string>;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   useEffect(() => { document.title = "政党別採決一致率 | はたらく議員"; }, []);
 
-  const [loading, setLoading]               = useState(true);
-  const [rawVotes, setRawVotes]             = useState<VoteRow[]>([]);
-  const [memberPartyMap, setMemberPartyMap] = useState<Record<string, string>>({});
-  const [availableSessions, setAvailableSessions] = useState<number[]>([]);
+  const [loading, setLoading]               = useState(!initialRawVotes);
+  const [rawVotes, setRawVotes]             = useState<VoteRow[]>(initialRawVotes ?? []);
+  const [memberPartyMap, setMemberPartyMap] = useState<Record<string, string>>(initialMemberPartyMap ?? {});
+  const [availableSessions, setAvailableSessions] = useState<number[]>(
+    initialRawVotes
+      ? ([...new Set(initialRawVotes.map((v) => v.session_number))].filter(Boolean).sort() as number[])
+      : []
+  );
 
   // URLの ?session= を読み取り
   const selectedSession = useMemo(() => {
@@ -123,6 +130,7 @@ function VotesContent() {
   };
 
   useEffect(() => {
+    if (initialRawVotes) return;
     async function fetchData() {
       let allVotes: VoteRow[] = [];
       let from = 0;
@@ -324,7 +332,10 @@ function VotesContent() {
   );
 }
 
-export default function VotesClient() {
+export default function VotesClient({ initialRawVotes, initialMemberPartyMap }: {
+  initialRawVotes?: VoteRow[];
+  initialMemberPartyMap?: Record<string, string>;
+}) {
   return (
     <Suspense fallback={
       <div style={{ minHeight: "100vh", background: "#f4f4f4", padding: "24px" }}>
@@ -334,7 +345,7 @@ export default function VotesClient() {
         </div>
       </div>
     }>
-      <VotesContent />
+      <VotesContent initialRawVotes={initialRawVotes} initialMemberPartyMap={initialMemberPartyMap} />
     </Suspense>
   );
 }

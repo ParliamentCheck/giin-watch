@@ -43,15 +43,39 @@ const COMMITTEE_DESCRIPTIONS: Record<string, string> = {
   "災害対策及び東日本大震災復興特別委員会": "防災・減災対策および東日本大震災からの復興に関する事項を審議する特別委員会。",
 };
 
-export default function CommitteesClient() {
+function buildCommitteeStats(raw: { committee: string; house: string }[]): CommitteeStats[] {
+  const countMap: Record<string, number> = {};
+  const housesMap: Record<string, Set<string>> = {};
+  for (const row of raw) {
+    const name = row.committee?.trim();
+    const house = row.house?.trim();
+    if (!name) continue;
+    countMap[name] = (countMap[name] || 0) + 1;
+    if (house) {
+      if (!housesMap[name]) housesMap[name] = new Set();
+      housesMap[name].add(house);
+    }
+  }
+  return Object.entries(countMap)
+    .map(([committee, count]) => ({
+      committee,
+      count,
+      house: [...(housesMap[committee] || [])].sort().join("・") || "その他",
+    }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export default function CommitteesClient({ initialRaw }: { initialRaw?: { committee: string; house: string }[] }) {
   const router = useRouter();
-  const [committees, setCommittees] = useState<CommitteeStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [committees, setCommittees] = useState<CommitteeStats[]>(
+    initialRaw ? buildCommitteeStats(initialRaw) : []
+  );
+  const [loading, setLoading] = useState(!initialRaw);
   const [selectedHouse, setSelectedHouse] = useState("");
   const [search, setSearch] = useState("");
 
-
   useEffect(() => {
+    if (initialRaw) return;
     async function fetchCommittees() {
       const { data, error } = await supabase
         .from("committee_members")
@@ -64,29 +88,7 @@ export default function CommitteesClient() {
         return;
       }
 
-      // 委員会ごとに所属人数を集計
-      const countMap: Record<string, number> = {};
-      const housesMap: Record<string, Set<string>> = {};
-      for (const row of data || []) {
-        const name = row.committee?.trim();
-        const house = row.house?.trim();
-        if (!name) continue;
-        countMap[name] = (countMap[name] || 0) + 1;
-        if (house) {
-          if (!housesMap[name]) housesMap[name] = new Set();
-          housesMap[name].add(house);
-        }
-      }
-
-      const result: CommitteeStats[] = Object.entries(countMap)
-        .map(([committee, count]) => ({
-          committee,
-          count,
-          house: [...(housesMap[committee] || [])].sort().join("・") || "その他",
-        }))
-        .sort((a, b) => b.count - a.count);
-
-      setCommittees(result);
+      setCommittees(buildCommitteeStats(data || []));
       setLoading(false);
     }
     fetchCommittees();

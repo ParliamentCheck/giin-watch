@@ -268,7 +268,7 @@ function ElectionDivergenceSection() {
   );
 }
 
-function PartiesContent() {
+function PartiesContent({ initialParties }: { initialParties?: PartyStats[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") ?? "list";
@@ -278,8 +278,8 @@ function PartiesContent() {
     router.replace(`${window.location.pathname}?${p.toString()}`);
   };
 
-  const [parties, setParties] = useState<PartyStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [parties, setParties] = useState<PartyStats[]>(initialParties ?? []);
+  const [loading, setLoading] = useState(!initialParties);
 
   useEffect(() => {
     const label = tab === "divergence" ? "得票率 vs 議席率" : "政党・会派";
@@ -287,6 +287,7 @@ function PartiesContent() {
   }, [tab]);
 
   useEffect(() => {
+    if (initialParties) return;
     async function fetchStats() {
       const { data } = await supabase
         .from("members")
@@ -410,10 +411,10 @@ function PartiesContent() {
   );
 }
 
-export default function PartiesClient() {
+export default function PartiesClient({ initialParties }: { initialParties?: PartyStats[] }) {
   return (
     <Suspense fallback={<div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>}>
-      <PartiesContent />
+      <PartiesContent initialParties={initialParties} />
     </Suspense>
   );
 }
