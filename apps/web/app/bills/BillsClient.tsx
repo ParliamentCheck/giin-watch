@@ -3,35 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
+import { getBillsByType, getAllMembers } from "../../lib/queries";
+import type { Bill, Member } from "../../lib/types";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
-
-interface Bill {
-  id: string;
-  title: string;
-  submitted_at: string | null;
-  status: string | null;
-  session_number: number | null;
-  house: string | null;
-  submitter_ids: string[] | null;
-  submitter_extra_count: number | null;
-  honbun_url: string | null;
-  keika_url: string | null;
-  bill_type: string | null;
-  committee_san: string | null;
-  vote_date_san: string | null;
-  committee_shu: string | null;
-  vote_date_shu: string | null;
-}
-
-interface MemberInfo {
-  id: string;
-  name: string;
-  party: string;
-  prev_party: string | null;
-  is_active: boolean;
-}
+import { PARTY_COLORS, partyShort } from "../../lib/partyColors";
 
 interface PairStat {
   a: string;
@@ -51,40 +28,13 @@ function classifyStatus(status: string | null): StatusCategory {
   return "審議中"; // null・空・審議中 など
 }
 
-function getEffectiveParty(m: MemberInfo, billDate: string | null): string {
+function getEffectiveParty(m: Member, billDate: string | null): string {
   if (m.party === "中道改革連合" && m.prev_party && (!billDate || billDate < CHUDO_FORMATION_DATE)) {
     return m.prev_party;
   }
   return m.party;
 }
 
-const PARTY_COLORS: Record<string, string> = {
-  "自民党":         "#c0392b",
-  "立憲民主党":     "#2980b9",
-  "公明党":         "#8e44ad",
-  "日本維新の会":   "#318e2c",
-  "国民民主党":     "#fabe00",
-  "共産党":         "#e74c3c",
-  "れいわ新選組":   "#e4007f",
-  "社民党":         "#795548",
-  "参政党":         "#ff6d00",
-  "チームみらい":   "#00bcd4",
-  "日本保守党":     "#607d8b",
-  "無所属":         "#7f8c8d",
-};
-
-const PARTY_SHORT: Record<string, string> = {
-  "自民党":       "自民",
-  "立憲民主党":   "立憲",
-  "公明党":       "公明",
-  "国民民主党":   "国民",
-  "日本維新の会": "維新",
-  "共産党":       "共産",
-  "れいわ新選組": "れいわ",
-  "参政党":       "参政",
-  "チームみらい": "みらい",
-  "日本保守党":   "保守",
-};
 
 function heatmapBg(count: number, max: number): string {
   if (count === 0) return "transparent";
@@ -127,7 +77,7 @@ export default function BillsClient() {
 
   // 一覧タブ用
   const [bills, setBills] = useState<Bill[]>([]);
-  const [memberMap, setMemberMap] = useState<Record<string, MemberInfo>>({});
+  const [memberMap, setMemberMap] = useState<Record<string, Member>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isComposing, setIsComposing] = useState(false);
@@ -196,30 +146,17 @@ export default function BillsClient() {
 
   useEffect(() => {
     async function fetchData() {
-      const [memberBillsRes, cabinetBillsRes, membersRes] = await Promise.all([
-        supabase
-          .from("bills")
-          .select("id,title,submitted_at,status,session_number,house,submitter_ids,submitter_extra_count,honbun_url,keika_url,bill_type,committee_san,vote_date_san,committee_shu,vote_date_shu")
-          .eq("bill_type", "議員立法")
-          .order("submitted_at", { ascending: false })
-          .limit(1000),
-        supabase
-          .from("bills")
-          .select("id,title,submitted_at,status,session_number,house,submitter_ids,submitter_extra_count,honbun_url,keika_url,bill_type,committee_san,vote_date_san,committee_shu,vote_date_shu")
-          .eq("bill_type", "閣法")
-          .order("submitted_at", { ascending: false })
-          .limit(1000),
-        supabase
-          .from("members")
-          .select("id,name,party,prev_party,is_active")
-          .limit(2000),
+      const [memberBillsData, cabinetBillsData, membersData] = await Promise.all([
+        getBillsByType("議員立法"),
+        getBillsByType("閣法"),
+        getAllMembers(),
       ]);
 
-      const bills = [...(memberBillsRes.data || []), ...(cabinetBillsRes.data || [])];
+      const bills = [...memberBillsData, ...cabinetBillsData];
       setBills(bills);
 
-      const map: Record<string, MemberInfo> = {};
-      for (const m of membersRes.data || []) map[m.id] = m;
+      const map: Record<string, Member> = {};
+      for (const m of membersData) map[m.id] = m;
       setMemberMap(map);
       setLoading(false);
 
@@ -455,7 +392,7 @@ export default function BillsClient() {
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                             {b.submitter_ids.map((id) => {
                               const m = memberMap[id];
-                              if (m) return <MemberChip key={id} id={id} name={m.name} party={m.party} isFormer={!m.is_active} />;
+                              if (m) return <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} party={m.party} is_active={m.is_active} />;
                               const name = id.split("-").slice(1).join("-");
                               return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                             })}
@@ -564,7 +501,7 @@ export default function BillsClient() {
                                 fontWeight: 700, color: PARTY_COLORS[p] || "#555",
                                 fontSize: 12, whiteSpace: "nowrap", minWidth: 48,
                                 position: "sticky", top: 0, background: "#ffffff", zIndex: 1 }}>
-                                {PARTY_SHORT[p] ?? p}
+                                {partyShort(p)}
                               </th>
                             ))}
                           </tr>
@@ -576,7 +513,7 @@ export default function BillsClient() {
                                 color: PARTY_COLORS[row] || "#555", fontSize: 12,
                                 whiteSpace: "nowrap", textAlign: "right",
                                 position: "sticky", left: 0, background: "#ffffff", zIndex: 1 }}>
-                                {PARTY_SHORT[row] ?? row}
+                                {partyShort(row)}
                               </td>
                               {matrixParties.map((col) => {
                                 const same = row === col;
@@ -653,7 +590,7 @@ export default function BillsClient() {
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                 {b.submitter_ids.map((id) => {
                                   const m = memberMap[id];
-                                  if (m) return <MemberChip key={id} id={id} name={m.name} party={m.party} isFormer={!m.is_active} />;
+                                  if (m) return <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} party={m.party} is_active={m.is_active} />;
                                   const name = id.split("-").slice(1).join("-");
                                   return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                                 })}
@@ -817,7 +754,7 @@ export default function BillsClient() {
                                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                         {h.members.map((id) => {
                                           const m = memberMap[id];
-                                          return m ? <MemberChip key={id} id={id} name={m.name} party={m.party} isFormer={!m.is_active} /> : null;
+                                          return m ? <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} party={m.party} is_active={m.is_active} /> : null;
                                         })}
                                       </div>
                                     )}

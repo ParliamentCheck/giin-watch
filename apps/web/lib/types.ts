@@ -1,14 +1,16 @@
 /**
  * はたらく議員 — 型定義
- * Supabase テーブルスキーマと対応する TypeScript 型
+ * Supabase の実テーブルスキーマと対応する TypeScript 型。
+ * 各ページ・コンポーネントはここからインポートし、独自定義を持たない。
  */
 
 // ============================================================
-// members テーブル
+// members テーブル（全フィールド）
 // ============================================================
 export interface Member {
   id: string;
   name: string;
+  alias_name: string | null;        // 通称名（表示優先）
   last_name: string | null;
   first_name: string | null;
   last_name_reading: string | null;
@@ -16,22 +18,20 @@ export interface Member {
   party: string;
   faction: string | null;
   house: "衆議院" | "参議院";
-  district: string | null;
+  district: string;
   prefecture: string | null;
   terms: number | null;
   is_active: boolean;
-  speech_count: number;
-  session_count: number;
-  question_count: number;
-  keywords: KeywordEntry[] | null;
-  keywords_updated_at: string | null;
   cabinet_post: string | null;
+  session_count: number | null;
+  question_count: number | null;
+  bill_count: number | null;
+  petition_count: number | null;
+  election_type: string | null;
   source_url: string | null;
-}
-
-export interface KeywordEntry {
-  word: string;
-  count: number;
+  ndl_names: string[] | null;
+  speech_count: number | null;   // 発言セッション数（speeches テーブルの集計値）
+  prev_party: string | null;     // 直前の所属政党（中道改革連合等の表示で使用）
 }
 
 // ============================================================
@@ -39,13 +39,27 @@ export interface KeywordEntry {
 // ============================================================
 export interface Speech {
   id: string;
+  member_id: string | null;
+  speaker_name: string | null;
+  spoken_at: string | null;
+  committee: string | null;
+  session_number: number | null;
+  source_url: string | null;
+  is_procedural: boolean;
+}
+
+// ============================================================
+// speech_excerpts テーブル
+// ============================================================
+export interface SpeechExcerpt {
+  id: string;
   member_id: string;
   spoken_at: string | null;
   committee: string | null;
   session_number: number | null;
-  house: string | null;
-  url: string | null;
-  is_procedural: boolean;
+  source_url: string | null;
+  excerpt: string;
+  original_length: number;
 }
 
 // ============================================================
@@ -53,11 +67,13 @@ export interface Speech {
 // ============================================================
 export interface Question {
   id: string;
-  member_id: string;
+  member_id: string | null;
   session: number;
+  number: number | null;
   title: string;
   submitted_at: string | null;
-  url: string | null;
+  answered_at: string | null;
+  source_url: string | null;
 }
 
 // ============================================================
@@ -65,11 +81,13 @@ export interface Question {
 // ============================================================
 export interface SangiinQuestion {
   id: string;
-  member_id: string;
+  member_id: string | null;
   session: number;
+  number: number | null;
   title: string;
   submitted_at: string | null;
-  url: string | null;
+  answered_at: string | null;
+  source_url: string | null;
 }
 
 // ============================================================
@@ -84,7 +102,6 @@ export interface Vote {
   vote_date: string;
   vote: VoteValue;
   session_number: number;
-  house: string;
 }
 
 // ============================================================
@@ -93,10 +110,62 @@ export interface Vote {
 export interface Bill {
   id: string;
   title: string;
-  submitter_ids: string[];
+  bill_type: string | null;
+  submitter_ids: string[] | null;
+  submitter_extra_count: number | null;
   submitted_at: string | null;
-  session_number: number;
-  status: string;
+  session_number: number | null;
+  status: string | null;
+  house: string | null;
+  honbun_url: string | null;
+  keika_url: string | null;
+  committee_san: string | null;
+  vote_date_san: string | null;
+  committee_shu: string | null;
+  vote_date_shu: string | null;
+}
+
+// ============================================================
+// petitions テーブル（衆議院請願）
+// ============================================================
+export interface Petition {
+  id: string;
+  session: number;
+  number: number;
+  title: string;
+  committee_name: string | null;
+  result: string | null;
+  result_date: string | null;
+  introducer_ids: string[] | null;
+  introducer_names: string[] | null;
+  source_url: string | null;
+}
+
+// ============================================================
+// sangiin_petitions テーブル（参議院請願）
+// ============================================================
+export interface SangiinPetition {
+  id: string;
+  session: number;
+  number: number;
+  title: string;
+  committee_name: string | null;
+  result: string | null;
+  result_date: string | null;
+  introducer_ids: string[] | null;
+  introducer_names: string[] | null;
+  source_url: string | null;
+}
+
+// ============================================================
+// committee_members テーブル
+// ============================================================
+export interface CommitteeMember {
+  id: string;
+  member_id: string;
+  name: string;
+  committee: string;
+  role: string | null;
   house: string;
 }
 
@@ -107,7 +176,6 @@ export interface MemberKeyword {
   member_id: string;
   word: string;
   count: number;
-  last_seen_at: string | null;
 }
 
 // ============================================================
@@ -117,82 +185,81 @@ export interface PartyKeyword {
   party: string;
   word: string;
   count: number;
-  last_seen_at: string | null;
 }
 
 // ============================================================
-// committee_members テーブル
+// vote_alignment テーブル
 // ============================================================
-export interface CommitteeMember {
-  id: number;
-  member_id: string;
-  name: string;
-  committee: string;
-  role: string | null;
-  house: string;
+export interface VoteAlignment {
+  party_a: string;
+  party_b: string;
+  align_rate: number;
+  total_bills: number;
+  session_number: number | null;
 }
 
 // ============================================================
-// site_settings テーブル
+// election_votes テーブル
 // ============================================================
-export interface SiteSetting {
-  key: string;
-  value: string | null;
-}
-
-// ============================================================
-// changelog テーブル
-// ============================================================
-export interface ChangelogEntry {
-  id: number;
-  date: string;
-  description: string;
-  created_at: string;
-}
-
-// ============================================================
-// フロントエンド用のビュー型
-// ============================================================
-
-/** 活動データページ用の集約型 */
-export interface MemberActivity extends Member {
-  vote_count?: number;
-  bill_count?: number;
-}
-
-/** 議員詳細ページで使う全データ */
-export interface MemberDetail extends Member {
-  speeches: Speech[];
-  questions: Question[];
-  sangiin_questions: SangiinQuestion[];
-  votes: Vote[];
-  bills: Bill[];
-  committees: CommitteeMember[];
-  member_keywords: MemberKeyword[];
-}
-
-/** 政党詳細ページ用 */
-export interface PartyDetail {
+export interface ElectionVote {
+  id: string;
+  election_year: number;
+  election_type: string;
   party: string;
-  member_count: number;
-  members: Member[];
-  keywords: PartyKeyword[];
+  vote_count: number | null;
+  vote_rate: number | null;
+  seats: number | null;
+  seat_rate: number | null;
 }
 
 // ============================================================
-// ソート関連
+// リスト表示用（members JOIN 付き / house フラグ付き）
+// 各リストページ・Client コンポーネントはここからインポートし、独自定義を持たない
 // ============================================================
-export type SortField =
+
+export interface QuestionListItem {
+  id: string;
+  session: number;
+  number: number;
+  title: string;
+  submitted_at: string | null;
+  answered_at: string | null;
+  source_url: string | null;
+  member_id: string | null;
+  house: "衆" | "参";
+  members: { name: string; alias_name: string | null; party: string; is_active: boolean } | null;
+}
+
+export interface PetitionListItem {
+  id: string;
+  session: number;
+  number: number;
+  title: string;
+  committee_name: string | null;
+  result: string | null;
+  result_date: string | null;
+  source_url: string | null;
+  introducer_ids: string[] | null;
+  introducer_names: string[] | null;
+  house: "衆" | "参";
+}
+
+// ============================================================
+// ソート関連（議員一覧・前議員一覧共通）
+// ============================================================
+export type MemberSortKey =
   | "name"
-  | "speech_count"
   | "session_count"
   | "question_count"
-  | "vote_count"
-  | "bill_count";
+  | "bill_count"
+  | "petition_count"
+  | "terms";
 
-export type SortDirection = "asc" | "desc";
-
-export interface SortConfig {
-  field: SortField;
-  direction: SortDirection;
-}
+export const MEMBER_SORT_OPTIONS: { value: MemberSortKey; label: string }[] = [
+  { value: "name",           label: "名前順" },
+  { value: "session_count",  label: "発言セッション数順" },
+  { value: "question_count", label: "質問主意書数順" },
+  { value: "bill_count",     label: "議員立法数順" },
+  { value: "petition_count", label: "請願数順" },
+  { value: "terms",          label: "当選回数順" },
+];

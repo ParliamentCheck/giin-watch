@@ -6,10 +6,12 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import { usePagination } from "../../../hooks/usePagination";
 import MemberChip from "../../../components/MemberChip";
+import { PARTY_COLORS } from "../../../lib/partyColors";
 
 interface CommitteeMember {
   member_id: string;
   name: string;
+  alias_name: string | null;
   role: string;
   party: string;
   house: string;
@@ -27,23 +29,6 @@ interface Petition {
   house: "衆" | "参";
 }
 
-const PARTY_COLORS: Record<string, string> = {
-  "自民党":         "#c0392b",
-  "立憲民主党":     "#2980b9",
-  "中道改革連合":   "#3498db",
-  "公明党":         "#8e44ad",
-  "日本維新の会":   "#318e2c",
-  "国民民主党":     "#fabe00",
-  "共産党":         "#e74c3c",
-  "れいわ新選組":   "#e4007f",
-  "社民党":         "#795548",
-  "参政党":         "#ff6d00",
-  "チームみらい":   "#00bcd4",
-  "日本保守党":     "#607d8b",
-  "沖縄の風":       "#009688",
-  "有志の会":       "#9c27b0",
-  "無所属":         "#7f8c8d",
-};
 
 const ROLE_ORDER = ["委員長", "会長", "理事", "副会長", "委員", "幹事", ""];
 
@@ -102,12 +87,12 @@ function CommitteeDetailContent() {
       const memberIds = [...new Set(cmData.map((c) => c.member_id).filter(Boolean))];
 
       // 2. 議員情報をバッチで取得（50件ずつ、URL長制限を回避）
-      const memberMap = new Map<string, { party: string; house: string; district: string }>();
+      const memberMap = new Map<string, { alias_name: string | null; party: string; house: string; district: string }>();
       for (let i = 0; i < memberIds.length; i += 50) {
         const batch = memberIds.slice(i, i + 50);
         const mRes = await supabase
           .from("members")
-          .select("id, party, house, district")
+          .select("id, alias_name, party, house, district")
           .in("id", batch);
         for (const m of mRes.data || []) memberMap.set(m.id, m);
       }
@@ -120,12 +105,13 @@ function CommitteeDetailContent() {
       for (const c of cmData) {
         const m = c.member_id ? memberMap.get(c.member_id) : undefined;
         const entry: CommitteeMember = {
-          member_id: c.member_id,
-          name:      c.name,
-          role:      c.role || "",
-          party:     m?.party || "",
-          house:     m?.house || "",
-          district:  m?.district || "",
+          member_id:  c.member_id,
+          name:       c.name,
+          alias_name: m?.alias_name ?? null,
+          role:       c.role || "",
+          party:      m?.party || "",
+          house:      m?.house || "",
+          district:   m?.district || "",
         };
         const nameRoleKey = `${c.name}__${c.role || ""}`;
         const byId   = seenById.get(c.member_id);
@@ -412,7 +398,7 @@ function CommitteeDetailContent() {
                   style={{ padding: "12px 16px", "--hover-color": color } as React.CSSProperties}>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 12px" }}>
                     {m.role && <span className="badge badge-role">{m.role}</span>}
-                    <span style={{ fontWeight: 700, fontSize: 14, color: "#111111" }}>{m.name}</span>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: "#111111" }}>{m.alias_name ?? m.name}</span>
                     <span style={{ fontSize: 12, color: "#555555" }}>{m.house} · {m.district}</span>
                     <span className="badge badge-party" style={{ marginLeft: "auto", "--party-color": color } as React.CSSProperties}>{m.party}</span>
                   </div>
@@ -472,7 +458,7 @@ function CommitteeDetailContent() {
                           if (member) {
                             return (
                               <MemberChip key={memberId} id={memberId} name={name}
-                                party={member.party} isFormer={!member.is_active} />
+                                alias_name={null} party={member.party} is_active={member.is_active} />
                             );
                           }
                           return (

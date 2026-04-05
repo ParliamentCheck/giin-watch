@@ -2,46 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { supabase } from "../../lib/supabase";
+import { getAllQuestionsWithMembers, getAllSangiinQuestionsWithMembers } from "../../lib/queries";
+import type { QuestionListItem } from "../../lib/types";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
 import { partyColor } from "../../lib/partyColors";
 
-export interface Question {
-  id: string;
-  session: number;
-  number: number;
-  title: string;
-  submitted_at: string | null;
-  answered_at: string | null;
-  source_url: string | null;
-  member_id: string | null;
-  members: { name: string; party: string; is_active: boolean } | null;
-  house: "衆" | "参";
-}
-
-async function fetchAll(table: string, house: "衆" | "参"): Promise<Question[]> {
-  const BATCH = 1000;
-  const all: Question[] = [];
-  let from = 0;
-  while (true) {
-    const select = table === "questions"
-      ? "id,session,number,title,submitted_at,answered_at,source_url,member_id,members(name,party,is_active)"
-      : "id,session,number,title,submitted_at,source_url,member_id,members(name,party,is_active)";
-    const { data } = await supabase
-      .from(table)
-      .select(select)
-      .range(from, from + BATCH - 1);
-    if (!data || data.length === 0) break;
-    for (const d of data) all.push({ ...(d as any), house, answered_at: (d as any).answered_at ?? null });
-    if (data.length < BATCH) break;
-    from += BATCH;
-  }
-  return all;
-}
-
-function sortQuestions(questions: Question[]): Question[] {
+function sortQuestions(questions: QuestionListItem[]): QuestionListItem[] {
   return [...questions].sort((a, b) => {
     if (a.session !== b.session) return b.session - a.session;
     return b.number - a.number;
@@ -49,7 +17,7 @@ function sortQuestions(questions: Question[]): Question[] {
 }
 
 interface Props {
-  initialQuestions?: Question[];
+  initialQuestions?: QuestionListItem[];
 }
 
 export default function QuestionsClient({ initialQuestions }: Props) {
@@ -66,7 +34,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
     router.replace(`${pathname}?${p.toString()}`, { scroll: false });
   };
 
-  const [questions, setQuestions] = useState<Question[]>(
+  const [questions, setQuestions] = useState<QuestionListItem[]>(
     initialQuestions ? sortQuestions(initialQuestions) : []
   );
   const [loading, setLoading] = useState(!initialQuestions);
@@ -79,8 +47,8 @@ export default function QuestionsClient({ initialQuestions }: Props) {
     if (initialQuestions) return;
     async function load() {
       const [shu, san] = await Promise.all([
-        fetchAll("questions", "衆"),
-        fetchAll("sangiin_questions", "参"),
+        getAllQuestionsWithMembers(),
+        getAllSangiinQuestionsWithMembers(),
       ]);
       setQuestions(sortQuestions([...shu, ...san]));
       setLoading(false);
@@ -107,7 +75,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
   // 統計: 政党別件数・議員別件数
   const { partyTop, memberTop } = useMemo(() => {
     const partyCounts: Record<string, number> = {};
-    const memberCounts: Record<string, { name: string; party: string; is_active: boolean; count: number }> = {};
+    const memberCounts: Record<string, { name: string; alias_name: string | null; party: string; is_active: boolean; count: number }> = {};
 
     for (const q of questions) {
       const party = q.members?.party;
@@ -115,7 +83,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
 
       if (q.member_id && q.members) {
         if (!memberCounts[q.member_id]) {
-          memberCounts[q.member_id] = { name: q.members.name, party: q.members.party, is_active: q.members.is_active, count: 0 };
+          memberCounts[q.member_id] = { name: q.members.name, alias_name: q.members.alias_name, party: q.members.party, is_active: q.members.is_active, count: 0 };
         }
         memberCounts[q.member_id].count++;
       }
@@ -231,8 +199,9 @@ export default function QuestionsClient({ initialQuestions }: Props) {
                       <MemberChip
                         id={q.member_id}
                         name={q.members.name}
+                        alias_name={q.members.alias_name}
                         party={q.members.party}
-                        isFormer={!q.members.is_active}
+                        is_active={q.members.is_active}
                       />
                     )}
                     {q.submitted_at && (
@@ -305,7 +274,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
                   <div className="empty-state">データがありません。</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {memberTop.map(({ id, name, party, is_active, count }, i) => {
+                    {memberTop.map(({ id, name, alias_name, party, is_active, count }, i) => {
                       const color = partyColor(party);
                       const pct = Math.round((count / memberTop[0].count) * 100);
                       return (
@@ -313,7 +282,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 12, color: "#aaaaaa", width: 20, textAlign: "right", flexShrink: 0 }}>{i + 1}.</span>
                             <span style={{ flex: 1 }}>
-                              <MemberChip id={id} name={name} party={party} isFormer={!is_active} />
+                              <MemberChip id={id} name={name} alias_name={alias_name} party={party} is_active={is_active} />
                             </span>
                             <span style={{ fontSize: 13, color: "#555555", flexShrink: 0 }}>{count.toLocaleString()}件</span>
                           </div>

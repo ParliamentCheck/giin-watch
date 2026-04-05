@@ -11,13 +11,13 @@ interface Question {
   member_id: string;
   source_url: string | null;
   house: "衆" | "参";
-  members: { name: string; party: string } | null;
+  members: { name: string; alias_name: string | null; party: string; is_active: boolean } | null;
 }
 
 interface CommitteeActivity {
   date: string;
   committee: string;
-  members: { id: string; name: string; party: string }[];
+  members: { id: string; name: string; alias_name: string | null; party: string; is_active: boolean }[];
   ndlUrl: string;
 }
 
@@ -44,7 +44,7 @@ interface Bill {
   honbun_url: string | null;
   keika_url: string | null;
   submitter_extra_count: number | null;
-  submitters: { id: string; name: string; party: string }[];
+  submitters: { id: string; name: string; alias_name: string | null; party: string; is_active: boolean }[];
 }
 
 interface Props {
@@ -107,7 +107,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                 )}
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6">
-                {q.members && <MemberChip id={q.member_id} name={q.members.name} party={q.members.party} />}
+                {q.members && <MemberChip id={q.member_id} name={q.members.name} alias_name={q.members.alias_name} party={q.members.party} is_active={q.members.is_active} />}
                 <span className="tabular-nums">{q.submitted_at}</span>
               </div>
             </div>
@@ -137,7 +137,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {c.members.map((m) => (
-                  <MemberChip key={m.id} id={m.id} name={m.name} party={m.party} />
+                  <MemberChip key={m.id} id={m.id} name={m.name} alias_name={m.alias_name} party={m.party} is_active={m.is_active} />
                 ))}
               </div>
             </div>
@@ -179,7 +179,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                 {b.submitters.length > 0 && (
                   <span className="flex flex-wrap gap-1">
                     {b.submitters.map((s) => (
-                      <MemberChip key={s.id} id={s.id} name={s.name} party={s.party} />
+                      <MemberChip key={s.id} id={s.id} name={s.name} alias_name={s.alias_name} party={s.party} is_active={s.is_active} />
                     ))}
                     {(b.submitter_extra_count ?? 0) > 0 && (
                       <span className="text-xs text-neutral-400">他{b.submitter_extra_count}名</span>
@@ -249,7 +249,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                       if (member) {
                         return (
                           <MemberChip key={memberId} id={memberId} name={name}
-                            party={member.party} isFormer={!member.is_active} />
+                            alias_name={null} party={member.party} is_active={member.is_active} />
                         );
                       }
                       return (

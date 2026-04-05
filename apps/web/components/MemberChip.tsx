@@ -1,17 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import type { Member } from "../lib/types";
 import { partyColor } from "../lib/partyColors";
 
-interface Props {
-  id: string;
-  name: string;
-  party: string;
-  isFormer?: boolean;
-}
+type Props = Pick<Member, "id" | "name" | "alias_name" | "party" | "is_active">;
 
-export default function MemberChip({ id, name, party, isFormer = false }: Props) {
-  const color = isFormer ? "#aaaaaa" : partyColor(party);
+export default function MemberChip({ id, name, alias_name, party, is_active }: Props) {
+  const displayName = alias_name ?? name;
+  const color = is_active ? partyColor(party) : "#aaaaaa";
   return (
     <Link
       href={`/members/${encodeURIComponent(id)}`}
@@ -27,7 +24,7 @@ export default function MemberChip({ id, name, party, isFormer = false }: Props)
         whiteSpace: "nowrap",
       }}
     >
-      {name}
+      {displayName}
     </Link>
   );
 }

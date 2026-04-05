@@ -187,12 +187,33 @@ def _get_sangiin_sessions() -> list[int]:
     return sessions
 
 
+def _get_sangiin_submitted_at(detail_url: str) -> Optional[str]:
+    """
+    参院質問主意書の meisai detail ページから提出日を取得し ISO 形式で返す。
+    例: 令和8年3月9日 → 2026-03-09
+    """
+    try:
+        resp = requests.get(detail_url, headers=HEADERS, timeout=15)
+        resp.encoding = resp.apparent_encoding or "utf-8"
+        soup = BeautifulSoup(resp.text, "html.parser")
+        text = soup.get_text(separator="\n", strip=True)
+        m = re.search(r'提出日.*?令和\s*(\d+|元)年\s*(\d+)月\s*(\d+)日', text, re.DOTALL)
+        if not m:
+            return None
+        y = 2019 if m.group(1) == "元" else 2018 + int(m.group(1))
+        return f"{y}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+    except Exception as e:
+        logger.warning("detail fetch failed %s: %s", detail_url, e)
+        return None
+
+
 def _scrape_sangiin_session(session: int, name_to_id: dict[str, str] | None = None) -> list[dict[str, Any]]:
     """
     参院質問主意書ページの構造:
       1列行: タイトル（meisai詳細ページへのリンク付き）
       4列行: 番号 / 提出者名（〇〇君） / 質問本文リンク / 答弁本文リンク
     1列行と4列行がペアになっているためセットで処理する。
+    提出日は各 detail ページ（meisai/m221XXX.htm）から取得する。
     """
     url = f"{SANGIIN_BASE_URL}/{session}/syuisyo.htm"
     logger.info("Fetching session %d: %s", session, url)
@@ -235,13 +256,15 @@ def _scrape_sangiin_session(session: int, name_to_id: dict[str, str] | None = No
                     member_id = name_to_id.get(submitter) if submitter else None
                 else:
                     member_id = make_member_id("参議院", submitter) if submitter else None
+                submitted_at = _get_sangiin_submitted_at(pending_url) if pending_url else None
+                time.sleep(0.5)
                 rows.append({
                     "id":           f"sangiin-{session}-{question_number:03d}",
                     "member_id":    member_id,
                     "session":      session,
                     "number":       question_number,
                     "title":        pending_title,
-                    "submitted_at": None,
+                    "submitted_at": submitted_at,
                     "source_url":   pending_url,
                 })
                 pending_title = None

@@ -8,144 +8,21 @@ export const metadata = {
   },
 };
 import { supabase } from "../lib/supabase";
+import { supabaseServer } from "../lib/supabase-server";
+import {
+  getTopPageStats,
+  getPartyBreakdown,
+  getTopRecentQuestions,
+  getTopRecentPetitions,
+  getLatestCommitteeActivity,
+  getMonthlyQuestionsTrend,
+} from "../lib/queries";
 import Link from "next/link";
 import ActivityTabs from "./components/ActivityTabs";
 import changelog from "../lib/changelog";
-import { partyColor } from "../lib/partyColors";
+import { partyColor, partyShort } from "../lib/partyColors";
 
 /* ─── データ取得（サーバーサイド） ─────────────────────────────── */
-async function getStats() {
-  const [membersRes, questionRes, billsRes, petitionRes, sangiinPetitionRes] =
-    await Promise.all([
-      supabase
-        .from("members")
-        .select("id, house, party, speech_count, question_count")
-        .eq("is_active", true).limit(2000),
-      supabase.from("questions").select("id", { count: "exact", head: true }),
-      supabase.from("bills").select("id", { count: "exact", head: true }),
-      supabase.from("petitions").select("id", { count: "exact", head: true }),
-      supabase.from("sangiin_petitions").select("id", { count: "exact", head: true }),
-    ]);
-
-  const members = membersRes.data || [];
-  const parties = new Set(members.map((m: any) => m.party)).size;
-  const shugiin = members.filter((m: any) => m.house === "衆議院").length;
-  const sangiin = members.filter((m: any) => m.house === "参議院").length;
-  const speeches = members.reduce((sum: number, m: any) => sum + (m.speech_count || 0), 0);
-  const petitions = (petitionRes.count || 0) + (sangiinPetitionRes.count || 0);
-
-  return { total: members.length, shugiin, sangiin, parties, speeches, questions: questionRes.count || 0, bills: billsRes.count || 0, petitions };
-}
-
-async function getRecentQuestions() {
-  const [shuRes, sanRes] = await Promise.all([
-    supabase.from("questions")
-      .select("id, title, submitted_at, member_id, source_url, members(name, party)")
-      .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
-    supabase.from("sangiin_questions")
-      .select("id, title, submitted_at, member_id, url, members(name, party)")
-      .order("submitted_at", { ascending: false }).limit(10),
-  ]);
-
-  const shu = (shuRes.data || []).map((q: any) => ({ ...q, source_url: q.source_url, house: "衆" }));
-  const san = (sanRes.data || []).map((q: any) => ({ ...q, source_url: q.url,        house: "参" }));
-
-  return [...shu, ...san]
-    .sort((a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || ""))
-    .slice(0, 10);
-}
-
-async function getRecentPetitions() {
-  const [shuRes, sanRes] = await Promise.all([
-    supabase.from("petitions")
-      .select("id, session, number, title, committee_name, result, result_date, source_url, introducer_ids, introducer_names")
-      .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
-    supabase.from("sangiin_petitions")
-      .select("id, session, number, title, committee_name, result, result_date, source_url, introducer_ids, introducer_names")
-      .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
-  ]);
-
-  const shu = (shuRes.data || []).map((p: any) => ({ ...p, house: "衆" as const }));
-  const san = (sanRes.data || []).map((p: any) => ({ ...p, house: "参" as const }));
-
-  const petitions = [...shu, ...san]
-    .sort((a, b) => {
-      if (b.session !== a.session) return b.session - a.session;
-      return b.number - a.number;
-    })
-    .slice(0, 10);
-
-  const allIds = [...new Set(petitions.flatMap((p: any) => (p.introducer_ids as string[]) || []))];
-  const memberMap: Record<string, { name: string; party: string; is_active: boolean }> = {};
-  if (allIds.length > 0) {
-    const { data: members } = await supabase
-      .from("members")
-      .select("id, name, party, is_active, alias_name")
-      .in("id", allIds)
-      .limit(500);
-    for (const m of members || []) {
-      const info = { name: (m as any).name, party: (m as any).party, is_active: (m as any).is_active };
-      memberMap[(m as any).id] = info;
-      if ((m as any).alias_name) {
-        const houseLabel = (m as any).id.startsWith("衆議院") ? "衆議院" : "参議院";
-        const aliasId = `${houseLabel}-${(m as any).alias_name.replace(/[\s\u3000]/g, "")}`;
-        memberMap[aliasId] = info;
-      }
-    }
-  }
-
-  return { petitions, memberMap };
-}
-
-async function getLatestCommitteeActivity() {
-  const { data } = await supabase
-    .from("speeches")
-    .select("spoken_at, committee, member_id, source_url")
-    .eq("is_procedural", false)
-    .order("spoken_at", { ascending: false })
-    .limit(500);
-
-  if (!data || data.length === 0) return [];
-
-  // 「日付＋委員会」でグルーピング
-  const groupMap = new Map<string, {
-    date: string;
-    committee: string;
-    sourceUrl: string;
-    memberIds: Set<string>;
-  }>();
-
-  for (const s of data) {
-    const committee = s.committee?.trim();
-    if (!s.spoken_at || !committee) continue;
-    const key = `${s.spoken_at}__${committee}`;
-    if (!groupMap.has(key)) {
-      groupMap.set(key, { date: s.spoken_at, committee, sourceUrl: s.source_url || "", memberIds: new Set() });
-    }
-    if (s.member_id) groupMap.get(key)!.memberIds.add(s.member_id);
-  }
-
-  const groups = [...groupMap.values()].slice(0, 8);
-
-  // member_id → name, party をまとめて取得
-  const allIds = [...new Set(groups.flatMap((g) => [...g.memberIds]))];
-  const memberMap = new Map<string, { name: string; party: string }>();
-  if (allIds.length > 0) {
-    const { data: members } = await supabase
-      .from("members")
-      .select("id, name, party")
-      .in("id", allIds)
-      .limit(500);
-    for (const m of members || []) memberMap.set(m.id, { name: m.name, party: m.party });
-  }
-
-  return groups.map((g) => ({
-    date: g.date,
-    committee: g.committee,
-    members: [...g.memberIds].map((id) => ({ id, name: memberMap.get(id)?.name || "", party: memberMap.get(id)?.party || "" })),
-    ndlUrl: g.sourceUrl ? g.sourceUrl.replace(/\/\d+$/, "/0") : "",
-  }));
-}
 
 async function getCrossPartyBills() {
   try {
@@ -228,59 +105,24 @@ async function getRecentBills() {
 
   const membersRes = await supabase
     .from("members")
-    .select("id, name, party")
+    .select("id, name, alias_name, party, is_active")
     .in("id", allIds.slice(0, 100));
 
-  const memberMap: Record<string, { name: string; party: string }> = {};
-  for (const m of membersRes.data || []) memberMap[m.id] = { name: m.name, party: m.party };
+  const memberMap: Record<string, { name: string; alias_name: string | null; party: string; is_active: boolean }> = {};
+  for (const m of membersRes.data || []) memberMap[m.id] = { name: m.name, alias_name: (m as any).alias_name ?? null, party: m.party, is_active: m.is_active };
 
   return bills.map((b: any) => ({
     ...b,
     submitters: (b.submitter_ids || [])
-      .map((id: string) => memberMap[id] ? { id, name: memberMap[id].name, party: memberMap[id].party } : null)
+      .map((id: string) => memberMap[id] ? { id, name: memberMap[id].name, alias_name: memberMap[id].alias_name, party: memberMap[id].party, is_active: memberMap[id].is_active } : null)
       .filter(Boolean),
   }));
 }
 
-async function getPartyBreakdown() {
-  const { data } = await supabase
-    .from("members")
-    .select("party, house")
-    .eq("is_active", true).limit(2000);
-  if (!data) return [];
-
-  const map = new Map<string, { total: number; shugiin: number; sangiin: number }>();
-  for (const m of data) {
-    const cur = map.get(m.party) || { total: 0, shugiin: 0, sangiin: 0 };
-    cur.total++;
-    if (m.house === "衆議院") cur.shugiin++;
-    else cur.sangiin++;
-    map.set(m.party, cur);
-  }
-
-  return [...map.entries()]
-    .map(([party, counts]) => ({ party, ...counts }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 8);
-}
 
 /* ─── 今国会・独自コンテンツ ────────────────────────────────── */
 const CURRENT_SESSION = 221;
 
-const PARTY_SHORT: Record<string, string> = {
-  "自民党":       "自民",
-  "立憲民主党":   "立憲",
-  "中道改革連合": "中道改革",
-  "公明党":       "公明",
-  "日本維新の会": "維新",
-  "国民民主党":   "国民",
-  "共産党":       "共産",
-  "れいわ新選組": "れいわ",
-  "社民党":       "社民",
-  "参政党":       "参政",
-  "チームみらい": "みらい",
-  "日本保守党":   "保守",
-};
 
 async function getCurrentSessionStats() {
   const [qShuRes, billsRes, latestBillRes, latestQRes, petitionsShuRes, petitionsSanRes, latestPetitionRes] = await Promise.all([
@@ -422,91 +264,19 @@ async function getPartyAlignmentMatrix() {
 }
 
 // 質問主意書の月別推移（政党別）
-async function getMonthlyQuestions() {
-  // 直近12ヶ月分を表示するため、余裕を持って14ヶ月前以降に絞る
-  // 衆院: submitted_at が和暦文字列のため session カラムでフィルター（直近5回次 ≒ 約2年）
-  // 参院: submitted_at が ISO 日付のため日付でフィルター
-  const cutoffDate = new Date();
-  cutoffDate.setMonth(cutoffDate.getMonth() - 14);
-  const cutoffIso = cutoffDate.toISOString().slice(0, 10);
-
-  const [{ data: shuData }, { data: sanData }] = await Promise.all([
-    supabase
-      .from("questions")
-      .select("submitted_at, members(party)")
-      .gte("session", CURRENT_SESSION - 4)
-      .limit(2000),
-    supabase
-      .from("sangiin_questions")
-      .select("submitted_at, members(party)")
-      .gte("submitted_at", cutoffIso)
-      .limit(2000),
-  ]);
-
-  // 衆院: "令和 7年10月21日" / "令和元年11月 1日" → "2025-10"
-  function shuToYearMonth(s: string): string | null {
-    const m = s.match(/^令和\s*(\d+|元)年\s*(\d+)月/);
-    if (!m) return null;
-    const y = m[1] === "元" ? 2019 : 2018 + parseInt(m[1]);
-    const mo = parseInt(m[2]).toString().padStart(2, "0");
-    return `${y}-${mo}`;
-  }
-
-  // 参院: "2025-05-14" → "2025-05"
-  function sanToYearMonth(s: string): string | null {
-    const m = s.match(/^(\d{4})-(\d{2})/);
-    return m ? `${m[1]}-${m[2]}` : null;
-  }
-
-  const monthMap: Record<string, Record<string, number>> = {};
-  const partyTotal: Record<string, number> = {};
-
-  for (const q of shuData || []) {
-    const ym = shuToYearMonth(q.submitted_at as string);
-    if (!ym) continue;
-    const party = (q.members as any)?.party || "その他";
-    if (!monthMap[ym]) monthMap[ym] = {};
-    monthMap[ym][party] = (monthMap[ym][party] || 0) + 1;
-    partyTotal[party] = (partyTotal[party] || 0) + 1;
-  }
-  for (const q of sanData || []) {
-    const ym = sanToYearMonth(q.submitted_at as string);
-    if (!ym) continue;
-    const party = (q.members as any)?.party || "その他";
-    if (!monthMap[ym]) monthMap[ym] = {};
-    monthMap[ym][party] = (monthMap[ym][party] || 0) + 1;
-    partyTotal[party] = (partyTotal[party] || 0) + 1;
-  }
-
-  // 全期間の合計順でソートして各月バーの並び順を統一
-  const sortedParties = Object.entries(partyTotal)
-    .sort((a, b) => b[1] - a[1])
-    .map(([p]) => p);
-
-  return Object.entries(monthMap)
-    .sort(([a], [b]) => b.localeCompare(a))
-    .slice(0, 12)
-    .map(([month, partyMap]) => {
-      const total = Object.values(partyMap).reduce((s, c) => s + c, 0);
-      const parties = sortedParties
-        .filter((p) => partyMap[p])
-        .map((p) => ({ party: p, count: partyMap[p] }));
-      return { month, total, parties };
-    });
-}
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
   const [stats, recentQuestions, committeeActivities, partyBreakdown, petitionsResult, recentBills, currentStats, alignmentMatrix, monthlyQuestions, crossPartyBills] = await Promise.all([
-    getStats(),
-    getRecentQuestions(),
-    getLatestCommitteeActivity(),
-    getPartyBreakdown(),
-    getRecentPetitions(),
+    getTopPageStats(supabaseServer),
+    getTopRecentQuestions(supabaseServer),
+    getLatestCommitteeActivity(supabaseServer),
+    getPartyBreakdown(supabaseServer),
+    getTopRecentPetitions(supabaseServer),
     getRecentBills(),
     getCurrentSessionStats(),
     getPartyAlignmentMatrix(),
-    getMonthlyQuestions(),
+    getMonthlyQuestionsTrend(CURRENT_SESSION - 4, supabaseServer),
     getCrossPartyBills(),
   ]);
 
@@ -552,7 +322,7 @@ export default async function TopPage() {
             { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数・活動バランス。採決での政党間距離感やAI分析も確認できます",             path: "/parties",    img: "/card-parties.jpg"    },
             { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",                               path: "/committees", img: "/card-committees.jpg" },
             { icon: "📋", title: "法案",         desc: "議員立法・閣法（参議院）の一覧。超党派共同提出フィルターと政党間共同提出ネットワーク図も確認できます", path: "/bills",     img: "/card-bills.jpg"      },
-            { icon: "📝", title: "質問主意書", desc: "議員が内閣に文書で提出する質問主意書の一覧。衆院・参院合わせて検索・絞り込みできます",           path: "/questions",  img: "/card-bills.jpg"      },
+            { icon: "📝", title: "質問主意書", desc: "議員が内閣に文書で提出する質問主意書の一覧。衆院・参院合わせて検索・絞り込みできます",           path: "/questions",  img: "/card-questions.jpg"  },
             { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",                     path: "/votes",      img: "/card-votes.jpg"      },
           ].map((item) => (
             <Link key={item.path} href={item.path}
@@ -631,10 +401,10 @@ export default async function TopPage() {
                   {pair.rank}{pair.isTie && <span className="text-[8px] ml-px">タイ</span>}
                 </span>
                 <span style={{ color: partyColor(pair.p1), fontSize: 9 }}>●</span>
-                <span className="text-xs font-semibold text-neutral-800">{PARTY_SHORT[pair.p1] ?? pair.p1}</span>
+                <span className="text-xs font-semibold text-neutral-800">{partyShort(pair.p1)}</span>
                 <span className="text-[10px] text-neutral-400">×</span>
                 <span style={{ color: partyColor(pair.p2), fontSize: 9 }}>●</span>
-                <span className="text-xs font-semibold text-neutral-800">{PARTY_SHORT[pair.p2] ?? pair.p2}</span>
+                <span className="text-xs font-semibold text-neutral-800">{partyShort(pair.p2)}</span>
                 <span className="text-xs font-bold tabular-nums text-neutral-900 ml-auto shrink-0">
                   {(pair.rate * 100).toFixed(1)}%
                 </span>
@@ -722,7 +492,7 @@ export default async function TopPage() {
                       {m.parties.map((p) => (
                         <span key={p.party} className="flex items-center gap-1 text-[11px] text-neutral-600">
                           <span style={{ color: partyColor(p.party) }}>●</span>
-                          {PARTY_SHORT[p.party] ?? p.party}
+                          {partyShort(p.party)}
                           <span className="tabular-nums text-neutral-400">{p.count}</span>
                         </span>
                       ))}
@@ -771,7 +541,7 @@ export default async function TopPage() {
                         {bill.parties.map((party: string) => (
                           <span key={party} className="inline-flex items-center gap-1 text-[10px] text-neutral-600">
                             <span style={{ color: partyColor(party), fontSize: 8 }}>●</span>
-                            {PARTY_SHORT[party] ?? party}
+                            {partyShort(party)}
                           </span>
                         ))}
                       </div>

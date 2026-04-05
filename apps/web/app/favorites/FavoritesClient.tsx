@@ -7,10 +7,12 @@ import {
   getFavorites, removeFavorite, isFavorite,
   favoritesToShareUrl, importFromUrl, MAX_FAVORITES,
 } from "../../lib/favorites";
+import { PARTY_COLORS } from "../../lib/partyColors";
 
 interface Member {
   id: string;
   name: string;
+  alias_name: string | null;
   party: string;
   house: string;
   cabinet_post: string | null;
@@ -26,13 +28,6 @@ interface Activity {
   note?: string;
 }
 
-const PARTY_COLORS: Record<string, string> = {
-  "自民党": "#c0392b", "立憲民主党": "#2980b9", "中道改革連合": "#3498db",
-  "公明党": "#8e44ad", "日本維新の会": "#318e2c", "国民民主党": "#fabe00",
-  "共産党": "#e74c3c", "れいわ新選組": "#e4007f", "社民党": "#795548",
-  "参政党": "#ff6d00", "チームみらい": "#00bcd4", "日本保守党": "#607d8b",
-  "沖縄の風": "#009688", "有志の会": "#9c27b0", "無所属": "#7f8c8d",
-};
 
 const TYPE_LABELS: Record<string, string> = {
   speech: "💬 発言", question: "📝 質問主意書", bill: "📋 議員立法", vote: "🗳 採決",
@@ -78,7 +73,7 @@ function FavoritesContent() {
     async function fetchAll() {
       const [membersRes, speechRes, questionRes, sangiinQRes, billRes, voteRes] =
         await Promise.allSettled([
-          supabase.from("members").select("id, name, party, house, cabinet_post")
+          supabase.from("members").select("id, name, alias_name, party, house, cabinet_post")
             .in("id", memberIds),
           supabase.from("speeches")
             .select("member_id, spoken_at, committee, source_url")
@@ -309,7 +304,7 @@ function FavoritesContent() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>
-                        {m.name}
+                        {m.alias_name ?? m.name}
                       </span>
                       {m.cabinet_post && (
                         <span className="badge badge-cabinet">

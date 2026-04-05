@@ -2,116 +2,40 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
 import ActivityRadar from "../../components/ActivityRadar";
 import { isFavorite, addFavorite, removeFavorite } from "../../../lib/favorites";
 import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
 import { usePagination } from "../../../hooks/usePagination";
 import AIAnalysis from "./AIAnalysis";
+import { PARTY_COLORS } from "../../../lib/partyColors";
+import type {
+  Member, Speech, SpeechExcerpt,
+  Question, SangiinQuestion,
+  Vote, Bill, Petition, SangiinPetition,
+  CommitteeMember, MemberKeyword,
+} from "../../../lib/types";
+import {
+  getMemberById, getMembersByIds, getGlobalActivityMax,
+  getSpeechesForMember, getSpeechExcerptsForMember,
+  getQuestionsForMember, getSangiinQuestionsForMember,
+  getVotesForMember, getVoteStatsForMember,
+  getBillsForMember,
+  getPetitionsForMember, getSangiinPetitionsForMember,
+  getCommitteesForMember, getMemberKeywords,
+} from "../../../lib/queries";
 
-interface Member {
-  id: string;
-  name: string;
-  alias_name: string | null;
-  last_name: string | null;
-  first_name: string | null;
-  last_name_reading: string | null;
-  first_name_reading: string | null;
-  party: string;
-  faction: string | null;
-  house: string;
-  district: string;
-  terms: number | null;
-  speech_count: number | null;
-  session_count: number | null;
-  question_count: number | null;
-  bill_count: number | null;
-  petition_count: number | null;
-  cabinet_post: string | null;
-  source_url: string | null;
-  is_active: boolean;
-  keywords: { word: string; count: number }[] | null;
-}
-
-interface Speech {
-  id: string;
-  committee: string;
-  spoken_at: string;
-  source_url: string;
-}
-
-interface Question {
-  id: string;
-  title: string;
-  submitted_at: string;
-  answered_at: string | null;
-  source_url: string;
-  session: number;
-  number: number;
-}
-
-interface Vote {
-  id: string;
-  bill_title: string;
-  vote_date: string | null;
-  vote: string;
-  session_number: number;
-}
-
-interface Bill {
-  id: string;
-  title: string;
-  submitted_at: string | null;
-  status: string | null;
-  session_number: number;
-  house: string;
-  honbun_url: string | null;
-  keika_url: string | null;
-  submitter_extra_count: number | null;
-  submitter_ids: string[] | null;
-}
-
-interface Petition {
-  id: string;
-  session: number;
-  number: number;
-  title: string;
-  committee_name: string | null;
-  result: string | null;
-  result_date: string | null;
-  source_url: string | null;
-}
-
-interface CommitteeMember {
-  id: string;
-  committee: string;
-  role: string;
-}
+// ============================================================
+// ページ固有の型（lib/types.ts にないもの）
+// ============================================================
 
 interface SessionGroup {
-  committee: string;
-  spoken_at: string;
+  committee: string | null;
+  spoken_at: string | null;
   speeches: Speech[];
 }
 
-const PARTY_COLORS: Record<string, string> = {
-  "自民党":         "#c0392b",
-  "立憲民主党":     "#2980b9",
-  "中道改革連合":   "#3498db",
-  "公明党":         "#8e44ad",
-  "日本維新の会":   "#318e2c",
-  "国民民主党":     "#fabe00",
-  "共産党":         "#e74c3c",
-  "れいわ新選組":   "#e4007f",
-  "社民党":         "#795548",
-  "参政党":         "#ff6d00",
-  "チームみらい":   "#00bcd4",
-  "日本保守党":     "#607d8b",
-  "沖縄の風":       "#009688",
-  "有志の会":       "#9c27b0",
-  "無所属":         "#7f8c8d",
-};
+// ============================================================
 
 const ROLE_COLORS: Record<string, string> = {
   "委員長": "#333333",
@@ -131,25 +55,25 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const router   = useRouter();
   const memberId = decodeURIComponent(params.id as string);
 
-  const [member,     setMember]     = useState<Member | null>(initialMember ?? null);
-  const [speeches,   setSpeeches]   = useState<Speech[]>([]);
-  const [questions,  setQuestions]  = useState<Question[]>([]);
-  const [committees, setCommittees] = useState<CommitteeMember[]>([]);
-  const [votes,      setVotes]      = useState<Vote[]>([]);
-  const [voteStats,  setVoteStats]  = useState<{ yea: number; nay: number; absent: number; total: number } | null>(null);
-  const [bills,        setBills]        = useState<Bill[]>([]);
-  const [coSponsors,   setCoSponsors]   = useState<{ id: string; name: string; party: string; count: number }[]>([]);
-  const [billsSubTab,  setBillsSubTab]  = useState<"list" | "partners">("list");
-  const [voteFilter,   setVoteFilter]   = useState<"all" | "賛成" | "反対" | "欠席">("all");
-  const [petitions,    setPetitions]    = useState<Petition[]>([]);
-  const [keywords,        setKeywords]        = useState<{ word: string; count: number }[]>([]);
-  const [speechExcerpts,  setSpeechExcerpts]  = useState<{ excerpt: string; committee: string; spoken_at: string | null; source_url: string | null }[]>([]);
-  const [globalMax,  setGlobalMax]  = useState(initialGlobalMax ?? { session: 1, question: 1, bill: 1, petition: 1 });
+  const [member,        setMember]        = useState<Member | null>(initialMember ?? null);
+  const [speeches,      setSpeeches]      = useState<Speech[]>([]);
+  const [questions,     setQuestions]     = useState<(Question | SangiinQuestion)[]>([]);
+  const [committees,    setCommittees]    = useState<CommitteeMember[]>([]);
+  const [votes,         setVotes]         = useState<Vote[]>([]);
+  const [voteStats,     setVoteStats]     = useState<{ yea: number; nay: number; absent: number; total: number } | null>(null);
+  const [bills,         setBills]         = useState<Bill[]>([]);
+  const [coSponsors,    setCoSponsors]    = useState<{ id: string; name: string; party: string; count: number }[]>([]);
+  const [billsSubTab,   setBillsSubTab]   = useState<"list" | "partners">("list");
+  const [voteFilter,    setVoteFilter]    = useState<"all" | "賛成" | "反対" | "欠席">("all");
+  const [petitions,     setPetitions]     = useState<(Petition | SangiinPetition)[]>([]);
+  const [keywords,      setKeywords]      = useState<MemberKeyword[]>([]);
+  const [speechExcerpts, setSpeechExcerpts] = useState<SpeechExcerpt[]>([]);
+  const [globalMax,     setGlobalMax]     = useState(initialGlobalMax ?? { session: 1, question: 1, bill: 1, petition: 1 });
   const [loading,       setLoading]       = useState(!initialMember);
   const [clientLoaded,  setClientLoaded]  = useState(false);
   const searchParams = useSearchParams();
   const { page: listPage, setPage: setListPage } = usePagination();
-  const tab          = searchParams.get("tab") ?? "committees";
+  const tab = searchParams.get("tab") ?? "committees";
   const MEMBER_TAB_LABELS: Record<string, string> = {
     committees: "委員会", speeches: "発言", questions: "質問主意書",
     votes: "採決", bills: "議員立法", petitions: "請願",
@@ -167,74 +91,77 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
     p.delete("page");
     router.replace(`${window.location.pathname}?${p.toString()}`, { scroll: false });
   };
-  const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
+  const [expanded,      setExpanded]      = useState<Set<string>>(new Set());
   const [petitionFilter, setPetitionFilter] = useState<"採択" | "不採択" | "審査未了" | "all">("all");
-  const [fav,        setFav]        = useState(false);
-  const [favMsg,     setFavMsg]     = useState("");
+  const [fav,     setFav]     = useState(false);
+  const [favMsg,  setFavMsg]  = useState("");
 
   useEffect(() => {
     async function fetchAll() {
-      const results = await Promise.allSettled([
+      const val = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
+        r.status === "fulfilled" ? r.value : fallback;
+
+      const [
+        memberResult,
+        speechResult,
+        questionResult,
+        sangiinQResult,
+        committeeResult,
+        voteResult,
+        billResult,
+        keywordResult,
+        petitionResult,
+        sangiinPResult,
+        excerptResult,
+        voteStatsResult,
+      ] = await Promise.allSettled([
         initialMember
-          ? Promise.resolve({ data: initialMember, error: null })
-          : supabase.from("members").select("*").eq("id", memberId).single(),
-        supabase.from("speeches").select("*").eq("member_id", memberId)
-          .order("spoken_at", { ascending: false }).limit(1000),
-        supabase.from("questions").select("*").eq("member_id", memberId)
-          .order("submitted_at", { ascending: false }).limit(1000),
-        supabase.from("sangiin_questions").select("*").eq("member_id", memberId)
-          .order("submitted_at", { ascending: false }).limit(1000),
-        supabase.from("committee_members").select("*").eq("member_id", memberId),
-        supabase.from("votes").select("id,bill_title,vote_date,vote,session_number")
-          .eq("member_id", memberId).order("vote_date", { ascending: false }).limit(1000),
-        supabase.from("bills").select("id,title,submitted_at,status,session_number,house,submitter_ids,submitter_extra_count,honbun_url,keika_url")
-          .contains("submitter_ids", [memberId]).order("submitted_at", { ascending: false }).limit(1000),
-        supabase.from("member_keywords").select("word,count")
-          .eq("member_id", memberId).order("count", { ascending: false }).limit(50),
-        supabase.from("petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
-          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).order("number", { ascending: false }).limit(1000),
-        supabase.from("sangiin_petitions").select("id,session,number,title,committee_name,result,result_date,source_url")
-          .contains("introducer_ids", [memberId]).order("session", { ascending: false }).order("number", { ascending: false }).limit(1000),
-        supabase.from("speech_excerpts").select("excerpt,committee,spoken_at,source_url")
-          .eq("member_id", memberId).order("spoken_at", { ascending: true }).limit(30),
-        supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId),
-        supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "賛成"),
-        supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "反対"),
-        supabase.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "欠席"),
+          ? Promise.resolve(initialMember as Member)
+          : getMemberById(memberId),
+        getSpeechesForMember(memberId),
+        getQuestionsForMember(memberId),
+        getSangiinQuestionsForMember(memberId),
+        getCommitteesForMember(memberId),
+        getVotesForMember(memberId),
+        getBillsForMember(memberId),
+        getMemberKeywords(memberId),
+        getPetitionsForMember(memberId),
+        getSangiinPetitionsForMember(memberId),
+        getSpeechExcerptsForMember(memberId),
+        getVoteStatsForMember(memberId),
       ]);
 
-      const safe = (i: number) => results[i].status === "fulfilled" ? results[i].value.data : null;
-
-      const memberData = safe(0);
+      const memberData = val(memberResult, null);
       if (memberData) {
         setMember(memberData);
         setFav(isFavorite(memberId));
-
       }
-      if (safe(1)) setSpeeches(safe(1));
-      const shugiinQ = safe(2) || [];
-      const sangiinQ = safe(3) || [];
-      const allQuestions = [...shugiinQ, ...sangiinQ]
-        .sort((a: any, b: any) => (b.submitted_at || "").localeCompare(a.submitted_at || ""));
-      setQuestions(allQuestions);
-      if (safe(4)) {
-        // (committee, role) の組み合わせで重複排除
-        const seen = new Set<string>();
-        const deduped = (safe(4) as any[]).filter((c: any) => {
-          const key = `${c.committee}__${c.role}`;
+
+      setSpeeches(val(speechResult, []));
+
+      const shugiinQ = val(questionResult, []);
+      const sangiinQ = val(sangiinQResult, []);
+      setQuestions(
+        [...shugiinQ, ...sangiinQ].sort(
+          (a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || "")
+        )
+      );
+
+      const cmData = val(committeeResult, []);
+      const seen = new Set<string>();
+      setCommittees(
+        cmData.filter((c) => {
+          const key = `${c.committee}__${c.role ?? ""}`;
           if (seen.has(key)) return false;
           seen.add(key);
           return true;
-        });
-        setCommittees(deduped);
-      }
-      if (safe(5)) setVotes(safe(5));
-      const totalCount  = results[11].status === "fulfilled" ? (results[11].value.count ?? 0) : 0;
-      const yeaCount    = results[12].status === "fulfilled" ? (results[12].value.count ?? 0) : 0;
-      const nayCount    = results[13].status === "fulfilled" ? (results[13].value.count ?? 0) : 0;
-      const absentCount = results[14].status === "fulfilled" ? (results[14].value.count ?? 0) : 0;
-      setVoteStats({ yea: yeaCount, nay: nayCount, absent: absentCount, total: totalCount });
-      const billsData: Bill[] = safe(6) || [];
+        })
+      );
+
+      setVotes(val(voteResult, []));
+      setVoteStats(val(voteStatsResult, { total: 0, yea: 0, nay: 0, absent: 0 }));
+
+      const billsData = val(billResult, []);
       setBills(billsData);
 
       // 共同提出パートナーを集計
@@ -246,48 +173,36 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       }
       const partnerIds = Object.keys(countMap);
       if (partnerIds.length > 0) {
-        const { data: partnerData } = await supabase
-          .from("members")
-          .select("id,name,party,prev_party")
-          .in("id", partnerIds);
-        const sorted = (partnerData || [])
-          .map((m: any) => ({
+        const partnerData = await getMembersByIds(partnerIds);
+        const sorted = partnerData
+          .map((m) => ({
             id: m.id,
-            name: m.name.replace(/\u3000|\s/g, ""),
+            name: (m.alias_name ?? m.name).replace(/\u3000|\s/g, ""),
             party: m.party === "中道改革連合" && m.prev_party ? m.prev_party : m.party,
             count: countMap[m.id] || 0,
           }))
-          .sort((a: any, b: any) => b.count - a.count)
+          .sort((a, b) => b.count - a.count)
           .slice(0, 10);
         setCoSponsors(sorted);
       }
-      if (safe(7)) setKeywords(safe(7));
-      const shugiinP = safe(8) || [];
-      const sangiinP = safe(9) || [];
-      const allPetitions = [...shugiinP, ...sangiinP]
-        .sort((a: any, b: any) => {
+
+      setKeywords(val(keywordResult, []));
+
+      const shugiinP = val(petitionResult, []);
+      const sangiinP = val(sangiinPResult, []);
+      setPetitions(
+        [...shugiinP, ...sangiinP].sort((a, b) => {
           if (b.session !== a.session) return b.session - a.session;
           return b.number - a.number;
-        });
-      setPetitions(allPetitions);
-      if (safe(10)) setSpeechExcerpts(safe(10));
+        })
+      );
+
+      setSpeechExcerpts(val(excerptResult, []));
 
       // グローバルMAX取得（SSRで渡されていない場合のみ）
       if (!initialGlobalMax) {
-        const gmRes = await supabase
-          .from("members")
-          .select("session_count,question_count,bill_count,petition_count")
-          .limit(2000);
-        if (gmRes.data && gmRes.data.length > 0) {
-          let gm = { session: 1, question: 1, bill: 1, petition: 1 };
-          for (const m of gmRes.data) {
-            if ((m.session_count  ?? 0) > gm.session)  gm.session  = m.session_count;
-            if ((m.question_count ?? 0) > gm.question) gm.question = m.question_count;
-            if ((m.bill_count     ?? 0) > gm.bill)     gm.bill     = m.bill_count;
-            if ((m.petition_count ?? 0) > gm.petition) gm.petition = m.petition_count;
-          }
-          setGlobalMax(gm);
-        }
+        const gm = await getGlobalActivityMax();
+        setGlobalMax(gm);
       }
 
       setLoading(false);
@@ -300,9 +215,9 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const sessionGroups: SessionGroup[] = [];
   const sessionMap: Record<string, SessionGroup> = {};
   for (const s of speeches) {
-    const key = `${s.spoken_at}_${s.committee}`;
+    const key = `${s.spoken_at ?? ""}_${s.committee ?? ""}`;
     if (!sessionMap[key]) {
-      sessionMap[key] = { committee: s.committee, spoken_at: s.spoken_at, speeches: [] };
+      sessionMap[key] = { committee: s.committee ?? null, spoken_at: s.spoken_at ?? null, speeches: [] };
       sessionGroups.push(sessionMap[key]);
     }
     sessionMap[key].speeches.push(s);
@@ -454,11 +369,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
             {[
               { label: "委員会所属",     value: clientLoaded ? committees.length : (initialCommitteeCount ?? null), unit: "件" },
-              { label: "発言セッション", value: member.session_count ?? (clientLoaded ? sessionGroups.length : null), unit: "回" },
-              { label: "質問主意書",     value: member.question_count ?? (clientLoaded ? questions.length : null), unit: "件" },
-              { label: member.house === "衆議院" ? "採決（衆院は非対応）" : "採決", value: member.house === "衆議院" ? undefined : (clientLoaded ? (voteStats?.total ?? votes.length) : (initialVoteCount ?? null)), unit: "件" },
-              { label: "議員立法",       value: member.bill_count     ?? (clientLoaded ? bills.length     : null), unit: "件" },
-              { label: "請願",           value: member.petition_count ?? (clientLoaded ? petitions.length : null), unit: "件" },
+              { label: "発言セッション", value: member.session_count, unit: "回" },
+              { label: "質問主意書",     value: member.question_count, unit: "件" },
+              { label: member.house === "衆議院" ? "採決（衆院は非対応）" : "採決", value: member.house === "衆議院" ? undefined : (clientLoaded ? voteStats?.total : (initialVoteCount ?? null)), unit: "件" },
+              { label: "議員立法",       value: member.bill_count, unit: "件" },
+              { label: "請願",           value: member.petition_count, unit: "件" },
             ].map((item) => (
               <div key={item.label} style={{ background: `${color}15`, borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
@@ -516,13 +431,13 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             </div>
           ) : (
             committees.map((c, i) => {
-              const roleColor = ROLE_COLORS[c.role] || "#555555";
+              const roleColor = ROLE_COLORS[c.role ?? ""] || "#555555";
               return (
                 <div key={c.id} style={{ padding: "14px 0",
                   borderBottom: i < committees.length - 1 ? "1px solid #e0e0e0" : "none",
                   display: "flex", alignItems: "center", gap: 12 }}>
                   <span className="badge badge-role">
-                    {c.role}
+                    {c.role ?? "委員"}
                   </span>
                   <span style={{ fontSize: 14, color: "#1a1a1a" }}>{c.committee}</span>
                 </div>
@@ -552,8 +467,8 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               <Paginator total={sessionGroups.length} page={listPage} onPage={setListPage} variant="top" />
             </div>
             {sessionGroups.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE).map((sg) => {
-              const key      = `${sg.spoken_at}_${sg.committee}`;
-              const isOpen   = expanded.has(key);
+              const key    = `${sg.spoken_at ?? ""}_${sg.committee ?? ""}`;
+              const isOpen = expanded.has(key);
               return (
                 <div key={key} style={{ borderBottom: "1px solid #e0e0e0", paddingBottom: 12, marginBottom: 12 }}>
                   <div
@@ -562,10 +477,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                       alignItems: "center", cursor: "pointer", padding: "6px 0" }}>
                     <div>
                       <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>
-                        {sg.committee}
+                        {sg.committee ?? ""}
                       </span>
                       <span style={{ fontSize: 12, color: "#888888", marginLeft: 12 }}>
-                        {sg.spoken_at}
+                        {sg.spoken_at ?? ""}
                       </span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -581,10 +496,14 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                       {sg.speeches.map((s, i) => (
                         <div key={s.id} style={{ padding: "8px 0",
                           borderBottom: i < sg.speeches.length - 1 ? "1px solid #e0e0e0" : "none" }}>
-                          <a href={s.source_url} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 12, color: "#333333", textDecoration: "none" }}>
-                            📄 発言 #{i + 1} を見る ↗
-                          </a>
+                          {s.source_url ? (
+                            <a href={s.source_url} target="_blank" rel="noopener noreferrer"
+                              style={{ fontSize: 12, color: "#333333", textDecoration: "none" }}>
+                              📄 発言 #{i + 1} を見る ↗
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: 12, color: "#888888" }}>📄 発言 #{i + 1}</span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -721,7 +640,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                     {q.title}
                   </span>
                   <span style={{ fontSize: 11, color: "#888888", flexShrink: 0 }}>
-                    第{q.session}回 #{q.number}
+                    第{q.session}回 #{q.number ?? "?"}
                   </span>
                 </div>
                 <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
@@ -733,10 +652,12 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                       答弁: {q.answered_at}
                     </span>
                   )}
-                  <a href={q.source_url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: "#333333", textDecoration: "none" }}>
-                    📄 詳細を見る ↗
-                  </a>
+                  {q.source_url && (
+                    <a href={q.source_url} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 12, color: "#333333", textDecoration: "none" }}>
+                      📄 詳細を見る ↗
+                    </a>
+                  )}
                 </div>
               </div>
             ))}
@@ -764,10 +685,10 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
               採決記録がありません。
             </div>
           ) : (() => {
-            const yea        = voteStats?.yea    ?? votes.filter(v => v.vote === "賛成").length;
-            const nay        = voteStats?.nay    ?? votes.filter(v => v.vote === "反対").length;
-            const absent     = voteStats?.absent ?? votes.filter(v => v.vote === "欠席").length;
-            const total      = voteStats?.total  ?? votes.length;
+            const yea        = voteStats?.yea    ?? 0;
+            const nay        = voteStats?.nay    ?? 0;
+            const absent     = voteStats?.absent ?? 0;
+            const total      = voteStats?.total  ?? 0;
             const absentRate = total > 0 ? (absent / total * 100).toFixed(1) : "0.0";
             const filteredVotes = voteFilter === "all" ? votes : votes.filter(v => v.vote === voteFilter);
             return (
@@ -878,7 +799,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                     </div>
                     <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#555555", alignItems: "center" }}>
                       <span>{b.submitted_at || "日付不明"}</span>
-                      <span>第{b.session_number}回国会</span>
+                      <span>第{b.session_number ?? "?"}回国会</span>
                       {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
                       {b.honbun_url && (
                         <a href={b.honbun_url} target="_blank" rel="noopener noreferrer"
@@ -952,16 +873,16 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
       {tab === "ai" && (
         <AIAnalysis
           member={member}
-          questions={questions}
+          questions={questions.map(q => ({ ...q, submitted_at: q.submitted_at ?? "" }))}
           votes={votes}
           bills={bills}
           petitions={petitions}
-          committees={committees}
+          committees={committees.map(c => ({ ...c, role: c.role ?? "" }))}
           coSponsors={coSponsors}
-          speeches={speeches}
+          speeches={speeches.map(s => ({ ...s, committee: s.committee ?? "", spoken_at: s.spoken_at ?? "" }))}
           keywords={keywords}
           voteStats={voteStats}
-          speechExcerpts={speechExcerpts}
+          speechExcerpts={speechExcerpts.map(e => ({ ...e, committee: e.committee ?? "" }))}
         />
       )}
     </div>

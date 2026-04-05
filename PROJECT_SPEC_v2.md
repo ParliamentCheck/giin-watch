@@ -430,8 +430,10 @@ app/components/
 lib/
   supabase.ts               Supabaseクライアント（ブラウザ用）
   supabase-server.ts        Supabaseクライアント（サーバーコンポーネント用）
-  partyColors.ts            政党カラー定義（政党名 → 16進カラーコード のMap）
+  partyColors.ts            政党カラー・短縮名の定義（PARTY_COLORS・PARTY_SHORT・partyShort() の唯一のソース）
   partyStatus.ts            政党の与野党ステータス履歴（下記参照）
+  types.ts                  共通TypeScript型定義（Member・MemberSortKey・MEMBER_SORT_OPTIONS 等）
+  queries.ts                共通Supabaseクエリ関数（複数ページで使い回すクエリを集約）
   favorites.ts              お気に入り機能のlocalStorage操作ユーティリティ
   changelog.ts              変更履歴データ（/changelogページ用）
 
@@ -969,6 +971,18 @@ steps:
 
 ## 10. 開発ルール
 
+### 法的遵守事項
+
+本サービスが考慮すべき法令の観点（実装・文言変更の前に照合すること）：
+
+| 法令 | 観点 |
+|-----|-----|
+| 刑法230条（名誉毀損罪）・231条（侮辱罪）・230条の2（公益特例） | 事実摘示・論評の区別。公人であっても個人に対する断定的評価は慎重に |
+| 民法709条（不法行為・過失・注意義務） | 不正確なデータの表示によって名誉・信用を傷つけた場合の損害賠償リスク |
+| 公職選挙法（落選運動の教唆・幇助／選挙期間中の情報発信規制） | 選挙期間中の特定候補者の活動データの強調・比較表示に注意 |
+| 個人情報保護法（APPI） | 議員は公人だが、政治活動と無関係な個人情報（住所・家族等）は収集・表示しない |
+| 技術的セキュリティ | データ改ざん防止・証拠保全。監査ログの保持 |
+
 ### 絶対遵守事項
 1. **自動化徹底**: できる限り人の手を入れず、自動で更新反映できる仕様にする
 2. **法的安全性最優先**: 法的危険性に最大限注意し、運営の安全性をできる限り確保する
@@ -982,6 +996,19 @@ steps:
 ---
 
 ## 11. 運用手順
+
+### ファイル変更が必要な場面
+
+| やりたいこと | 触るファイル |
+|---|---|
+| 議員の政党表示を補正する | `apps/collector/sources/members.py` の `PARTY_OVERRIDES` |
+| 選挙データを追加する | `apps/collector/sources/election_votes.py` |
+| 政党の与野党ステータスを更新 | `apps/web/lib/partyStatus.ts` |
+| 政党カラー・短縮名を追加 | `apps/web/lib/partyColors.ts`（+ `PartiesClient.tsx` の `ELECTION_PARTY_COLORS`） |
+| 政党公式URLを追加 | `apps/web/app/parties/[party]/PartyDetailClient.tsx` の `PARTY_URLS` |
+| DB構造変更 | `migrations/` に連番で追加 → Supabase SQL Editor で実行 |
+| UIデザイン変更 | 各 `apps/web/app/` 以下のコンポーネント、共通スタイルは `globals.css` |
+| 変更履歴を更新 | `apps/web/lib/changelog.ts` |
 
 ### キーワード全件リセット
 ```sql
@@ -1198,9 +1225,9 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 静的アセット（SVG/PNG等）には `Cache-Control: public, max-age=86400` を設定。
 `poweredByHeader: false` で `X-Powered-By: Next.js` ヘッダーを除去。
 
-### 13.9 政党名短縮表記（votes ページ）
+### 13.9 政党名短縮表記
 
-マトリクスの列ヘッダーはスマホでの重なり防止のため短縮名を使用（`PARTY_SHORT` マップ）：
+マトリクスの列ヘッダーはスマホでの重なり防止のため短縮名を使用。定義は `lib/partyColors.ts` の `partyShort()` 関数（唯一のソース）：
 
 | 正式名 | 短縮名 |
 |-------|-------|
@@ -1223,7 +1250,7 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 - 採決データのバックフィル範囲（第208回以前に遡るか）
 - 閣法の `vote_result_shu/san`（採決態様）・`law_number`・`promulgated_at` の表示（DB収録済み・UI未表示）
 - 前議員ページに採決・立法タブを表示するか
-- `former_members_review.md` の「要確認」214名の手動判定後の追加登録
+- 前議員の追加登録（作業済み・随時更新）
 
 ### 閣法の発言議員表示の制約
 - 現在の「発言議員」は「付託委員会×会期で発言した議員」であり、特定法案のみを審議した議員ではない

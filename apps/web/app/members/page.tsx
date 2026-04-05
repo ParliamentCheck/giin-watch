@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { supabaseServer as supabase } from "../../lib/supabase-server";
+import { supabaseServer } from "../../lib/supabase-server";
+import { getActiveMembers } from "../../lib/queries";
 import MembersClient from "./MembersClient";
 
 export const revalidate = 3600;
@@ -15,12 +16,6 @@ export const metadata: Metadata = {
 };
 
 export default async function MembersPage() {
-  const { data } = await supabase
-    .from("members")
-    .select("id, name, alias_name, last_name, first_name, last_name_reading, first_name_reading, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count, petition_count")
-    .eq("is_active", true)
-    .limit(2000)
-    .order("name");
-
-  return <MembersClient initialMembers={data ?? []} />;
+  const members = await getActiveMembers(supabaseServer);
+  return <MembersClient initialMembers={members} />;
 }

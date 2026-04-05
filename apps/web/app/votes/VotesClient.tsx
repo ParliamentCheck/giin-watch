@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
+import { partyShort } from "../../lib/partyColors";
 
 interface VoteRow {
   member_id: string;
@@ -15,24 +16,6 @@ interface VoteRow {
 type PartyPositions = Record<string, Record<string, string>>;
 type AlignmentMatrix = Record<string, Record<string, { agree: number; total: number }>>;
 
-// スマホで読める短縮名（列ヘッダー用）
-const PARTY_SHORT: Record<string, string> = {
-  "自民党":       "自民",
-  "立憲民主党":   "立憲",
-  "中道改革連合": "中道改革",
-  "公明党":       "公明",
-  "日本維新の会": "維新",
-  "国民民主党":   "国民",
-  "共産党":       "共産",
-  "れいわ新選組": "れいわ",
-  "社民党":       "社民",
-  "参政党":       "参政",
-  "チームみらい": "みらい",
-  "日本保守党":   "保守",
-  "沖縄の風":     "沖縄風",
-  "有志の会":     "有志",
-  "無所属":       "無所属",
-};
 
 function calcAlignment(
   votes: VoteRow[],
@@ -259,7 +242,7 @@ function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
                           borderBottom: "1px solid #e0e0e0",
                           writingMode: "vertical-rl", textOrientation: "mixed",
                           whiteSpace: "nowrap", minWidth: 28, fontSize: 11 }}>
-                          {PARTY_SHORT[p] ?? p}
+                          {partyShort(p)}
                         </th>
                       ))}
                     </tr>

@@ -2,52 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { supabase } from "../../lib/supabase";
+import { getAllPetitionRows, getAllSangiinPetitionRows, getPetitionMemberMap } from "../../lib/queries";
+import type { PetitionListItem } from "../../lib/types";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
 import { partyColor } from "../../lib/partyColors";
 
-export interface Petition {
-  id: string;
-  session: number;
-  number: number;
-  title: string;
-  committee_name: string | null;
-  result: string | null;
-  result_date: string | null;
-  source_url: string | null;
-  introducer_ids: string[] | null;
-  introducer_names: string[] | null;
-  house: "衆" | "参";
-}
-
-interface MemberInfo {
-  name: string;
-  party: string;
-  is_active: boolean;
-}
-
+type MemberInfo = { name: string; alias_name: string | null; party: string; is_active: boolean };
 type ResultFilter = "採択" | "不採択" | "審査未了";
 
-async function fetchAll(table: string, house: "衆" | "参"): Promise<Petition[]> {
-  const BATCH = 1000;
-  const all: Petition[] = [];
-  let from = 0;
-  while (true) {
-    const { data } = await supabase
-      .from(table)
-      .select("id,session,number,title,committee_name,result,result_date,source_url,introducer_ids,introducer_names")
-      .range(from, from + BATCH - 1);
-    if (!data || data.length === 0) break;
-    for (const d of data) all.push({ ...d, house });
-    if (data.length < BATCH) break;
-    from += BATCH;
-  }
-  return all;
-}
-
-function sortPetitions(petitions: Petition[]): Petition[] {
+function sortPetitions(petitions: PetitionListItem[]): PetitionListItem[] {
   return [...petitions].sort((a, b) => {
     if (a.session !== b.session) return b.session - a.session;
     return b.number - a.number;
@@ -62,7 +27,7 @@ function classifyResult(result: string | null): ResultFilter {
 }
 
 interface Props {
-  initialPetitions?: Petition[];
+  initialPetitions?: PetitionListItem[];
   initialMemberMap?: Record<string, MemberInfo>;
 }
 
@@ -80,7 +45,7 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
     router.replace(`${pathname}?${p.toString()}`, { scroll: false });
   };
 
-  const [petitions, setPetitions] = useState<Petition[]>(initialPetitions ? sortPetitions(initialPetitions) : []);
+  const [petitions, setPetitions] = useState<PetitionListItem[]>(initialPetitions ? sortPetitions(initialPetitions) : []);
   const [memberMap, setMemberMap] = useState<Record<string, MemberInfo>>(initialMemberMap ?? {});
   const [loading, setLoading] = useState(!initialPetitions);
   const [search, setSearch] = useState("");
@@ -90,23 +55,14 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
   const [sessionFilter, setSessionFilter] = useState<number | null>(null);
 
   useEffect(() => {
-    if (initialPetitions) return; // SSRデータがあればクライアントフェッチ不要
+    if (initialPetitions) return;
     async function load() {
-      const [shu, san, membersRes] = await Promise.all([
-        fetchAll("petitions", "衆"),
-        fetchAll("sangiin_petitions", "参"),
-        supabase.from("members").select("id,name,party,is_active,alias_name").limit(2000),
+      const [shu, san, map] = await Promise.all([
+        getAllPetitionRows(),
+        getAllSangiinPetitionRows(),
+        getPetitionMemberMap(),
       ]);
       setPetitions(sortPetitions([...shu, ...san]));
-      const map: Record<string, MemberInfo> = {};
-      for (const m of membersRes.data ?? []) {
-        const info = { name: m.name, party: m.party, is_active: m.is_active };
-        map[m.id] = info;
-        if (m.alias_name) {
-          const houseLabel = m.id.startsWith("衆議院") ? "衆議院" : "参議院";
-          map[`${houseLabel}-${m.alias_name.replace(/[\s\u3000]/g, "")}`] = info;
-        }
-      }
       setMemberMap(map);
       setLoading(false);
     }
@@ -318,7 +274,7 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
                           if (member) {
                             return (
                               <MemberChip key={memberId} id={memberId} name={name}
-                                party={member.party} isFormer={!member.is_active} />
+                                alias_name={null} party={member.party} is_active={member.is_active} />
                             );
                           }
                           return (

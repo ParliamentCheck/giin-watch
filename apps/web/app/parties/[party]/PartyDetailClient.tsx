@@ -7,7 +7,7 @@ import { supabase } from "../../../lib/supabase";
 import WordCloud from "../../components/WordCloud";
 import ActivityRadar from "../../components/ActivityRadar";
 import AIAnalysisBase from "../../components/AIAnalysisBase";
-import { PARTY_COLORS } from "../../../lib/partyColors";
+import { PARTY_COLORS, partyShort } from "../../../lib/partyColors";
 import { getPartyStatus } from "../../../lib/partyStatus";
 import { usePagination } from "../../../hooks/usePagination";
 
@@ -811,13 +811,6 @@ function PartyDetailContent() {
 
       {/* 政党距離感タブ */}
       {tab === "distance" && (() => {
-        const PARTY_SHORT: Record<string, string> = {
-          "自民党":       "自民", "立憲民主党":   "立憲", "中道改革連合": "中道",
-          "公明党":       "公明", "日本維新の会": "維新", "国民民主党":   "国民",
-          "共産党":       "共産", "れいわ新選組": "れいわ", "社民党":     "社民",
-          "参政党":       "参政", "チームみらい": "みらい", "日本保守党": "保守",
-          "有志の会":     "有志", "沖縄の風":     "沖縄",
-        };
 
         const myAlignments = alignments
           .filter((a) => a.party_a === party || a.party_b === party)

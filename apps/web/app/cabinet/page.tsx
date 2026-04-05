@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { supabaseServer as supabase } from "../../lib/supabase-server";
+import { supabaseServer } from "../../lib/supabase-server";
+import { getCabinetMembers } from "../../lib/queries";
 import CabinetClient from "./CabinetClient";
 
 export const revalidate = 3600;
@@ -15,11 +16,6 @@ export const metadata: Metadata = {
 };
 
 export default async function CabinetPage() {
-  const { data } = await supabase
-    .from("members")
-    .select("id, name, party, house, district, cabinet_post")
-    .eq("is_active", true)
-    .not("cabinet_post", "is", null);
-
-  return <CabinetClient initialMembers={data ?? []} />;
+  const members = await getCabinetMembers(supabaseServer);
+  return <CabinetClient initialMembers={members} />;
 }

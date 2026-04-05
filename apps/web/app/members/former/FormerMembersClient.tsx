@@ -3,52 +3,12 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
+import type { Member } from "../../../lib/types";
+import { MEMBER_SORT_OPTIONS, type MemberSortKey } from "../../../lib/types";
+import { PARTY_COLORS } from "../../../lib/partyColors";
+import { MEMBER_SELECT } from "../../../lib/queries";
 
-interface Member {
-  id: string;
-  name: string;
-  party: string;
-  faction: string | null;
-  house: string;
-  district: string;
-  prefecture: string;
-  terms: number | null;
-  is_active: boolean;
-  session_count: number | null;
-  question_count: number | null;
-  bill_count: number | null;
-  petition_count: number | null;
-}
-
-const PARTY_COLORS: Record<string, string> = {
-  "自民党":         "#c0392b",
-  "立憲民主党":     "#2980b9",
-  "中道改革連合":   "#3498db",
-  "公明党":         "#8e44ad",
-  "日本維新の会":   "#318e2c",
-  "国民民主党":     "#fabe00",
-  "共産党":         "#e74c3c",
-  "れいわ新選組":   "#e4007f",
-  "社民党":         "#795548",
-  "参政党":         "#ff6d00",
-  "チームみらい":   "#00bcd4",
-  "日本保守党":     "#607d8b",
-  "沖縄の風":       "#009688",
-  "有志の会":       "#9c27b0",
-  "無所属":         "#7f8c8d",
-  "不明（前議員）": "#888888",
-};
-
-type SortKey = "name" | "session_count" | "question_count" | "bill_count" | "petition_count" | "terms";
-
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "name",           label: "名前順" },
-  { value: "session_count",  label: "発言セッション数順" },
-  { value: "question_count", label: "質問主意書数順" },
-  { value: "bill_count",     label: "議員立法数順" },
-  { value: "petition_count", label: "請願数順" },
-  { value: "terms",          label: "当選回数順" },
-];
+type SortKey = MemberSortKey;
 
 function FormerMembersContent() {
   const router       = useRouter();
@@ -62,7 +22,7 @@ function FormerMembersContent() {
   const search        = searchParams.get("q")     || "";
   const selectedHouse = searchParams.get("house") || "";
   const selectedParty = searchParams.get("party") || "";
-  const sortKey       = (searchParams.get("sort") || "name") as SortKey;
+  const sortKey       = (searchParams.get("sort") || "name") as MemberSortKey;
 
   useEffect(() => {
     if (!isComposing.current) setInputValue(search);
@@ -82,12 +42,12 @@ function FormerMembersContent() {
     async function fetchMembers() {
       const { data, error } = await supabase
         .from("members")
-        .select("id, name, party, faction, house, district, prefecture, terms, is_active, session_count, question_count, bill_count, petition_count")
+        .select(MEMBER_SELECT)
         .eq("is_active", false)
         .limit(2000)
         .order("name");
       if (error) console.error(error);
-      else setMembers(data || []);
+      else setMembers((data || []) as Member[]);
       setLoading(false);
     }
     fetchMembers();
@@ -154,7 +114,7 @@ function FormerMembersContent() {
           <select value={sortKey}
             onChange={(e) => updateUrl(search, selectedHouse, selectedParty, e.target.value)}
             className="input-field">
-            {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {MEMBER_SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           {(search || selectedHouse || selectedParty || sortKey !== "name") && (
             <button onClick={() => updateUrl("", "", "", "name")}
@@ -186,7 +146,7 @@ function FormerMembersContent() {
                 <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 16px" }}>
                   {/* 名前 */}
                   <span style={{ fontWeight: 700, fontSize: 15, color: "#111111", minWidth: 90 }}>
-                    {m.name}
+                    {m.alias_name ?? m.name}
                   </span>
                   {/* 政党バッジ */}
                   <span className="badge badge-party" style={{ "--party-color": "#aaaaaa" } as React.CSSProperties}>
