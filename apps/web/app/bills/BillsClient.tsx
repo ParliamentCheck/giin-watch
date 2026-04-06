@@ -793,19 +793,35 @@ export default function BillsClient() {
         {/* 委員会提出タブ */}
         {activeTab === "committee" && (
           <div className="card-xl">
-            <p style={{ fontSize: 13, color: "#555555", marginBottom: 16 }}>
-              委員長名義で提出された法案（超党派・全会一致が多い）。{committeeBills.length}件
+            <p style={{ fontSize: 13, color: "#555555", marginBottom: 12 }}>
+              委員長名義で提出された法案（超党派・全会一致が多い）。
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+              <input
+                type="text"
+                placeholder="法案名を検索..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={(e) => { setIsComposing(false); setSearch((e.target as HTMLInputElement).value); }}
+                className="input-field"
+                style={{ flex: 1, minWidth: 200, borderRadius: 8, padding: "8px 14px" }}
+              />
+            </div>
+            <p style={{ color: "#555555", fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span>{loading ? "読み込み中..." : `${filtered.length} 件`}</span>
+              {!loading && <Paginator total={filtered.length} page={billsPage} onPage={setBillsPage} variant="top" />}
             </p>
             {loading ? (
               <div className="loading-block">
                 <div className="loading-spinner" />
                 <span>データを読み込んでいます...</span>
               </div>
-            ) : committeeBills.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <div className="empty-state">該当する法案がありません。</div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {committeeBills.map((b) => (
+                {filtered.slice((billsPage - 1) * PAGE_SIZE, billsPage * PAGE_SIZE).map((b) => (
                   <div key={b.id} className="card" style={{ padding: "16px 20px" }}>
                     <div style={{ marginBottom: 8 }}>
                       <span style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{b.title}</span>
@@ -822,6 +838,7 @@ export default function BillsClient() {
                 ))}
               </div>
             )}
+            <Paginator total={filtered.length} page={billsPage} onPage={setBillsPage} variant="bottom" />
           </div>
         )}
 
