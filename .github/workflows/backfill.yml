@@ -21,6 +21,7 @@ on:
           - "backfill-procedural"
           - "votes-collect"
           - "bills-collect"
+          - "bills-submitters"
           - "shugiin-questions"
           - "sangiin-questions"
           - "petitions-collect"
