@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { supabaseServer as supabase } from "../../lib/supabase-server";
 import CommitteesClient from "./CommitteesClient";
 
@@ -21,5 +22,9 @@ export default async function CommitteesPage() {
   ]);
   const allData = [...(res1.data ?? []), ...(res2.data ?? [])];
 
-  return <CommitteesClient initialRaw={allData} />;
+  return (
+    <Suspense>
+      <CommitteesClient initialRaw={allData} />
+    </Suspense>
+  );
 }
