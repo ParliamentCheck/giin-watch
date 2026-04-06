@@ -8,6 +8,7 @@ import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
 import { partyColor } from "../../lib/partyColors";
+import { SESSION_RANGE_QUESTIONS } from "../../lib/constants";
 
 type MemberInfo = { name: string; alias_name: string | null; party: string; is_active: boolean };
 type ResultFilter = "採択" | "不採択" | "審査未了";
@@ -215,7 +216,7 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
           </div>
 
           <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 12 }}>
-            ※ 第196回〜第221回国会（衆院・参院）の記録に基づく
+            {`※ ${SESSION_RANGE_QUESTIONS}（衆院・参院）の記録に基づく`}
           </div>
 
           {loading ? (
@@ -300,7 +301,7 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
       {tab === "stats" && (
         <div className="card-xl">
           <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 20 }}>
-            ※ 第196回〜第221回国会（衆院・参院）の記録に基づく
+            {`※ ${SESSION_RANGE_QUESTIONS}（衆院・参院）の記録に基づく`}
           </div>
 
           {loading ? (
@@ -376,7 +377,7 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
                   紹介人数が多い請願 TOP5
                 </h2>
                 <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-                  紹介議員として記録されている人数（第196回〜第221回国会）
+                  {`紹介議員として記録されている人数（${SESSION_RANGE_QUESTIONS}）`}
                 </p>
                 {petitionIntroducerTop5.length === 0 ? (
                   <div className="empty-state">データがありません。</div>

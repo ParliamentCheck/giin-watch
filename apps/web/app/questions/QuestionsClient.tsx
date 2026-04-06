@@ -8,6 +8,7 @@ import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
 import { partyColor } from "../../lib/partyColors";
+import { SESSION_RANGE_QUESTIONS } from "../../lib/constants";
 
 function sortQuestions(questions: QuestionListItem[]): QuestionListItem[] {
   return [...questions].sort((a, b) => {
@@ -163,7 +164,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
           </div>
 
           <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 12 }}>
-            ※ 第196回〜第221回国会（衆院・参院）の記録に基づく
+            {`※ ${SESSION_RANGE_QUESTIONS}（衆院・参院）の記録に基づく`}
           </div>
 
           {loading ? (
@@ -223,7 +224,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
       {tab === "stats" && (
         <div className="card-xl">
           <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 20 }}>
-            ※ 第196回〜第221回国会（衆院・参院）の記録に基づく
+            {`※ ${SESSION_RANGE_QUESTIONS}（衆院・参院）の記録に基づく`}
           </div>
 
           {loading ? (
@@ -268,7 +269,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
                   提出件数が多い議員 TOP10
                 </h2>
                 <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-                  衆院・参院合計（第196回〜第221回国会）
+                  {`衆院・参院合計（${SESSION_RANGE_QUESTIONS}）`}
                 </p>
                 {memberTop.length === 0 ? (
                   <div className="empty-state">データがありません。</div>

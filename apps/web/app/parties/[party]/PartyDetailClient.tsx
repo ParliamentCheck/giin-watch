@@ -8,6 +8,7 @@ import WordCloud from "../../components/WordCloud";
 import ActivityRadar from "../../components/ActivityRadar";
 import AIAnalysisBase from "../../components/AIAnalysisBase";
 import { PARTY_COLORS, partyShort } from "../../../lib/partyColors";
+import { SESSION_RANGE_BILLS } from "../../../lib/constants";
 import { getPartyStatus } from "../../../lib/partyStatus";
 import { usePagination } from "../../../hooks/usePagination";
 
@@ -486,7 +487,7 @@ function PartyDetailContent() {
                 ))}
               </div>
               <div style={{ fontSize: 10, color: "#aaaaaa", marginTop: 8 }}>
-                ※ 第208回〜第221回国会の記録に基づく（参議院のみ・集計は全件）。
+                {`※ ${SESSION_RANGE_BILLS}の記録に基づく（参議院のみ・集計は全件）。`}
               </div>
             </div>
           </div>
@@ -965,7 +966,7 @@ function PartyDetailContent() {
           const yesRate   = (voteStats.yes    / voteStats.total * 100).toFixed(1);
           const noRate    = (voteStats.no     / voteStats.total * 100).toFixed(1);
           const absentRate = (voteStats.absent / voteStats.total * 100).toFixed(1);
-          lines.push("■ 本会議採決記録（参議院・第208回〜第221回国会）");
+          lines.push(`■ 本会議採決記録（参議院・${SESSION_RANGE_BILLS}）`);
           lines.push(`賛成率: ${yesRate}% / 反対率: ${noRate}% / 欠席率: ${absentRate}%`);
           lines.push("※ 採決データは党議拘束の影響を受けるため、個別議員の意思を完全には反映しません。");
           lines.push("");

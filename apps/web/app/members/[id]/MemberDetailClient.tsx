@@ -9,6 +9,7 @@ import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
 import { usePagination } from "../../../hooks/usePagination";
 import AIAnalysis from "./AIAnalysis";
 import { PARTY_COLORS } from "../../../lib/partyColors";
+import { SESSION_RANGE_SPEECHES, SESSION_RANGE_QUESTIONS, SESSION_RANGE_BILLS } from "../../../lib/constants";
 import type {
   Member, Speech, SpeechExcerpt,
   Question, SangiinQuestion,
@@ -454,7 +455,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             発言履歴（セッション単位・最新順）
           </h3>
           <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-            ※ 同日・同委員会の発言を1回として集計（第210回〜第221回国会の記録に基づく）。
+            {`※ 同日・同委員会の発言を1回として集計（${SESSION_RANGE_SPEECHES}の記録に基づく）。`}
           </p>
           {sessionGroups.length === 0 ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
@@ -524,7 +525,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             紹介議員を務めた請願
           </h3>
           <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-            ※ 第196回〜第221回国会の記録に基づく。
+            {`※ ${SESSION_RANGE_QUESTIONS}の記録に基づく。`}
           </p>
           {petitions.length > 0 && (() => {
             const adopted    = petitions.filter(p => p.result?.split("\n")[0].trim().startsWith("採択")).length;
@@ -619,7 +620,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             質問主意書
           </h3>
           <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-            ※ 第196回〜第221回国会の記録に基づく。
+            {`※ ${SESSION_RANGE_QUESTIONS}の記録に基づく。`}
           </p>
           {questions.length === 0 ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
@@ -674,7 +675,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
             本会議採決記録（参議院）
           </h3>
           <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-            ※ 第208回〜第221回国会の記録に基づく（参議院のみ）。
+            {`※ ${SESSION_RANGE_BILLS}の記録に基づく（参議院のみ）。`}
           </p>
           {member.house !== "参議院" ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
@@ -779,7 +780,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           {billsSubTab === "list" && (
             <>
               <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-                ※ 第208回〜第221回国会の記録に基づく。
+                {`※ ${SESSION_RANGE_BILLS}の記録に基づく。`}
               </p>
               {bills.length === 0 ? (
                 <div className="empty-state" style={{ padding: "20px 0" }}>

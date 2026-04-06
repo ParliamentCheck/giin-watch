@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { supabaseServer } from "../../lib/supabase-server";
+import { SESSION_RANGE_QUESTIONS } from "../../lib/constants";
 import {
   getAllPetitionRows,
   getAllSangiinPetitionRows,
@@ -19,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
     supabaseServer.from("sangiin_petitions").select("id", { count: "exact", head: true }),
   ]);
   const total = (shuRes.count ?? 0) + (sanRes.count ?? 0);
-  const description = `衆院・参院の請願${total.toLocaleString()}件を収録。紹介議員・委員会・審査結果を一覧・検索できます（第196回〜第221回国会）。`;
+  const description = `衆院・参院の請願${total.toLocaleString()}件を収録。紹介議員・委員会・審査結果を一覧・検索できます（${SESSION_RANGE_QUESTIONS}）。`;
   return {
     title: "請願",
     description,

@@ -314,7 +314,7 @@ supabase.from("members").select("id", { count: "exact", head: true }).eq("is_act
 | R-0 | サーバーページが queries.ts 非経由 | queries.ts の全関数に `client` 引数（デフォルト=クライアント用）を追加。`members/page.tsx`・`cabinet/page.tsx` を queries.ts 経由に変更。`parties/page.tsx` は `select("party")` のみの集計クエリのため例外（REBUILD.md設計方針の「複合計算クエリ」に該当）。`CabinetClient` のローカル Member 定義も lib/types.ts に統合 | ✅ 対応済み |
 | R-1 | audit.py が「0件でも古データがあれば未検知」 | `check_collector_freshness()` を追加。speeches/questions の最新レコード日付が14日以上前なら発火 | ✅ 対応済み（2026-04-06） |
 | R-2 | スクレイパーが公式サイトの構造変化で無音で壊れる | `check_null_rates()` を追加。questions/sangiin_questions の submitted_at NULL率・speeches の member_id NULL率を30日間監視。30%超で発火 | ✅ 対応済み（2026-04-06） |
-| R-3 | PARTY_MAP と CURRENT_SESSION 等がフロント・Python の両方にハードコード | 新政党・新回次対応時の対応漏れリスク | 🔲 |
+| R-3 | PARTY_MAP と CURRENT_SESSION 等がフロント・Python の両方にハードコード | 新政党・新回次対応時の対応漏れリスク | ✅ 対応済み（2026-04-06） |
 
 ### フェーズ3後半：残作業（優先度：高）
 
@@ -447,6 +447,7 @@ supabase.from("members").select("id", { count: "exact", head: true }).eq("is_act
 | queries.ts | 共通クエリ関数 | **Step 2 でクリーンアップ・MEMBER_SELECT 追加** |
 | partyColors.ts | 政党カラー・短縮名（唯一のソース） | |
 | partyStatus.ts | 政党ステータス判定 | |
+| constants.ts | 国会会期定数（CURRENT_SESSION等）・表示用ラベル（唯一のソース） | 会期が進んだときここだけ更新する |
 | favorites.ts | お気に入り管理（localStorage） | |
 | changelog.ts | 更新履歴データ（静的） | |
 
@@ -477,9 +478,27 @@ supabase.from("members").select("id", { count: "exact", head: true }).eq("is_act
   - DB側の `is_procedural=False` フィルターを削除（NDL との比較対象を統一）
   - NDL検索名を `member["name"]` から `ndl_names[0]` に変更（全角スペース入り名前の誤検知を排除）
   - これにより過去の全5件の誤検知（坂本哲志・鈴木エリ・芳賀道也・木戸口英司・渡辺真太朗）の原因を解消
+- D-5：委員会一覧ページの人数表示がSupabase max_rows=1000で切り捨てられていた問題を修正（range()で2分割取得）
+- U-1：committees/CommitteesClient・CommitteeDetailClient の selectedHouse/search を URL パラメータに移行。Suspense 境界追加
+- Q-3：委員長提出法案を「委員会提出」タブとして bills ページに追加。bills.py に `is_committee_bill` 検出ロジック追加。backfill.yml に `bills-submitters` タスク追加
+- R-3：`lib/constants.ts` 作成（CURRENT_SESSION=221・SESSION_RANGE_* 等）。全6ファイル（PetitionsClient・PetitionsPage・QuestionsClient・QuestionsPage・MemberDetailClient・PartyDetailClient・faq/page）のハードコード文字列を定数参照に統一
+
+### 新政党・新会期対応チェックリスト（R-3補足）
+
+国会の会期が進んだ場合、または新政党が結成・改名された場合の更新箇所：
+
+**会期番号が変わった場合：**
+1. `apps/web/lib/constants.ts` の `CURRENT_SESSION` を更新（1箇所のみ・他は自動反映）
+
+**新政党が結成・改名された場合：**
+1. `apps/web/lib/partyColors.ts` の `PARTY_COLORS` と `PARTY_SHORT` に追加
+2. `apps/web/app/parties/PartiesClient.tsx` の `ELECTION_PARTY_COLORS` に追加（選挙データが正式党名で格納されるため、こちらは別管理）
+3. `apps/collector/sources/members.py` の PARTY_MAP（会派名→政党名 変換マップ）を確認・更新
+4. `apps/web/app/faq/page.tsx` の党名説明テキストを確認
+
+**注意：** `ELECTION_PARTY_COLORS`（PartiesClient.tsx）は選挙DB上の正式党名をキーとするため `PARTY_COLORS`（会派略称キー）とは意図的に別管理。統合不可。
 
 ### 次回着手候補（優先度順）
 1. **scoring-only backfill**：新規登録47名の *_count 再計算（Actions → backfill.yml → scoring-only）
-2. **W-5**：`as any` キャスト排除
-3. **Q-3**：委員長提出法案の表示方法を決める（「委員会提出」表示 or 別分類）
-4. **R-3**：PARTY_MAP / CURRENT_SESSION のフロント・Python 二重ハードコード
+2. **bills-submitters backfill**：委員長提出法案9件の `bill_type` を「委員会提出」に更新（Actions → backfill.yml → bills-submitters）
+3. **Q-1**：speeches NULL残課題（衆議院立憲→中道の party 修正）

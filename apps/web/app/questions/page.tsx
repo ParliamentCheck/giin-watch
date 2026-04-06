@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { supabaseServer } from "../../lib/supabase-server";
+import { SESSION_RANGE_QUESTIONS } from "../../lib/constants";
 import { getAllQuestionsWithMembers, getAllSangiinQuestionsWithMembers } from "../../lib/queries";
 import type { QuestionListItem } from "../../lib/types";
 import QuestionsClient from "./QuestionsClient";
@@ -15,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
     supabaseServer.from("sangiin_questions").select("id", { count: "exact", head: true }),
   ]);
   const total = (shuRes.count ?? 0) + (sanRes.count ?? 0);
-  const description = `衆院・参院の質問主意書${total.toLocaleString()}件を収録。提出議員・提出日・答弁日を一覧・検索できます（第196回〜第221回国会）。`;
+  const description = `衆院・参院の質問主意書${total.toLocaleString()}件を収録。提出議員・提出日・答弁日を一覧・検索できます（${SESSION_RANGE_QUESTIONS}）。`;
   return {
     title: "質問主意書",
     description,
