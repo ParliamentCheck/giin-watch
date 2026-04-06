@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
 import { supabaseServer as supabase } from "../../../lib/supabase-server";
+import type { Member } from "../../../lib/types";
 import MemberDetailClient from "./MemberDetailClient";
 
 export const revalidate = 3600;
 
 type Props = { params: Promise<{ id: string }> };
 
-async function getMember(memberId: string) {
+async function getMember(memberId: string): Promise<Member | null> {
   const { data } = await supabase
     .from("members")
     .select("id, name, alias_name, last_name, first_name, last_name_reading, first_name_reading, party, faction, house, district, terms, is_active, session_count, question_count, bill_count, petition_count, cabinet_post, source_url")
     .eq("id", memberId)
     .single();
-  return data;
+  return data as Member | null;
 }
 
 async function getGlobalMax() {
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     data.question_count ? `質問主意書${data.question_count}件`        : null,
     data.bill_count     ? `議員立法${data.bill_count}件`              : null,
   ].filter(Boolean).join("、");
-  const displayName = (data as any).alias_name ?? data.name;
+  const displayName = data.alias_name ?? data.name;
   const formerPrefix = isFormer ? "元" : "";
   const description = `${displayName}（${formerPrefix}${parts.join("・")}）の国会活動データ。${stats ? stats + "。" : ""}発言・質問主意書・議員立法・採決・委員会活動を可視化。`;
   const url = `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`;
@@ -74,7 +75,7 @@ export default async function MemberDetailPage({ params }: Props) {
   const jsonLd = member ? {
     "@context": "https://schema.org",
     "@type": "Person",
-    "name": (member as any).alias_name ?? member.name,
+    "name": member.alias_name ?? member.name,
     "jobTitle": member.is_active ? (member.cabinet_post || (member.house === "衆議院" ? "衆議院議員" : "参議院議員")) : `元${member.house === "衆議院" ? "衆議院議員" : "参議院議員"}`,
     "affiliation": { "@type": "Organization", "name": member.party },
     "url": `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`,
@@ -89,7 +90,7 @@ export default async function MemberDetailPage({ params }: Props) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <MemberDetailClient initialMember={member as any} initialGlobalMax={globalMax} initialCommitteeCount={initialCounts.committeeCount} initialVoteCount={initialCounts.voteCount} />
+      <MemberDetailClient initialMember={member} initialGlobalMax={globalMax} initialCommitteeCount={initialCounts.committeeCount} initialVoteCount={initialCounts.voteCount} />
     </>
   );
 }

@@ -77,18 +77,17 @@ export default function CommitteesClient({ initialRaw }: { initialRaw?: { commit
   useEffect(() => {
     if (initialRaw) return;
     async function fetchCommittees() {
-      const { data, error } = await supabase
-        .from("committee_members")
-        .select("committee, house")
-        .limit(2000);
-
-      if (error) {
-        console.error(error);
+      const [res1, res2] = await Promise.all([
+        supabase.from("committee_members").select("committee, house").range(0, 999),
+        supabase.from("committee_members").select("committee, house").range(1000, 1999),
+      ]);
+      if (res1.error || res2.error) {
+        console.error(res1.error ?? res2.error);
         setLoading(false);
         return;
       }
 
-      setCommittees(buildCommitteeStats(data || []));
+      setCommittees(buildCommitteeStats([...(res1.data ?? []), ...(res2.data ?? [])]));
       setLoading(false);
     }
     fetchCommittees();

@@ -43,9 +43,9 @@ async function getCrossPartyBills() {
         .from("members")
         .select("id, party, prev_party")
         .in("id", allIds.slice(i, i + 50));
-      for (const m of members || []) {
-        memberParty[(m as any).id] = (m as any).party;
-        memberPrevParty[(m as any).id] = (m as any).prev_party ?? null;
+      for (const m of (members || []) as Array<{ id: string; party: string; prev_party: string | null }>) {
+        memberParty[m.id] = m.party;
+        memberPrevParty[m.id] = m.prev_party ?? null;
       }
     }
 
@@ -109,7 +109,9 @@ async function getRecentBills() {
     .in("id", allIds.slice(0, 100));
 
   const memberMap: Record<string, { name: string; alias_name: string | null; party: string; is_active: boolean }> = {};
-  for (const m of membersRes.data || []) memberMap[m.id] = { name: m.name, alias_name: (m as any).alias_name ?? null, party: m.party, is_active: m.is_active };
+  for (const m of (membersRes.data || []) as Array<{ id: string; name: string; alias_name: string | null; party: string; is_active: boolean }>) {
+    memberMap[m.id] = { name: m.name, alias_name: m.alias_name ?? null, party: m.party, is_active: m.is_active };
+  }
 
   return bills.map((b: any) => ({
     ...b,
@@ -187,7 +189,8 @@ async function getCurrentSessionStats() {
 
 // 採決一致率（全会期・ページネーションで全件取得）
 async function getPartyAlignmentMatrix() {
-  let allVotes: any[] = [];
+  type VoteRow = { member_id: string; vote: string; bill_title: string; vote_date: string; session_number: number | null };
+  let allVotes: VoteRow[] = [];
   let from = 0;
   const PAGE = 1000;
   while (true) {
@@ -211,7 +214,7 @@ async function getPartyAlignmentMatrix() {
   for (const m of members || []) memberParty[m.id] = m.party;
 
   const billVotes: Record<string, Record<string, string[]>> = {};
-  for (const v of votes as any[]) {
+  for (const v of votes) {
     const party = memberParty[v.member_id];
     if (!party || party === "無所属") continue;
     const key = `${v.vote_date}__${v.bill_title}`;
@@ -579,11 +582,11 @@ export default async function TopPage() {
 
         {/* ── 活動タブ：質問主意書 / 委員会活動 / 請願 ───────── */}
         <ActivityTabs
-          recentQuestions={recentQuestions as any}
+          recentQuestions={recentQuestions}
           committeeActivities={committeeActivities}
-          recentPetitions={recentPetitions as any}
+          recentPetitions={recentPetitions}
           petitionMemberMap={petitionMemberMap}
-          recentBills={recentBills as any}
+          recentBills={recentBills}
         />
 
         {/* ── 政党別 議員数 ──────────────────────────────────── */}

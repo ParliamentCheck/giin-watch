@@ -302,7 +302,7 @@ supabase.from("members").select("id", { count: "exact", head: true }).eq("is_act
 | D-2 | ホームページの院別議員数が `.length` 依存 | 現時点では実害なし（700名 < 2000）。Step 5 で解消 | ✅ 対応済み |
 | D-3 | queries.ts が完全なデッドコード（型エラーあり） | 使われていないが将来の地雷。Step 2 で解消 | ✅ 対応済み |
 | D-4 | 全ページで通称名（alias_name）が未使用 | MemberChip に alias_name がなく、ラサール石井等が法定名で表示されていた。CommitteeDetailClient 委員一覧タブも修正済み | ✅ 対応済み |
-| Q-1 | speeches の member_id=NULL が約108,000件 | NDL表記と members.name の不一致 | 🔲 別途調査 |
+| Q-1 | speeches の member_id=NULL が約108,000件 | NDL表記と members.name の不一致 | 🔲 部分対処 |
 | Q-2 | ~~前議員リスト未完成~~ **修正：自動管理済み** | members.py が日次で全院リセット→再登録。register_former_members.py は遡及的追加専用 | ✅ 深刻度低 |
 | Q-3 | bills の提出者 member_id=NULL | 調査済み（2026-04-05）。提出者なしの議員立法9件は全て「委員長提出法案」（役職名が提出者欄に入るため個人IDに紐付かない）。閣法336件の空は正常。実害は「委員長提出9件が法案ページで提出者無表示」のみ。表示方法の設計判断が必要 | 🔲 設計判断待ち |
 
@@ -311,8 +311,8 @@ supabase.from("members").select("id", { count: "exact", head: true }).eq("is_act
 | # | 問題 | 詳細 | ステータス |
 |---|------|------|-----------|
 | R-0 | サーバーページが queries.ts 非経由 | queries.ts の全関数に `client` 引数（デフォルト=クライアント用）を追加。`members/page.tsx`・`cabinet/page.tsx` を queries.ts 経由に変更。`parties/page.tsx` は `select("party")` のみの集計クエリのため例外（REBUILD.md設計方針の「複合計算クエリ」に該当）。`CabinetClient` のローカル Member 定義も lib/types.ts に統合 | ✅ 対応済み |
-| R-1 | audit.py が「0件でも古データがあれば未検知」 | コレクター停止を検出できない | 🔲 |
-| R-2 | スクレイパーが公式サイトの構造変化で無音で壊れる | 参院質問主意書の`submitted_at=None`ハードコードは修正済み（2026-04-05）。ただし「HTML構造が変わったとき静かに失敗してNullに戻る」問題は未対処。audit.pyが`submitted_at`のNull率を監視する仕組みがない | 🔲 部分対処 |
+| R-1 | audit.py が「0件でも古データがあれば未検知」 | `check_collector_freshness()` を追加。speeches/questions の最新レコード日付が14日以上前なら発火 | ✅ 対応済み（2026-04-06） |
+| R-2 | スクレイパーが公式サイトの構造変化で無音で壊れる | `check_null_rates()` を追加。questions/sangiin_questions の submitted_at NULL率・speeches の member_id NULL率を30日間監視。30%超で発火 | ✅ 対応済み（2026-04-06） |
 | R-3 | PARTY_MAP と CURRENT_SESSION 等がフロント・Python の両方にハードコード | 新政党・新回次対応時の対応漏れリスク | 🔲 |
 
 ### フェーズ3後半：残作業（優先度：高）
@@ -325,7 +325,7 @@ supabase.from("members").select("id", { count: "exact", head: true }).eq("is_act
 | W-2 | 請願のクエリが2箇所に重複 | `petitions/page.tsx`の`fetchAllServer`+members取得 と `PetitionsClient.tsx`の`fetchAll`+members取得が同一 | ✅ 対応済み |
 | W-3 | 法案ページにSSRなし・クライアント直接フェッチ | `BillsClient.tsx`のbills・membersフェッチを`getBillsByType`・`getAllMembers`経由に変更。ローカル`Bill`・`MemberInfo`型を削除 | ✅ 対応済み |
 | W-4 | 各Clientファイルにローカル型定義が残存 | `QuestionListItem`・`PetitionListItem`を`lib/types.ts`に追加。`Bill`に欠落フィールド追加。各Clientのローカル定義削除 | ✅ 対応済み |
-| W-5 | `as any`キャストで型チェックが無効化されている | queries.tsを含む多数のファイルで`(d as any)`が多用され、TypeScriptの保護が効いていない | 🔲 |
+| W-5 | `as any`キャストで型チェックが無効化されている | queries.tsを含む多数のファイルで`(d as any)`が多用され、TypeScriptの保護が効いていない | ✅ 対応済み（2026-04-06） |
 
 **解決方針:**
 - `queries.ts` に `getAllQuestionsWithMembers()`, `getAllSangiinQuestionsWithMembers()`, `getAllPetitionRows()`, `getAllSangiinPetitionRows()`, `getPetitionMemberMap()` を追加
@@ -464,15 +464,21 @@ supabase.from("members").select("id", { count: "exact", head: true }).eq("is_act
 
 ---
 
-最終更新: 2026-04-05
+最終更新: 2026-04-06
 
-### 本日の作業まとめ
-- W-1〜W-4 完了（クエリ集約・型統一）
-- R-2 部分対処：参院質問主意書の`submitted_at`ハードコードNullを修正 → 既存32件をバックフィル済み
-- Q-3 調査完了：議員立法9件の提出者なしは「委員長提出法案」が原因。設計判断待ち
+### 本日の作業まとめ（2026-04-06）
+- Q-1 調査：NULLスピーチ107,593件の内訳を分析
+  - 請願紹介実績との照合で47名の前議員を特定（方針：質問・立法・請願に名前があれば議員と判断）
+  - register_former_members.py に47名追加 → 3,592件の speeches を紐付け完了
+  - 残課題：衆議院立憲→中道の党名修正（後回し）、scoring-only 要実行
+- R-1/R-2：audit.py に `check_collector_freshness()` / `check_null_rates()` を追加
+- audit.py バグ修正：
+  - DB側の `is_procedural=False` フィルターを削除（NDL との比較対象を統一）
+  - NDL検索名を `member["name"]` から `ndl_names[0]` に変更（全角スペース入り名前の誤検知を排除）
+  - これにより過去の全5件の誤検知（坂本哲志・鈴木エリ・芳賀道也・木戸口英司・渡辺真太朗）の原因を解消
 
 ### 次回着手候補（優先度順）
-1. **Q-1**：発言107,593件が議員に紐付かない問題（NDL名称とDB名称の不一致）→ 調査から始める
-2. **R-1/R-2**：audit.py の監視強化（収集停止・null率）
-3. **W-5**：`as any` キャスト排除
-4. **Q-3**：委員長提出法案の表示方法を決める（「委員会提出」表示 or 別分類）
+1. **scoring-only backfill**：新規登録47名の *_count 再計算（Actions → backfill.yml → scoring-only）
+2. **W-5**：`as any` キャスト排除
+3. **Q-3**：委員長提出法案の表示方法を決める（「委員会提出」表示 or 別分類）
+4. **R-3**：PARTY_MAP / CURRENT_SESSION のフロント・Python 二重ハードコード

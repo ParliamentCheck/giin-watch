@@ -56,12 +56,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // 委員会ページ
-  const committeeRes = await supabase
-    .from("committee_members")
-    .select("committee")
-    .limit(2000);
+  const [cmRes1, cmRes2] = await Promise.all([
+    supabase.from("committee_members").select("committee").range(0, 999),
+    supabase.from("committee_members").select("committee").range(1000, 1999),
+  ]);
   const committeeSet = new Set<string>(
-    (committeeRes.data || []).map((c: any) => c.committee).filter(Boolean)
+    [...(cmRes1.data ?? []), ...(cmRes2.data ?? [])].map((c: any) => c.committee).filter(Boolean)
   );
   const committeeRoutes: MetadataRoute.Sitemap = Array.from(committeeSet).map((name) => ({
     url: `${BASE}/committees/${encodeURIComponent(name)}`,

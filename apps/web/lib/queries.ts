@@ -51,6 +51,12 @@ export const MEMBER_SELECT =
  */
 export const MEMBER_JOIN_SELECT = "id,name,alias_name,party,is_active" as const;
 
+/**
+ * 部分的な members クエリ結果の型。
+ * MEMBER_JOIN_SELECT と対応。as any[] の代替として使う。
+ */
+type MemberRow = { id: string; name: string; alias_name: string | null; party: string; is_active: boolean };
+
 const DEFAULT_LIMIT = 2000;
 
 // ============================================================
@@ -489,7 +495,7 @@ export async function getPartyBreakdown(client: Db = defaultClient): Promise<
 }
 
 type RecentQuestionItem = {
-  id: number; title: string; submitted_at: string; member_id: string;
+  id: string; title: string; submitted_at: string | null; member_id: string | null;
   source_url: string | null; house: "衆" | "参";
   members: { name: string; alias_name: string | null; party: string; is_active: boolean } | null;
 };
@@ -504,8 +510,10 @@ export async function getTopRecentQuestions(client: Db = defaultClient): Promise
       .order("submitted_at", { ascending: false }).limit(10),
   ]);
 
-  const shu = ((shuRes.data || []) as any[]).map((q) => ({ ...q, source_url: q.source_url, house: "衆" as const }));
-  const san = ((sanRes.data || []) as any[]).map((q) => ({ ...q, source_url: q.url,        house: "参" as const }));
+  type RawShuQuestion = Omit<RecentQuestionItem, "house">;
+  type RawSanQuestion = Omit<RecentQuestionItem, "house" | "source_url"> & { url: string | null };
+  const shu = (shuRes.data as unknown as RawShuQuestion[] ?? []).map((q) => ({ ...q, house: "衆" as const }));
+  const san = (sanRes.data as unknown as RawSanQuestion[] ?? []).map((q) => ({ ...q, source_url: q.url, house: "参" as const }));
 
   return ([...shu, ...san] as RecentQuestionItem[])
     .sort((a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || ""))
@@ -513,9 +521,9 @@ export async function getTopRecentQuestions(client: Db = defaultClient): Promise
 }
 
 type RecentPetitionItem = {
-  id: number; session: number; number: number; title: string;
+  id: string; session: number; number: number; title: string;
   committee_name: string | null; result: string | null; result_date: string | null;
-  source_url: string | null; introducer_ids: string[]; introducer_names: string | null;
+  source_url: string | null; introducer_ids: string[] | null; introducer_names: string[] | null;
   house: "衆" | "参";
 };
 type PetitionMemberMap = Record<string, { name: string; party: string; is_active: boolean }>;
@@ -531,8 +539,9 @@ export async function getTopRecentPetitions(
       .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
   ]);
 
-  const shu = ((shuRes.data || []) as any[]).map((p) => ({ ...p, house: "衆" as const }));
-  const san = ((sanRes.data || []) as any[]).map((p) => ({ ...p, house: "参" as const }));
+  type RawPetition = Omit<RecentPetitionItem, "house">;
+  const shu = (shuRes.data as unknown as RawPetition[] ?? []).map((p) => ({ ...p, house: "衆" as const }));
+  const san = (sanRes.data as unknown as RawPetition[] ?? []).map((p) => ({ ...p, house: "参" as const }));
 
   const petitions = ([...shu, ...san] as RecentPetitionItem[])
     .sort((a, b) => {
@@ -546,7 +555,7 @@ export async function getTopRecentPetitions(
   if (allIds.length > 0) {
     const { data: members } = await client.from("members")
       .select("id, name, alias_name, party, is_active").in("id", allIds).limit(500);
-    for (const m of (members || []) as any[]) {
+    for (const m of (members as MemberRow[] ?? [])) {
       const info = { name: m.name, party: m.party, is_active: m.is_active };
       memberMap[m.id] = info;
       if (m.alias_name) {
@@ -590,7 +599,7 @@ export async function getLatestCommitteeActivity(client: Db = defaultClient): Pr
   if (allIds.length > 0) {
     const { data: members } = await client.from("members")
       .select("id, name, alias_name, party, is_active").in("id", allIds).limit(500);
-    for (const m of (members || []) as any[])
+    for (const m of (members as MemberRow[] ?? []))
       memberMap.set(m.id, { name: m.name, alias_name: m.alias_name ?? null, party: m.party, is_active: m.is_active });
   }
 
@@ -616,6 +625,7 @@ export async function getLatestCommitteeActivity(client: Db = defaultClient): Pr
 const BATCH = 1000;
 
 export async function getAllQuestionsWithMembers(client: Db = defaultClient): Promise<QuestionListItem[]> {
+  type Row = Omit<QuestionListItem, "house">;
   const all: QuestionListItem[] = [];
   let from = 0;
   while (true) {
@@ -623,7 +633,7 @@ export async function getAllQuestionsWithMembers(client: Db = defaultClient): Pr
       .select("id,session,number,title,submitted_at,answered_at,source_url,member_id,members(name,alias_name,party,is_active)")
       .range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
-    for (const d of data) all.push({ ...(d as any), house: "衆" as const });
+    for (const d of data as unknown as Row[]) all.push({ ...d, house: "衆" as const });
     if (data.length < BATCH) break;
     from += BATCH;
   }
@@ -631,6 +641,7 @@ export async function getAllQuestionsWithMembers(client: Db = defaultClient): Pr
 }
 
 export async function getAllSangiinQuestionsWithMembers(client: Db = defaultClient): Promise<QuestionListItem[]> {
+  type Row = Omit<QuestionListItem, "house" | "answered_at">;
   const all: QuestionListItem[] = [];
   let from = 0;
   while (true) {
@@ -638,7 +649,7 @@ export async function getAllSangiinQuestionsWithMembers(client: Db = defaultClie
       .select("id,session,number,title,submitted_at,source_url,member_id,members(name,alias_name,party,is_active)")
       .range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
-    for (const d of data) all.push({ ...(d as any), house: "参" as const, answered_at: null });
+    for (const d of data as unknown as Row[]) all.push({ ...d, house: "参" as const, answered_at: null });
     if (data.length < BATCH) break;
     from += BATCH;
   }
@@ -646,13 +657,14 @@ export async function getAllSangiinQuestionsWithMembers(client: Db = defaultClie
 }
 
 export async function getAllPetitionRows(client: Db = defaultClient): Promise<PetitionListItem[]> {
+  type Row = Omit<PetitionListItem, "house">;
   const SELECT = "id,session,number,title,committee_name,result,result_date,source_url,introducer_ids,introducer_names";
   const all: PetitionListItem[] = [];
   let from = 0;
   while (true) {
     const { data } = await client.from("petitions").select(SELECT).range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
-    for (const d of data) all.push({ ...(d as any), house: "衆" as const });
+    for (const d of data as unknown as Row[]) all.push({ ...d, house: "衆" as const });
     if (data.length < BATCH) break;
     from += BATCH;
   }
@@ -660,13 +672,14 @@ export async function getAllPetitionRows(client: Db = defaultClient): Promise<Pe
 }
 
 export async function getAllSangiinPetitionRows(client: Db = defaultClient): Promise<PetitionListItem[]> {
+  type Row = Omit<PetitionListItem, "house">;
   const SELECT = "id,session,number,title,committee_name,result,result_date,source_url,introducer_ids,introducer_names";
   const all: PetitionListItem[] = [];
   let from = 0;
   while (true) {
     const { data } = await client.from("sangiin_petitions").select(SELECT).range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
-    for (const d of data) all.push({ ...(d as any), house: "参" as const });
+    for (const d of data as unknown as Row[]) all.push({ ...d, house: "参" as const });
     if (data.length < BATCH) break;
     from += BATCH;
   }
@@ -680,7 +693,7 @@ export async function getPetitionMemberMap(
   const { data } = await client.from("members")
     .select("id, name, alias_name, party, is_active").limit(2000);
   const map: Record<string, { name: string; alias_name: string | null; party: string; is_active: boolean }> = {};
-  for (const m of (data || []) as any[]) {
+  for (const m of (data as MemberRow[] ?? [])) {
     const info = { name: m.name, alias_name: m.alias_name ?? null, party: m.party, is_active: m.is_active };
     map[m.id] = info;
     if (m.alias_name) {
@@ -714,7 +727,7 @@ export async function getMonthlyQuestionsTrend(
       .gte("session", minSession)
       .range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
-    for (const d of data) shuData.push({ submitted_at: d.submitted_at as string, members: (d.members as any) ?? null });
+    for (const d of data) shuData.push({ submitted_at: d.submitted_at as string, members: (d.members as unknown as { party: string } | null) ?? null });
     if (data.length < BATCH) break;
   }
 
@@ -726,7 +739,7 @@ export async function getMonthlyQuestionsTrend(
       .gte("submitted_at", cutoffIso)
       .range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
-    for (const d of data) sanData.push({ submitted_at: d.submitted_at as string, members: (d.members as any) ?? null });
+    for (const d of data) sanData.push({ submitted_at: d.submitted_at as string, members: (d.members as unknown as { party: string } | null) ?? null });
     if (data.length < BATCH) break;
   }
 

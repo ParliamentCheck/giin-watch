@@ -169,12 +169,13 @@ function CommitteeDetailContent() {
             .from("members")
             .select("id, name, party, is_active, alias_name")
             .in("id", batch);
-          for (const m of mRes.data || []) {
-            const info = { name: (m as any).name, party: (m as any).party, is_active: (m as any).is_active };
-            map[(m as any).id] = info;
-            if ((m as any).alias_name) {
-              const hl = (m as any).id.startsWith("衆議院") ? "衆議院" : "参議院";
-              map[`${hl}-${(m as any).alias_name.replace(/[\s\u3000]/g, "")}`] = info;
+          type MemberRow = { id: string; name: string; alias_name: string | null; party: string; is_active: boolean };
+          for (const m of (mRes.data as MemberRow[] ?? [])) {
+            const info = { name: m.name, party: m.party, is_active: m.is_active };
+            map[m.id] = info;
+            if (m.alias_name) {
+              const hl = m.id.startsWith("衆議院") ? "衆議院" : "参議院";
+              map[`${hl}-${m.alias_name.replace(/[\s\u3000]/g, "")}`] = info;
             }
           }
         }

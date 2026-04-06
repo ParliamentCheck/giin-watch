@@ -15,10 +15,11 @@ export const metadata: Metadata = {
 };
 
 export default async function CommitteesPage() {
-  const { data } = await supabase
-    .from("committee_members")
-    .select("committee, house")
-    .limit(2000);
+  const [res1, res2] = await Promise.all([
+    supabase.from("committee_members").select("committee, house").range(0, 999),
+    supabase.from("committee_members").select("committee, house").range(1000, 1999),
+  ]);
+  const allData = [...(res1.data ?? []), ...(res2.data ?? [])];
 
-  return <CommitteesClient initialRaw={data ?? []} />;
+  return <CommitteesClient initialRaw={allData} />;
 }

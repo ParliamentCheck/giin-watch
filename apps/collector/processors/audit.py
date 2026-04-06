@@ -15,6 +15,8 @@
 
 1. 発言データ未収集（NDL API 照合）
    - NDL APIで「直近90日に10件以上の発言がある」のにDBが0件の議員を検出
+   - DB・NDLともに procedural 含む全発言数で比較（片側のみフィルタリングすると
+     委員会委員長など議事進行発言のみの期間がある議員で誤検知が発生するため）
    - member_idの紐付け失敗、またはスクレイパーが止まっている場合に発火
 
 2. 大臣職データ不整合（官邸サイト照合）
@@ -30,6 +32,16 @@
      bill_count / petition_count）とDBの値が乖離している場合を検出
    - 判定条件: 絶対差 ≥ 5件 かつ 相対差 ≥ 20%（1時間キャッシュ遅延を許容）
    - キャッシュ未更新・フロントのクエリバグなどに発火
+
+5. コレクター停止検出（最終収集日チェック）  ← R-1
+   - speeches / questions の最新レコード日付が FRESHNESS_WARN_DAYS 以上前なら警告
+   - DBに古いデータが残っていても、新規収集が止まっていれば検知できる
+
+6. スクレイパーサイレント失敗検出（NULL率監視）  ← R-2
+   - 直近30日の questions / sangiin_questions の submitted_at NULL率が
+     NULL_RATE_WARN（30%）を超えたら警告
+   - 公式サイトのHTML構造変更によるサイレント失敗を検知する
+   - speeches の直近30日 member_id NULL率も同様に監視
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ■ 検出できないこと（設計上の限界）
@@ -49,9 +61,6 @@
 
 - scoring.py の計算正確性
     DBの session_count 等を正解値として扱うため、スコア計算バグは検出できない。
-
-- データ収集の停止・遅延
-    コレクター自体が止まっていても、DBに既存データが残っている間は発火しない。
 
 - 衆院の採決データ
     取得していないため検証対象外。
@@ -87,6 +96,10 @@ SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "https://www.hataraku-giin.com")
 DISPLAY_DIFF_ABS = 5    # これ以上の絶対差を報告
 DISPLAY_DIFF_PCT = 0.20  # かつ相対差がこれ以上の場合のみ報告
 
+FRESHNESS_WARN_DAYS = 14  # R-1: 最終収集からこの日数を超えたら警告
+NULL_RATE_WARN = 0.30     # R-2: NULL率がこれ以上なら警告
+NULL_CHECK_DAYS = 30      # R-2: NULL率チェックの対象期間（直近N日）
+
 
 # ============================================================
 # NDL API 発言数チェック
@@ -119,22 +132,28 @@ def check_speech_count(member: dict, client) -> dict | None:
     """
     直近90日の発言数をNDL APIとDBで比較する。
     NDLに発言があるのにDBが0件 = member_id紐付けの失敗を示す。
+
+    NDL検索には ndl_names[0] を使う。member["name"] には全角スペースが
+    入る場合があり、NDLの部分一致で別人の発言数が返ってしまうため。
     """
     mid = member["id"]
-    name = member["name"]
     house = member["house"]
+    # ndl_names[0] が正式なNDL表記（スペースなし）。なければ name を使う
+    ndl_names = member.get("ndl_names") or []
+    name = ndl_names[0] if ndl_names else member["name"]
 
     today = date.today()
     date_until = (today - timedelta(days=7)).isoformat()  # NDL遅延を考慮して直近7日は除外
     date_from = (today - timedelta(days=CHECK_DAYS)).isoformat()
 
-    # DB側: is_procedural=false の発言数
+    # DB側: procedural含む全発言数（NDL APIと比較対象を合わせる）
+    # is_procedural=False のみでカウントすると、委員会委員長など
+    # 議事進行発言のみの期間がある議員で誤検知が発生するため
     result = execute_with_retry(
         lambda: (
             client.table("speeches")
             .select("id", count="exact")
             .eq("member_id", mid)
-            .eq("is_procedural", False)
             .gte("spoken_at", date_from)
             .lte("spoken_at", date_until)
         ),
@@ -142,7 +161,7 @@ def check_speech_count(member: dict, client) -> dict | None:
     )
     db_count = result.count or 0
 
-    # NDL API側 (procedural含む)
+    # NDL API側 (procedural含む全発言)
     ndl_count = _ndl_speech_count(name, house, date_from, date_until)
     time.sleep(NDL_RATE_LIMIT_SEC)
 
@@ -153,10 +172,11 @@ def check_speech_count(member: dict, client) -> dict | None:
     if db_count == 0 and ndl_count > 10:
         return {
             "type": "発言データ未収集",
-            "member": name,
+            "member": member["name"],
             "detail": (
                 f"NDL APIでは直近{CHECK_DAYS}日に{ndl_count}件の発言があるが、"
-                f"DBには0件しかない。member_idの紐付け失敗またはデータ未収集の可能性。"
+                f"DBには0件しかない（NDL検索名: {name}）。"
+                f"member_idの紐付け失敗またはデータ未収集の可能性。"
             ),
         }
 
@@ -316,6 +336,164 @@ def check_member_display(member: dict) -> dict | None:
 
 
 # ============================================================
+# R-1: コレクター停止検出
+# ============================================================
+
+def check_collector_freshness(client) -> list[dict]:
+    """
+    各テーブルの最新レコードの日付を確認し、収集が停止していないか検出する。
+    DBに既存データが残っていてもコレクターが止まっていれば検知できる。
+    """
+    findings = []
+    today = date.today()
+    cutoff = (today - timedelta(days=FRESHNESS_WARN_DAYS)).isoformat()
+
+    checks = [
+        ("speeches",  "spoken_at",    "発言（speeches）"),
+        ("questions", "submitted_at", "質問主意書（questions）"),
+    ]
+
+    for table, date_col, label in checks:
+        try:
+            result = execute_with_retry(
+                lambda t=table, c=date_col: (
+                    client.table(t)
+                    .select(c)
+                    .not_.is_(c, "null")
+                    .order(c, desc=True)
+                    .limit(1)
+                ),
+                label=f"audit_freshness:{table}",
+            )
+            rows = result.data or []
+            if not rows:
+                findings.append({
+                    "type": "コレクター停止疑い",
+                    "member": "（全体）",
+                    "detail": f"{label} テーブルにレコードが存在しません。",
+                })
+                continue
+
+            latest = rows[0][date_col][:10]  # date部分のみ
+            if latest < cutoff:
+                findings.append({
+                    "type": "コレクター停止疑い",
+                    "member": "（全体）",
+                    "detail": (
+                        f"{label} の最新レコード日付が {latest} であり、"
+                        f"{FRESHNESS_WARN_DAYS}日以上前です。"
+                        f"収集スクリプトが止まっている可能性があります。"
+                    ),
+                })
+            else:
+                logger.info("鮮度OK (%s): 最新=%s", table, latest)
+        except Exception as e:
+            logger.warning("鮮度チェック失敗 (%s): %s", table, e)
+
+    return findings
+
+
+# ============================================================
+# R-2: スクレイパーサイレント失敗検出（NULL率監視）
+# ============================================================
+
+def check_null_rates(client) -> list[dict]:
+    """
+    スクレイパーがサイレントに失敗している場合、直近データのNULL率が急増する。
+    HTML構造変更による無音の失敗を検知する。
+    """
+    findings = []
+    today = date.today()
+    date_from = (today - timedelta(days=NULL_CHECK_DAYS)).isoformat()
+
+    # questions / sangiin_questions の submitted_at NULL率
+    for table, label in [
+        ("questions",         "質問主意書（questions）"),
+        ("sangiin_questions", "参院質問（sangiin_questions）"),
+    ]:
+        try:
+            total_res = execute_with_retry(
+                lambda t=table: (
+                    client.table(t)
+                    .select("id", count="exact")
+                    .gte("created_at", date_from)
+                ),
+                label=f"audit_null_total:{table}",
+            )
+            total = total_res.count or 0
+            if total < 10:
+                logger.info("NULL率チェックスキップ (%s): レコード%d件（10件未満）", table, total)
+                continue
+
+            null_res = execute_with_retry(
+                lambda t=table: (
+                    client.table(t)
+                    .select("id", count="exact")
+                    .gte("created_at", date_from)
+                    .is_("submitted_at", "null")
+                ),
+                label=f"audit_null_count:{table}",
+            )
+            null_count = null_res.count or 0
+            null_rate = null_count / total
+            logger.info("NULL率 (%s): %d/%d = %.0f%%", table, null_count, total, null_rate * 100)
+
+            if null_rate >= NULL_RATE_WARN:
+                findings.append({
+                    "type": "NULL率異常",
+                    "member": "（全体）",
+                    "detail": (
+                        f"{label} 直近{NULL_CHECK_DAYS}日の submitted_at NULL率が "
+                        f"{null_rate:.0%}（{null_count}/{total}件）です。"
+                        f"公式サイトのHTML構造変更によるサイレント失敗の可能性があります。"
+                    ),
+                })
+        except Exception as e:
+            logger.warning("NULL率チェック失敗 (%s): %s", table, e)
+
+    # speeches の member_id NULL率
+    try:
+        total_res = execute_with_retry(
+            lambda: (
+                client.table("speeches")
+                .select("id", count="exact")
+                .gte("spoken_at", date_from)
+                .eq("is_procedural", False)
+            ),
+            label="audit_null_speeches_total",
+        )
+        total = total_res.count or 0
+        if total >= 10:
+            null_res = execute_with_retry(
+                lambda: (
+                    client.table("speeches")
+                    .select("id", count="exact")
+                    .gte("spoken_at", date_from)
+                    .eq("is_procedural", False)
+                    .is_("member_id", "null")
+                ),
+                label="audit_null_speeches_member_id",
+            )
+            null_count = null_res.count or 0
+            null_rate = null_count / total
+            logger.info("speeches member_id NULL率: %d/%d = %.0f%%", null_count, total, null_rate * 100)
+
+            if null_rate >= NULL_RATE_WARN:
+                findings.append({
+                    "type": "NULL率異常",
+                    "member": "（全体）",
+                    "detail": (
+                        f"speeches 直近{NULL_CHECK_DAYS}日の member_id NULL率が "
+                        f"{null_rate:.0%}（{null_count}/{total}件）です。"
+                        f"議員名の照合が機能していない可能性があります。"
+                    ),
+                })
+    except Exception as e:
+        logger.warning("speeches NULL率チェック失敗: %s", e)
+
+    return findings
+
+# ============================================================
 # 監査実行
 # ============================================================
 
@@ -326,7 +504,7 @@ def run_audit(sample_size: int = SAMPLE_SIZE) -> list[dict]:
     members = execute_with_retry(
         lambda: (
             client.table("members")
-            .select("id, name, house, cabinet_post, session_count, question_count, bill_count, petition_count")
+            .select("id, name, house, cabinet_post, session_count, question_count, bill_count, petition_count, ndl_names")
             .eq("is_active", True)
             .limit(2000)
         ),
@@ -360,6 +538,14 @@ def run_audit(sample_size: int = SAMPLE_SIZE) -> list[dict]:
             findings.append(finding)
         time.sleep(1.0)  # サーバー負荷軽減
 
+    # コレクター停止検出（R-1）
+    logger.info("コレクター鮮度チェック中...")
+    findings.extend(check_collector_freshness(client))
+
+    # NULL率監視（R-2）
+    logger.info("NULL率チェック中...")
+    findings.extend(check_null_rates(client))
+
     return findings
 
 
@@ -374,7 +560,7 @@ def _build_report(findings: list[dict], sample_size: int) -> str:
         f"",
         f"**実施日**: {today}",
         f"**サンプル人数**: {sample_size}名（ランダムサンプリング）",
-        f"**チェック項目**: 発言数（NDL API）・大臣職（官邸）・表示値（本番ページJSON-LD）",
+        f"**チェック項目**: 発言数（NDL API）・大臣職（官邸）・表示値（本番ページJSON-LD）・コレクター鮮度・NULL率",
         f"**検出件数**: {len(findings)}件",
         f"",
         f"### 検出された不整合",
@@ -408,7 +594,7 @@ def main(sample_size: int = SAMPLE_SIZE, output_path: str | None = None) -> None
 
         sys.exit(1)
     else:
-        logger.info("✓ 不整合なし（発言チェック%d名・大臣職全員・表示検証%d名）", sample_size, sample_size)
+        logger.info("✓ 不整合なし（発言チェック%d名・大臣職全員・表示検証%d名・鮮度・NULL率）", sample_size, sample_size)
         sys.exit(0)
 
 

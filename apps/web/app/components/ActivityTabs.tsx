@@ -8,7 +8,7 @@ interface Question {
   id: string;
   title: string;
   submitted_at: string | null;
-  member_id: string;
+  member_id: string | null;
   source_url: string | null;
   house: "衆" | "参";
   members: { name: string; alias_name: string | null; party: string; is_active: boolean } | null;
@@ -107,7 +107,7 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                 )}
               </div>
               <div className="flex items-center gap-2 text-xs text-neutral-500 pl-6">
-                {q.members && <MemberChip id={q.member_id} name={q.members.name} alias_name={q.members.alias_name} party={q.members.party} is_active={q.members.is_active} />}
+                {q.members && q.member_id && <MemberChip id={q.member_id} name={q.members.name} alias_name={q.members.alias_name} party={q.members.party} is_active={q.members.is_active} />}
                 <span className="tabular-nums">{q.submitted_at}</span>
               </div>
             </div>
