@@ -40,7 +40,7 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
-from db import batch_upsert, get_client
+from db import batch_upsert, get_client, execute_with_retry
 from utils import make_member_id, build_name_to_id
 
 logger = logging.getLogger("bill_scraper")
