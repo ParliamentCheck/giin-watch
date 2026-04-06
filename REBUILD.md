@@ -305,6 +305,7 @@ supabase.from("members").select("id", { count: "exact", head: true }).eq("is_act
 | Q-1 | speeches の member_id=NULL が約108,000件 | NDL表記と members.name の不一致 | 🔲 部分対処 |
 | Q-2 | ~~前議員リスト未完成~~ **修正：自動管理済み** | members.py が日次で全院リセット→再登録。register_former_members.py は遡及的追加専用 | ✅ 深刻度低 |
 | Q-3 | bills の提出者 member_id=NULL | 調査済み（2026-04-05）。提出者なしの議員立法9件は全て「委員長提出法案」（役職名が提出者欄に入るため個人IDに紐付かない）。閣法336件の空は正常。実害は「委員長提出9件が法案ページで提出者無表示」のみ。表示方法の設計判断が必要 | 🔲 設計判断待ち |
+| D-5 | 委員会一覧の人数が詳細と異なる | Supabase の max_rows=1000 上限により全1,178行のうち178行が欠落。committee_members を range pagination（0-999, 1000-1999）で2回取得して修正。sitemap.ts も同様に修正 | ✅ 対応済み（2026-04-06） |
 
 ### 構造的リスク（優先度：中）
 
