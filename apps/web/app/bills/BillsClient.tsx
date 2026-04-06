@@ -54,15 +54,15 @@ export default function BillsClient() {
   const pathname    = usePathname();
   const searchParams = useSearchParams();
 
-  const activeTab    = (searchParams.get("tab") ?? "member") as "member" | "cabinet";
+  const activeTab    = (searchParams.get("tab") ?? "member") as "member" | "cabinet" | "committee";
   const memberSubTab = (searchParams.get("sub") ?? "list") as "list" | "network";
   useEffect(() => {
-    const tabLabel = activeTab === "cabinet" ? "閣法" : "議員立法";
+    const tabLabel = activeTab === "cabinet" ? "閣法" : activeTab === "committee" ? "委員会提出" : "議員立法";
     document.title = `${tabLabel} | はたらく議員`;
   }, [activeTab]);
   const { page: billsPage, setPage: setBillsPage } = usePagination();
 
-  const setActiveTab = (tab: "member" | "cabinet") => {
+  const setActiveTab = (tab: "member" | "cabinet" | "committee") => {
     const p = new URLSearchParams(searchParams.toString());
     p.set("tab", tab);
     p.delete("sub");
@@ -146,13 +146,14 @@ export default function BillsClient() {
 
   useEffect(() => {
     async function fetchData() {
-      const [memberBillsData, cabinetBillsData, membersData] = await Promise.all([
+      const [memberBillsData, cabinetBillsData, committeeBillsData, membersData] = await Promise.all([
         getBillsByType("議員立法"),
         getBillsByType("閣法"),
+        getBillsByType("委員会提出"),
         getAllMembers(),
       ]);
 
-      const bills = [...memberBillsData, ...cabinetBillsData];
+      const bills = [...memberBillsData, ...cabinetBillsData, ...committeeBillsData];
       setBills(bills);
 
       const map: Record<string, Member> = {};
@@ -227,7 +228,18 @@ export default function BillsClient() {
       return nb - na;
     });
 
-  const currentListBills = activeTab === "cabinet" ? cabinetBills : memberBills;
+  const committeeBills = bills
+    .filter((b) => b.bill_type === "委員会提出")
+    .sort((a, b) => {
+      const sd = (b.session_number ?? 0) - (a.session_number ?? 0);
+      if (sd !== 0) return sd;
+      if (a.submitted_at && b.submitted_at) return b.submitted_at.localeCompare(a.submitted_at);
+      if (a.submitted_at) return -1;
+      if (b.submitted_at) return 1;
+      return 0;
+    });
+
+  const currentListBills = activeTab === "cabinet" ? cabinetBills : activeTab === "committee" ? committeeBills : memberBills;
   const filtered = currentListBills.filter((b) => {
     // 院フィルターは議員立法タブのみ適用（閣法は参院のみのため不要）
     if (activeTab === "member" && filterHouse !== "全て" && b.house !== filterHouse) return false;
@@ -265,11 +277,12 @@ export default function BillsClient() {
           <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 0 }}>📋 法案</h1>
         </div>
 
-        {/* トップタブ：議員立法 / 閣法 */}
+        {/* トップタブ：議員立法 / 閣法 / 委員会提出 */}
         <div className="tab-bar-container" style={{ marginBottom: 16 }}>
           {([
-            { id: "member",  label: "📋 議員立法" },
-            { id: "cabinet", label: "🏛 閣法" },
+            { id: "member",    label: "📋 議員立法" },
+            { id: "cabinet",   label: "🏛 閣法" },
+            { id: "committee", label: "🗂 委員会提出" },
           ] as const).map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               style={{ flex: 1, padding: "10px 0" }}
@@ -774,6 +787,41 @@ export default function BillsClient() {
               </div>
             )}
             <Paginator total={filtered.length} page={billsPage} onPage={setBillsPage} variant="bottom" />
+          </div>
+        )}
+
+        {/* 委員会提出タブ */}
+        {activeTab === "committee" && (
+          <div className="card-xl">
+            <p style={{ fontSize: 13, color: "#555555", marginBottom: 16 }}>
+              委員長名義で提出された法案（超党派・全会一致が多い）。{committeeBills.length}件
+            </p>
+            {loading ? (
+              <div className="loading-block">
+                <div className="loading-spinner" />
+                <span>データを読み込んでいます...</span>
+              </div>
+            ) : committeeBills.length === 0 ? (
+              <div className="empty-state">該当する法案がありません。</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {committeeBills.map((b) => (
+                  <div key={b.id} className="card" style={{ padding: "16px 20px" }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <span style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{b.title}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#555555" }}>
+                      {b.submitted_at && <span>{b.submitted_at}</span>}
+                      {b.session_number && <span>第{b.session_number}回国会</span>}
+                      {b.house && <span className="badge badge-house">{b.house}</span>}
+                      {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
+                      {b.honbun_url && <a href={b.honbun_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>本文↗</a>}
+                      {b.keika_url && <a href={b.keika_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>経過↗</a>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

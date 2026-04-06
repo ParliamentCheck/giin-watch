@@ -193,13 +193,15 @@ def _fetch_keika_detail(keika_url: str, name_to_id: dict[str, str] | None = None
     両方を走査して「議案提出者一覧」（全提出者名）を優先取得する。
     一覧がない場合は「議案提出者」（筆頭＋外N名）を使用。
 
-    戻り値: {submitter_ids, submitter_extra_count, submitted_at, shu_result}
+    戻り値: {submitter_ids, submitter_extra_count, submitted_at, shu_result, is_committee_bill}
+    is_committee_bill は提出者フィールドに「委員長」が含まれる場合 True。
     """
     result: dict[str, Any] = {
         "submitter_ids":         [],
         "submitter_extra_count": 0,
         "submitted_at":          None,
         "shu_result":            None,
+        "is_committee_bill":     False,
     }
     soup = _fetch(keika_url)
     if soup is None:
@@ -225,7 +227,10 @@ def _fetch_keika_detail(keika_url: str, name_to_id: dict[str, str] | None = None
 
         elif ktext in ("議案提出者", "提出者", "発議者"):
             if not primary_ids:
-                primary_ids, primary_extra = _parse_submitters(v, actual_house, name_to_id)
+                if "委員長" in v.get_text():
+                    result["is_committee_bill"] = True
+                else:
+                    primary_ids, primary_extra = _parse_submitters(v, actual_house, name_to_id)
 
         elif ktext == "議案提出者一覧":
             full_ids, full_extra = _parse_submitters(v, actual_house, name_to_id)
@@ -355,6 +360,8 @@ def _resolve_status(row: dict[str, Any], name_to_id: dict[str, str] | None = Non
         detail["submitter_ids"]         = d["submitter_ids"]
         detail["submitter_extra_count"] = d["submitter_extra_count"]
         detail["submitted_at"]          = d["submitted_at"]
+        if d["is_committee_bill"]:
+            detail["bill_type"] = "委員会提出"
 
     return STATUS_MAP.get(raw, "審議中"), detail
 
@@ -438,6 +445,7 @@ def collect_bills(daily: bool = False) -> None:
             detail["submitter_ids"],
             detail["submitter_extra_count"],
             detail["submitted_at"],
+            bill_type=detail.get("bill_type"),
         )
         to_upsert.append(record)
         time.sleep(0.5)
@@ -493,7 +501,13 @@ def backfill_submitters() -> None:
     updated = 0
     for r in targets:
         detail = _fetch_keika_detail(r["keika_url"], name_to_id)
-        if len(detail["submitter_ids"]) > 1:
+        if detail["is_committee_bill"]:
+            client.table("bills").update({
+                "bill_type": "委員会提出",
+            }).eq("id", r["id"]).execute()
+            updated += 1
+            logger.info("%s: 委員会提出に更新", r["id"])
+        elif len(detail["submitter_ids"]) > 1:
             client.table("bills").update({
                 "submitter_ids":         detail["submitter_ids"],
                 "submitter_extra_count": detail["submitter_extra_count"],
@@ -514,13 +528,14 @@ def _make_record(
     submitter_ids: list[str],
     submitter_extra_count: int,
     submitted_at: str | None,
+    bill_type: str | None = None,
 ) -> dict[str, Any]:
     return {
         "id":                     row["id"],
         "title":                  row["title"],
         "session_number":         row["session_number"],
         "house":                  row["house"],
-        "bill_type":              row["bill_type"],
+        "bill_type":              bill_type or row["bill_type"],
         "status":                 status,
         "submitter_ids":          submitter_ids,
         "submitter_extra_count":  submitter_extra_count,
