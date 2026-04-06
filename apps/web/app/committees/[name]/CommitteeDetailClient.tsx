@@ -46,7 +46,7 @@ function CommitteeDetailContent() {
   const [petitions,          setPetitions]          = useState<Petition[]>([]);
   const [petitionMemberMap,  setPetitionMemberMap]  = useState<Record<string, { name: string; party: string; is_active: boolean }>>({});
   const [loading,            setLoading]            = useState(true);
-  const [selectedHouse, setSelectedHouse] = useState<string>("");
+  const selectedHouse = searchParams.get("house") ?? "";
   const tab = (searchParams.get("tab") as "chairs" | "members" | "petitions") ?? "chairs";
   const COMMITTEE_TAB_LABELS: Record<string, string> = {
     chairs: "委員長・理事", members: "議員一覧", petitions: "請願",
@@ -250,7 +250,11 @@ function CommitteeDetailContent() {
         {hasBothHouses && (
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             {["", "衆議院", "参議院"].map((h) => (
-              <button key={h} onClick={() => setSelectedHouse(h)}
+              <button key={h} onClick={() => {
+                const p = new URLSearchParams(searchParams.toString());
+                if (h) p.set("house", h); else p.delete("house");
+                router.replace(`${window.location.pathname}?${p.toString()}`);
+              }}
                 className={`filter-btn${selectedHouse === h ? " active" : ""}`}>
                 {h || "両院"}
               </button>

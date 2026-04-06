@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
 interface CommitteeStats {
@@ -67,12 +67,25 @@ function buildCommitteeStats(raw: { committee: string; house: string }[]): Commi
 
 export default function CommitteesClient({ initialRaw }: { initialRaw?: { committee: string; house: string }[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [committees, setCommittees] = useState<CommitteeStats[]>(
     initialRaw ? buildCommitteeStats(initialRaw) : []
   );
   const [loading, setLoading] = useState(!initialRaw);
-  const [selectedHouse, setSelectedHouse] = useState("");
-  const [search, setSearch] = useState("");
+
+  const selectedHouse = searchParams.get("house") ?? "";
+  const search        = searchParams.get("q")     ?? "";
+
+  function setSelectedHouse(value: string) {
+    const p = new URLSearchParams(searchParams.toString());
+    if (value) p.set("house", value); else p.delete("house");
+    router.replace(`/committees?${p.toString()}`);
+  }
+  function setSearch(value: string) {
+    const p = new URLSearchParams(searchParams.toString());
+    if (value) p.set("q", value); else p.delete("q");
+    router.replace(`/committees?${p.toString()}`);
+  }
 
   useEffect(() => {
     if (initialRaw) return;
@@ -129,7 +142,7 @@ export default function CommitteesClient({ initialRaw }: { initialRaw?: { commit
               <option value="参議院">参議院</option>
             </select>
             {(search || selectedHouse) && (
-              <button onClick={() => { setSearch(""); setSelectedHouse(""); }}
+              <button onClick={() => router.replace("/committees")}
                 className="btn-clear">
                 クリア
               </button>
