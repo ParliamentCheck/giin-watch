@@ -23,13 +23,13 @@ export const metadata: Metadata = {
     siteName: "はたらく議員",
     type: "website",
     locale: "ja_JP",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "はたらく議員" }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "はたらく議員" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "はたらく議員 — 国会議員の活動を、データで見える化",
     description: "衆議院・参議院の全議員の発言・質問主意書・委員会活動・議員立法・採決をデータで可視化。毎日自動更新。",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
   alternates: {
     canonical: BASE_URL,
