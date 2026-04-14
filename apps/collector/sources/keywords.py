@@ -171,6 +171,8 @@ def build_keywords_from_texts(
 
     merged: dict[str, dict] = {}
     for word, info in existing.items():
+        if should_exclude_word(word, member_name, all_member_names):
+            continue
         merged[word] = {"count": info["count"], "last_seen_at": info["last_seen_at"]}
 
     for word, count in period_counter.items():
