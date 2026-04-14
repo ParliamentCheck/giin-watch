@@ -31,6 +31,7 @@ interface Petition {
   result_date: string | null;
   source_url: string | null;
   house: "衆" | "参";
+  introducer_ids: string[] | null;
   introducer_names: string[] | null;
 }
 
@@ -242,11 +243,10 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
                 </div>
                 {p.introducer_names && p.introducer_names.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5 pl-6">
-                    {p.introducer_names.map((name) => {
-                      const houseLabel = p.house === "衆" ? "衆議院" : "参議院";
-                      const memberId = `${houseLabel}-${name}`;
-                      const member = petitionMemberMap[memberId];
-                      if (member) {
+                    {p.introducer_names.map((name, i) => {
+                      const memberId = p.introducer_ids?.[i];
+                      const member = memberId ? petitionMemberMap[memberId] : undefined;
+                      if (member && memberId) {
                         return (
                           <MemberChip key={memberId} id={memberId} name={name}
                             alias_name={null} party={member.party} is_active={member.is_active} />
