@@ -50,6 +50,10 @@ jobs:
         id: speeches
         continue-on-error: true
         timeout-minutes: 60
+        env:
+          # 一時停止中: 発言収集のたびに収集窓（365日）全体の回数を既存の回数へ加算してしまい、
+          # ワードクラウドの回数が水増しされるため。キーワード処理の修正と全件再構築まで止める。
+          SKIP_INLINE_KEYWORDS: "1"
         run: python apps/collector/sources/speeches.py
 
       - name: 活動スコア再計算
@@ -82,8 +86,11 @@ jobs:
         timeout-minutes: 10
         run: python apps/collector/sources/votes.py --mode daily
 
+      # 一時停止中: 法案IDを「掲載会期」で作っているため、継続審査中の法案（第221回提出・第222回掲載）が
+      # 別IDで二重登録される。ID を「提出回次＋番号」に直すまで止める。
       - name: 議員立法・閣法収集（日次）
         id: bills
+        if: false
         continue-on-error: true
         timeout-minutes: 30
         run: python apps/collector/sources/bills.py --daily
@@ -100,9 +107,10 @@ jobs:
         timeout-minutes: 10
         run: python apps/collector/sources/vote_alignment.py
 
+      # 一時停止中: 7日窓が毎日重なって同じ発言を複数回数えるため。修正と全件再構築まで止める。
       - name: キーワード更新
         id: keywords
-        if: inputs.skip_keywords != true
+        if: false && inputs.skip_keywords != true
         continue-on-error: true
         timeout-minutes: 20
         run: python apps/collector/sources/keywords.py --mode daily

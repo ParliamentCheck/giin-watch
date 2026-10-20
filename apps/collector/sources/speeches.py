@@ -10,6 +10,7 @@ APIドキュメント: https://kokkai.ndl.go.jp/api.html
 from __future__ import annotations
 
 import logging
+import os
 import re
 import sys
 import time
@@ -273,7 +274,11 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
     _save_and_trim_excerpts(client, member_excerpts)
 
     # キーワード構築（MeCab が利用可能な場合のみ）
-    if _KEYWORDS_AVAILABLE and member_texts:
+    # 注意: 収集窓全体の発言から数えた回数を既存の回数に加算するため、日次実行のたびに水増しされる。
+    # 修正と全件再構築までは SKIP_INLINE_KEYWORDS=1 で止める（collect.yml で設定）。
+    if os.environ.get("SKIP_INLINE_KEYWORDS") == "1":
+        logger.info("SKIP_INLINE_KEYWORDS=1 のためキーワード構築をスキップします。")
+    elif _KEYWORDS_AVAILABLE and member_texts:
         logger.info("Building keywords for %d members ...", len(member_texts))
         try:
             updated = save_member_keywords_from_texts(member_texts, member_info)
