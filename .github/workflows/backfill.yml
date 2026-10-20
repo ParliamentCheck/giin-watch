@@ -26,11 +26,24 @@ on:
           - "sangiin-questions"
           - "petitions-collect"
           - "excerpts-backfill"
+          - "faction-history"
+          - "speeches-2025"
+          - "speeches-2026"
+      offset:
+        description: "faction-history: 何人目から（0始まり）"
+        type: string
+        default: "0"
+      limit:
+        description: "faction-history: 処理する人数（0=残り全員）"
+        type: string
+        default: "0"
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
   PYTHONPATH: apps/collector
+  # キーワード処理の修正と全件再構築まで、発言収集に伴うキーワード加算を止める（collect.yml と同じ）
+  SKIP_INLINE_KEYWORDS: "1"
 
 jobs:
   backfill:
@@ -51,4 +64,4 @@ jobs:
           sudo apt-get update && sudo apt-get install -y mecab libmecab-dev
 
       - name: バックフィル実行
-        run: python apps/collector/run_backfill.py --task ${{ inputs.task }}
+        run: python apps/collector/run_backfill.py --task "${{ inputs.task }}" --offset "${{ inputs.offset }}" --limit "${{ inputs.limit }}"

@@ -134,9 +134,70 @@ def compute_alignment() -> int:
     return len(rows)
 
 
+def fetch_faction_totals() -> list[dict]:
+    """vote_faction_totals（投票結果ページ記載の会派別票数）を全件取得。"""
+    client = get_client()
+    rows: list[dict] = []
+    offset = 0
+    while True:
+        result = execute_with_retry(
+            lambda o=offset: client.table("vote_faction_totals")
+                .select("vote_key, session_number, faction_name, yes_count, no_count")
+                .order("vote_key").order("faction_name")
+                .range(o, o + 999),
+            label="fetch_vote_faction_totals",
+        )
+        batch = result.data or []
+        rows.extend(batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
+    logger.info(f"Fetched {len(rows)} faction total records")
+    return rows
+
+
+def compute_faction_alignment() -> int:
+    """会派ペアの採決一致を会期ごとに集計して faction_vote_alignments に保存する。
+
+    会派の賛否は、投票結果ページに記載された会派別の票数で決める（推測しない）:
+      賛成票 > 反対票 → 賛成 / 反対票 > 賛成票 → 反対 / 同数・0票 → その採決では対象外
+    """
+    totals = fetch_faction_totals()
+    # (会期, 採決) → {会派: 賛否}
+    positions: dict[tuple[int, str], dict[str, str]] = defaultdict(dict)
+    for r in totals:
+        yes, no = r["yes_count"] or 0, r["no_count"] or 0
+        if yes == no:
+            continue
+        positions[(r["session_number"], r["vote_key"])][r["faction_name"]] = "賛成" if yes > no else "反対"
+
+    # (会期, 会派A, 会派B) → [一致件数, 対象件数]
+    counts: dict[tuple[int, str, str], list[int]] = defaultdict(lambda: [0, 0])
+    for (session, _), pos in positions.items():
+        factions = sorted(pos)
+        for i in range(len(factions)):
+            for j in range(i + 1, len(factions)):
+                a, b = factions[i], factions[j]
+                c = counts[(session, a, b)]
+                c[1] += 1
+                if pos[a] == pos[b]:
+                    c[0] += 1
+
+    now = datetime.now(timezone.utc).isoformat()
+    rows = [{"house": "参議院", "session_number": session, "faction_a": a, "faction_b": b,
+             "agree_count": agree, "total_count": total, "updated_at": now}
+            for (session, a, b), (agree, total) in counts.items()]
+    if rows:
+        batch_upsert("faction_vote_alignments", rows,
+                     on_conflict="house,session_number,faction_a,faction_b", label="faction_vote_alignments")
+    return len(rows)
+
+
 def main() -> None:
     count = compute_alignment()
     logger.info(f"Done. {count} records saved.")
+    faction_count = compute_faction_alignment()
+    logger.info(f"Faction alignments: {faction_count} records saved.")
 
 
 if __name__ == "__main__":

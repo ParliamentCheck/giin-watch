@@ -118,14 +118,16 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
         lambda: client.table("members").select("id, name, house, ndl_names").limit(2000),
         label="fetch_members",
     )
-    ndl_name_to_id: dict[str, str] = {}  # normalized_name -> member_id
+    # (院, 正規化名) -> member_id。衆参の同名議員や院を移った議員を取り違えないよう院ごとに分ける
+    ndl_name_to_id: dict[tuple[str, str], str] = {}
     member_info: dict[str, dict] = {}    # member_id -> {name, house}
     for m in (members_result.data or []):
+        m_house = m.get("house") or ""
         for ndl_name in (m.get("ndl_names") or []):
-            ndl_name_to_id[re.sub(r"\s+", "", ndl_name)] = m["id"]
+            ndl_name_to_id[(m_house, re.sub(r"\s+", "", ndl_name))] = m["id"]
         if m.get("name"):
             normalized = re.sub(r"\s+", "", m["name"])
-            ndl_name_to_id.setdefault(normalized, m["id"])
+            ndl_name_to_id.setdefault((m_house, normalized), m["id"])
         member_info[m["id"]] = {"name": m.get("name", ""), "house": m.get("house", "")}
     logger.info("Member name map built: %d entries", len(ndl_name_to_id))
 
@@ -200,10 +202,21 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
                 continue
 
             speaker_normalized = re.sub(r"\s+", "", speaker)
-            member_id = ndl_name_to_id.get(speaker_normalized) if house else None
+            member_id = ndl_name_to_id.get((house, speaker_normalized)) if house else None
 
             # 日付
             spoken_at = rec.get("date", "")
+
+            # NDL URL・委員会名・国会回次（発言抜粋でも使うため先に取り出す）
+            speech_url = rec.get("speechURL", "")
+            committee = rec.get("nameOfMeeting", "")
+            session_str = rec.get("session", "")
+            session_number = None
+            if session_str:
+                try:
+                    session_number = int(session_str)
+                except ValueError:
+                    pass
 
             # 議事進行判定 + キーワード用テキスト蓄積
             speech_text = rec.get("speech", "")
@@ -225,21 +238,6 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
                         "original_length": len(cleaned),
                     })
 
-            # NDL URL
-            speech_url = rec.get("speechURL", "")
-
-            # 委員会名
-            committee = rec.get("nameOfMeeting", "")
-
-            # 国会回次
-            session_str = rec.get("session", "")
-            session_number = None
-            if session_str:
-                try:
-                    session_number = int(session_str)
-                except ValueError:
-                    pass
-
             row = {
                 "id": speech_id,
                 "member_id": member_id,
@@ -249,6 +247,8 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
                 "session_number": session_number,
                 "source_url": speech_url,
                 "is_procedural": procedural,
+                # 発言時点の会派（会議録の表記そのまま。議員以外は空）
+                "speaker_group": (rec.get("speakerGroup") or None),
             }
             rows.append(row)
 
@@ -385,12 +385,13 @@ def collect_speech_excerpts_only(date_from: str | None = None, date_until: str |
         lambda: client.table("members").select("id, name, house, ndl_names").limit(2000),
         label="fetch_members",
     )
-    ndl_name_to_id: dict[str, str] = {}
+    ndl_name_to_id: dict[tuple[str, str], str] = {}
     for m in (members_result.data or []):
+        m_house = m.get("house") or ""
         for ndl_name in (m.get("ndl_names") or []):
-            ndl_name_to_id[re.sub(r"\s+", "", ndl_name)] = m["id"]
+            ndl_name_to_id[(m_house, re.sub(r"\s+", "", ndl_name))] = m["id"]
         if m.get("name"):
-            ndl_name_to_id.setdefault(re.sub(r"\s+", "", m["name"]), m["id"])
+            ndl_name_to_id.setdefault((m_house, re.sub(r"\s+", "", m["name"])), m["id"])
 
     member_excerpts: dict[str, list[dict]] = defaultdict(list)
     records_per_page = 100
@@ -438,7 +439,7 @@ def collect_speech_excerpts_only(date_from: str | None = None, date_until: str |
             if not house:
                 continue
             speaker = re.sub(r"\s+", "", rec.get("speaker", "").strip())
-            member_id = ndl_name_to_id.get(speaker)
+            member_id = ndl_name_to_id.get((house, speaker))
             if not member_id:
                 continue
             speech_text = rec.get("speech", "")

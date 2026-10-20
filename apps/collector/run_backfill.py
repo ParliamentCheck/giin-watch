@@ -32,6 +32,7 @@ def main() -> None:
         "migrate-member-ids",
         "scoring-only",
         "speeches-all",
+        "speeches-2026", "speeches-2025",
         "speeches-2024", "speeches-2023", "speeches-2022", "speeches-2021",
         "speeches-2018-2020",
         "keyword-all",
@@ -44,8 +45,11 @@ def main() -> None:
         "petitions-collect",
         "bills-submitters",
         "excerpts-backfill",
+        "faction-history",
     ])
     parser.add_argument("--years", type=int, default=4, help="keyword-full-rebuild の遡及年数")
+    parser.add_argument("--offset", type=int, default=0, help="faction-history: 何人目から処理するか")
+    parser.add_argument("--limit", type=int, default=0, help="faction-history: 処理する人数（0=残り全員）")
     args = parser.parse_args()
 
     task = args.task
@@ -98,12 +102,18 @@ def main() -> None:
         import backfill_procedural
         backfill_procedural.main()
 
+    elif task == "faction-history":
+        # 会議録からの会派履歴（会派への移行 F3）。議員を分けて実行できる
+        from sources import faction_history
+        sys.argv = [sys.argv[0], "--offset", str(args.offset), "--limit", str(args.limit)]
+        faction_history.main()
+        return  # スコア再計算不要
+
     elif task == "votes-collect":
-        from sources.votes import collect_sessions, get_member_ids
+        from sources.votes import collect_sessions, get_name_map
         from config import SESSION_MAX
         sessions = list(range(208, max(SESSION_MAX) + 1))
-        member_ids = get_member_ids()
-        collect_sessions(sessions, member_ids)
+        collect_sessions(sessions, get_name_map())
 
     elif task == "bills-collect":
         from sources.bills import collect_bills

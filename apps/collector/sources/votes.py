@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import time
 import logging
@@ -15,7 +16,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from db import get_client, execute_with_retry, batch_upsert
-from utils import make_member_id
+from utils import build_name_to_id
 from config import SESSION_MAX
 
 logger = logging.getLogger("vote_scraper")
@@ -69,7 +70,7 @@ def fetch_vote_index(session: int) -> list[dict]:
     return votes
 
 
-def parse_vote_page(url: str, session: int, member_ids: set[str]) -> list[dict]:
+def parse_vote_page(url: str, session: int, name_to_id: dict[str, str]) -> tuple[list[dict], list[dict]]:
     logger.info(f"  Parsing: {url}")
     try:
         resp = httpx.get(url, headers=HEADERS, timeout=30)
@@ -77,7 +78,7 @@ def parse_vote_page(url: str, session: int, member_ids: set[str]) -> list[dict]:
         soup = BeautifulSoup(resp.text, "html.parser")
     except Exception as e:
         logger.warning(f"  Failed to fetch {url}: {e}")
-        return []
+        return [], []
 
     # 案件名を取得
     bill_title = ""
@@ -108,64 +109,121 @@ def parse_vote_page(url: str, session: int, member_ids: set[str]) -> list[dict]:
 
     if not bill_title:
         logger.warning(f"  Could not extract bill title from {url}")
-        return []
+        return [], []
+
+    vote_key = url.rsplit("/", 1)[-1].removesuffix(".htm")  # 例: 221-0323-v008
 
     # 議員ごとの賛否を取得
-    records = []
-    for li in soup.select("li"):
-        li_text = li.get_text(strip=True)
-        vote_value = None
-        name = None
+    # ページは会派ごとに区切られている:
+    #   <h4 class="party">会派名( N名)</h4>
+    #   <dl class="sanpilist"><dt>賛成票 X 反対票 Y</dt><dd><ul><li class="giin">…</li></ul></dd></dl>
+    # 会派名・会派別票数は採決時点の公式記録として、そのまま保存する。
+    records: list[dict] = []
+    faction_totals: list[dict] = []
+    unmatched: list[str] = []
+    seen_ids: set[str] = set()
 
-        if li_text.startswith("賛成"):
-            vote_value = "賛成"
-            name = li_text[2:]
-        elif li_text.startswith("反対"):
-            vote_value = "反対"
-            name = li_text[2:]
-        elif li_text.startswith("投票なし"):
-            # 原文の表記のまま保存する（議長の慣例など理由は記録されないため「欠席」と言い換えない）
-            vote_value = "投票なし"
-            name = li_text[4:]
+    def add_record(display_name: str, vote_value: str, faction: str | None) -> None:
+        key = re.sub(r"[\s\u3000]+", "", display_name)
+        member_id = name_to_id.get(key)
+        if not member_id:
+            unmatched.append(display_name)
+            return
+        # IDは従来どおり（会期＋件名＋議員）のハッシュ。既存行と重複させないため変更しない
+        raw_id = f"{session}-{bill_title}-{member_id}"
+        vote_id = f"sv-{hashlib.md5(raw_id.encode()).hexdigest()[:16]}"
+        if vote_id in seen_ids:
+            return
+        seen_ids.add(vote_id)
+        records.append({
+            "id": vote_id,
+            "member_id": member_id,
+            "bill_title": bill_title,
+            "vote_date": vote_date,
+            "vote": vote_value,
+            "session_number": session,
+            "house": "参議院",
+            "faction": faction,
+            "vote_key": vote_key,
+        })
 
-        if vote_value and name:
-            name = normalize_name(name)
-            member_id = make_member_id("参議院", name)
-
-            if member_id not in member_ids:
-                continue
-
-            # IDはハッシュで一意にする
-            import hashlib
-            raw_id = f"{session}-{bill_title}-{member_id}"
-            vote_id = f"sv-{hashlib.md5(raw_id.encode()).hexdigest()[:16]}"
-
-            records.append({
-                "id": vote_id,
-                "member_id": member_id,
-                "bill_title": bill_title,
-                "vote_date": vote_date,
-                "vote": vote_value,
+    headings = soup.select("h4.party")
+    for h4 in headings:
+        heading = re.sub(r"\s+", " ", h4.get_text(strip=True))
+        m = re.match(r"^(.*?)\(\s*(\d+)\s*名\)$", heading)
+        faction = (m.group(1) if m else heading).strip()
+        member_count = int(m.group(2)) if m else None
+        dl = h4.find_next_sibling("dl")
+        if dl is None:
+            logger.warning(f"  会派「{faction}」の一覧が見つかりません: {url}")
+            continue
+        dt = dl.find("dt")
+        tm = re.search(r"賛成票\s*(\d+)\s*反対票\s*(\d+)", dt.get_text(" ", strip=True)) if dt else None
+        if tm:
+            faction_totals.append({
+                "vote_key": vote_key,
                 "session_number": session,
-                "house": "参議院",
+                "vote_date": vote_date,
+                "bill_title": bill_title,
+                "faction_name": faction,
+                "member_count": member_count,
+                "yes_count": int(tm.group(1)),
+                "no_count": int(tm.group(2)),
             })
+        else:
+            logger.warning(f"  会派「{faction}」の票数が読めません: {url}")
+        for li in dl.select("li.giin"):
+            names_el = li.select_one(".names")
+            if names_el is None:
+                continue
+            name = names_el.get_text(strip=True)
+            pros = li.select_one(".pros")
+            cons = li.select_one(".cons")
+            if li.select_one(".novote") is not None:
+                vote_value = "投票なし"  # 原文の表記のまま（理由は記録されないため「欠席」と言い換えない）
+            elif pros is not None and pros.get_text(strip=True) == "賛成":
+                vote_value = "賛成"
+            elif cons is not None and cons.get_text(strip=True) == "反対":
+                vote_value = "反対"
+            else:
+                logger.warning(f"  賛否が判別できない行: {li.get_text(strip=True)} ({url})")
+                continue
+            add_record(name, vote_value, faction)
 
-    logger.info(f"  Extracted {len(records)} records: {bill_title[:50]}")
-    return records
+    if not headings:
+        # 会派の区切りがない古い形式のページ：会派は記録しない（推測しない）
+        for li in soup.select("li"):
+            li_text = li.get_text(strip=True)
+            if li_text.startswith("賛成"):
+                add_record(li_text[2:], "賛成", None)
+            elif li_text.startswith("反対"):
+                add_record(li_text[2:], "反対", None)
+            elif li_text.startswith("投票なし"):
+                add_record(li_text[4:], "投票なし", None)
+
+    if unmatched:
+        logger.warning(f"  議員と照合できなかった名前 {len(unmatched)}件（記録しない）: {', '.join(unmatched[:10])}")
+    logger.info(f"  Extracted {len(records)} records, {len(faction_totals)} faction totals: {bill_title[:50]}")
+    return records, faction_totals
 
 
-def get_member_ids() -> set[str]:
+def get_name_map() -> dict[str, str]:
+    """参議院議員（現職・前議員）の 本名・通称名・NDL名 → member_id。
+
+    投票結果ページは通称名（例: 生稲 晃子）で載るため、本名から作るIDでは照合できない。
+    名寄せは utils.build_name_to_id に一本化する。
+    """
     client = get_client()
     result = execute_with_retry(
-        lambda: client.table("members").select("id").eq("house", "参議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "参議院").limit(2000),
         label="fetch_sangiin_members",
     )
-    ids = {m["id"] for m in (result.data or [])}
-    logger.info(f"Found {len(ids)} Sangiin members in DB")
-    return ids
+    data = result.data or []
+    logger.info(f"Found {len(data)} Sangiin members in DB")
+    return build_name_to_id(data)
 
 
-def collect_sessions(sessions: list[int], member_ids: set[str]) -> int:
+def collect_sessions(sessions: list[int], name_to_id: dict[str, str]) -> int:
     total_saved = 0
     for session in sessions:
         vote_pages = fetch_vote_index(session)
@@ -173,10 +231,13 @@ def collect_sessions(sessions: list[int], member_ids: set[str]) -> int:
             continue
 
         for vp in vote_pages:
-            records = parse_vote_page(vp["url"], session, member_ids)
+            records, faction_totals = parse_vote_page(vp["url"], session, name_to_id)
             if records:
                 batch_upsert("votes", records, on_conflict="id", label=f"votes_s{session}")
                 total_saved += len(records)
+            if faction_totals:
+                batch_upsert("vote_faction_totals", faction_totals,
+                             on_conflict="vote_key,faction_name", label=f"vote_faction_totals_s{session}")
             time.sleep(1.0)
 
         time.sleep(2.0)
@@ -200,9 +261,9 @@ def main():
         sessions = list(range(BACKFILL_START_SESSION, current_session + 1))
         logger.info(f"Backfill mode: collecting sessions {BACKFILL_START_SESSION}–{current_session}")
 
-    member_ids = get_member_ids()
+    name_to_id = get_name_map()
 
-    total_saved = collect_sessions(sessions, member_ids)
+    total_saved = collect_sessions(sessions, name_to_id)
     logger.info(f"Vote collection complete. Saved {total_saved} records.")
 
 
