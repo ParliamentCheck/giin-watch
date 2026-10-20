@@ -174,7 +174,7 @@ def _get_sangiin_sessions() -> list[int]:
     while consecutive_missing < 2:
         url = f"{SANGIIN_BASE_URL}/{next_sess}/syuisyo.htm"
         try:
-            resp = requests.head(url, timeout=10)
+            resp = requests.head(url, headers=HEADERS, timeout=10)
             if resp.status_code == 200:
                 sessions.append(next_sess)
                 consecutive_missing = 0
@@ -218,7 +218,7 @@ def _scrape_sangiin_session(session: int, name_to_id: dict[str, str] | None = No
     url = f"{SANGIIN_BASE_URL}/{session}/syuisyo.htm"
     logger.info("Fetching session %d: %s", session, url)
     try:
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(url, headers=HEADERS, timeout=30)
         resp.raise_for_status()
     except requests.RequestException as exc:
         logger.warning("Failed to fetch session %d: %s", session, exc)

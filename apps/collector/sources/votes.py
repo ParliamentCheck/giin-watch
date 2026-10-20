@@ -186,14 +186,15 @@ def collect_sessions(sessions: list[int], member_ids: set[str]) -> int:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["daily", "backfill"], default="backfill",
-                        help="daily=現会期のみ / backfill=全会期（デフォルト）")
+                        help="daily=直近2会期 / backfill=全会期（デフォルト）")
     args = parser.parse_args()
 
     current_session = max(SESSION_MAX)
 
     if args.mode == "daily":
-        sessions = [current_session]
-        logger.info(f"Daily mode: collecting session {current_session} only")
+        # 直近2会期を対象にする（会期の切り替わり直後に前会期の最終日の採決を取りこぼさないため）
+        sessions = sorted(SESSION_MAX)[-2:]
+        logger.info(f"Daily mode: collecting sessions {sessions}")
     else:
         sessions = list(range(BACKFILL_START_SESSION, current_session + 1))
         logger.info(f"Backfill mode: collecting sessions {BACKFILL_START_SESSION}–{current_session}")

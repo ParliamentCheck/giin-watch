@@ -83,7 +83,7 @@ import httpx
 import requests
 from bs4 import BeautifulSoup
 
-from config import NDL_API_BASE, NDL_RATE_LIMIT_SEC
+from config import NDL_API_BASE, NDL_HEADERS, NDL_RATE_LIMIT_SEC
 from db import get_client, execute_with_retry
 
 logger = logging.getLogger("audit")
@@ -118,7 +118,7 @@ def _ndl_speech_count(name: str, house: str, date_from: str, date_until: str) ->
     }
     url = f"{NDL_API_BASE}?{urlencode(params)}"
     try:
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(url, headers=NDL_HEADERS, timeout=30)
         resp.raise_for_status()
         data = resp.json()
         total = data.get("numberOfRecords", 0)

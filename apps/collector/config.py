@@ -24,6 +24,11 @@ NDL_DATE_UNTIL = os.environ.get("NDL_DATE_UNTIL", date.today().isoformat())
 # ============================================================
 NDL_API_BASE = "https://kokkai.ndl.go.jp/api/speech"
 NDL_RATE_LIMIT_SEC = 0.5  # 1リクエスト / 0.5秒
+# NDL API は requests の既定 User-Agent（python-requests/x.y）を 403 で拒否する（2026-10 確認）。
+# NDL へのリクエストには必ずこのヘッダーを付けること。
+NDL_HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research; +https://www.hataraku-giin.com/)"}
+# NDL API の連続失敗がこの回数に達したら収集を中断する（失敗ページを無限にスキップし続けないため）
+NDL_MAX_CONSECUTIVE_FAILURES = 5
 
 # ============================================================
 # 政党名正規化マップ
@@ -78,7 +83,8 @@ SESSION_MAX: dict[int, int] = {
     208: 156, 209: 41, 210: 68, 211: 156,
     212: 141, 213: 206, 214: 56, 215: 51,
     216: 107, 217: 352, 218: 21, 219: 205,
-    220: 8, 221: 9999,  # 進行中 — 早期終了ロジックで実際の件数に合わせて停止する
+    220: 8, 221: 9999,  # 9999 = 早期終了ロジックで実際の件数に合わせて停止する（確定値は未調査のため据え置き）
+    222: 9999,          # 第222回国会（臨時会、2026-10-05召集）— 進行中
 }
 # SESSION_MAX に含まれていない新しいセッションを動的に発見して追加する際の開始点
 # shitsumon_scraper.py が max(SESSION_MAX) + 1 以降も自動試行する

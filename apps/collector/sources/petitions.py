@@ -245,7 +245,7 @@ def _get_sangiin_sessions() -> list[int]:
     while consecutive_missing < 2:
         url = f"{SANGIIN_SEIGAN_BASE}/{next_sess}/seigan.htm"
         try:
-            resp = requests.head(url, timeout=10)
+            resp = requests.head(url, headers=HEADERS, timeout=10)
             if resp.status_code == 200:
                 sessions.append(next_sess)
                 consecutive_missing = 0
@@ -262,7 +262,7 @@ def _scrape_sangiin_list(session: int) -> list[dict]:
     """{number, title, futaku_url} のリストを返す。"""
     url = f"{SANGIIN_SEIGAN_BASE}/{session}/seigan.htm"
     try:
-        resp = requests.get(url, timeout=20)
+        resp = requests.get(url, headers=HEADERS, timeout=20)
         if resp.status_code != 200:
             return []
         resp.encoding = resp.apparent_encoding or "utf-8"
@@ -309,7 +309,7 @@ def _scrape_sangiin_list(session: int) -> list[dict]:
 def _scrape_sangiin_futaku(futaku_url: str) -> Optional[dict]:
     """futakuページから委員会名・結果・紹介議員リストを取得する。"""
     try:
-        resp = requests.get(futaku_url, timeout=20)
+        resp = requests.get(futaku_url, headers=HEADERS, timeout=20)
         if resp.status_code != 200:
             return None
         resp.encoding = resp.apparent_encoding or "utf-8"

@@ -24,6 +24,8 @@ from config import (
     NDL_API_BASE,
     NDL_DATE_FROM,
     NDL_DATE_UNTIL,
+    NDL_HEADERS,
+    NDL_MAX_CONSECUTIVE_FAILURES,
     NDL_RATE_LIMIT_SEC,
 )
 from db import get_client, batch_upsert, execute_with_retry
@@ -82,9 +84,23 @@ def fetch_speeches_from_ndl(
     }
     url = f"{NDL_API_BASE}?{urlencode(params)}"
     logger.debug("Requesting: %s", url)
-    resp = requests.get(url, timeout=60)
+    resp = requests.get(url, headers=NDL_HEADERS, timeout=60)
     resp.raise_for_status()
     return resp.json()
+
+
+def _abort_if_ndl_unavailable(consecutive_failures: int, total_api_records: int | None, start_record: int) -> None:
+    """NDL API が使えない状態で失敗ページを延々とスキップし続けないよう、収集を中断する。
+
+    - 1ページ目から取得できない場合（総件数が不明）は終端が分からないため即中断する。
+    - 連続失敗が NDL_MAX_CONSECUTIVE_FAILURES 回に達した場合も中断する。
+    中断は例外で行い、ステップを失敗扱いにして Actions 上で検知できるようにする。
+    """
+    if total_api_records is None or consecutive_failures >= NDL_MAX_CONSECUTIVE_FAILURES:
+        raise RuntimeError(
+            f"NDL API への取得に連続 {consecutive_failures} 回失敗したため中断します"
+            f"（start_record={start_record}, total={total_api_records}）"
+        )
 
 
 # ============================================================
@@ -122,6 +138,7 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
     start_record = 1
     total_saved = 0
     total_api_records = None
+    consecutive_failures = 0
 
     while True:
         # リトライ付きリクエスト（最大3回）
@@ -135,9 +152,12 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
                 if attempt < 2:
                     time.sleep(5)
         if data is None:
+            consecutive_failures += 1
             logger.error("NDL API request failed after 3 attempts at record %d. Skipping page.", start_record)
+            _abort_if_ndl_unavailable(consecutive_failures, total_api_records, start_record)
             start_record += records_per_page
             continue
+        consecutive_failures = 0
 
         # レスポンス構造の解析
         speech_records = data.get("speechRecord", [])
@@ -371,6 +391,7 @@ def collect_speech_excerpts_only(date_from: str | None = None, date_until: str |
     records_per_page = 100
     start_record = 1
     total_api_records = None
+    consecutive_failures = 0
 
     while True:
         data = None
@@ -383,8 +404,11 @@ def collect_speech_excerpts_only(date_from: str | None = None, date_until: str |
                 if attempt < 2:
                     time.sleep(5)
         if data is None:
+            consecutive_failures += 1
+            _abort_if_ndl_unavailable(consecutive_failures, total_api_records, start_record)
             start_record += records_per_page
             continue
+        consecutive_failures = 0
 
         speech_records = data.get("speechRecord", [])
         if not speech_records:

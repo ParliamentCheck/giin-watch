@@ -34,6 +34,7 @@ except ImportError:
 
 from config import (
     NDL_API_BASE,
+    NDL_HEADERS,
     NDL_RATE_LIMIT_SEC,
     KEYWORDS_MAX_STORE,
     KEYWORDS_STALE_DAYS,
@@ -109,7 +110,7 @@ def fetch_speech_texts_for_member(
         url = f"{NDL_API_BASE}?{urlencode(params)}"
 
         try:
-            resp = requests.get(url, timeout=60)
+            resp = requests.get(url, headers=NDL_HEADERS, timeout=60)
             resp.raise_for_status()
             data = resp.json()
         except Exception as exc:

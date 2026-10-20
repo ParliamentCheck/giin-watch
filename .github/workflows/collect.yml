@@ -19,9 +19,13 @@ env:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # ジョブ全体の上限は最後の安全網。各ステップに個別の timeout-minutes を付け、
+    # 1ステップの遅延で後続ステップが巻き添えでキャンセルされないようにしている。
+    timeout-minutes: 240
     permissions:
+      contents: read
       issues: write
+      actions: write  # 60日停止対策（最終ステップで自分自身を再有効化する）
 
     steps:
       - uses: actions/checkout@v4
@@ -39,31 +43,37 @@ jobs:
       - name: 議員データ登録
         id: members
         continue-on-error: true
+        timeout-minutes: 20
         run: python apps/collector/sources/members.py
 
       - name: 発言データ収集
         id: speeches
         continue-on-error: true
+        timeout-minutes: 60
         run: python apps/collector/sources/speeches.py
 
       - name: 活動スコア再計算
         id: scoring
         continue-on-error: true
+        timeout-minutes: 15
         run: python apps/collector/processors/scoring.py
 
       - name: 内閣役職データ取得
         id: cabinet
         continue-on-error: true
+        timeout-minutes: 5
         run: python apps/collector/sources/cabinet_scraper.py
 
       - name: 質問主意書収集
         id: questions
         continue-on-error: true
+        timeout-minutes: 15
         run: python apps/collector/sources/questions.py
 
       - name: 請願収集
         id: petitions
         continue-on-error: true
+        timeout-minutes: 15
         run: python apps/collector/sources/petitions.py
 
       - name: 採決記録収集（現会期）
@@ -118,6 +128,7 @@ jobs:
       - name: speeches 上限チェック・削除
         id: cleanup
         continue-on-error: true
+        timeout-minutes: 10
         run: python apps/collector/processors/cleanup.py --task truncate-speeches
 
       - name: データ品質監査
@@ -143,3 +154,13 @@ jobs:
              [ "${{ steps.scoring.outcome }}" = "failure" ]; then
             echo "::warning::1つ以上のステップが失敗しました"
           fi
+
+      # GitHub は公開リポジトリで60日間アクティビティがないと定期実行を自動停止する
+      # （2026-06-14 に実際に停止し、約4か月データが止まった）。
+      # 毎回の実行の最後に自分自身を再有効化して、停止カウンターをリセットする。
+      - name: 定期実行の自動停止を防ぐ（keepalive）
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/collect.yml/enable"
