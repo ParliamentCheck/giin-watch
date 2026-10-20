@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { partyShort } from "../../lib/partyColors";
+import { ListNotices } from "../components/Notices";
 
 interface VoteRow {
   member_id: string;
@@ -66,18 +67,14 @@ function calcAlignment(
 }
 
 function alignColor(rate: number): string {
-  if (rate >= 0.9) return "#bbf7d0";
-  if (rate >= 0.7) return "#d1fae5";
-  if (rate >= 0.5) return "#fef9c3";
-  return "#fee2e2";
+  if (rate >= 0.9) return "#cfd8e3";
+  if (rate >= 0.7) return "#dfe5ec";
+  if (rate >= 0.5) return "#edf0f4";
+  return "#f8f9fb";
 }
 
-function alignTextColor(rate: number): string {
-  if (rate >= 0.9) return "#166534";
-  if (rate >= 0.7) return "#166534";
-  if (rate >= 0.5) return "#854d0e";
-  return "#991b1b";
-}
+// 文字色は一致率によらず一定（良し悪しを連想させる色分けをしない）
+const ALIGN_TEXT_COLOR = "#1f2937";
 
 function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
   initialRawVotes?: VoteRow[];
@@ -275,7 +272,7 @@ function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
                               style={{
                                 padding: "6px 4px", textAlign: "center",
                                 background: isSelf ? "#e8e8e8" : alignColor(rate),
-                                color: isSelf ? "#888888" : alignTextColor(rate),
+                                color: isSelf ? "#888888" : ALIGN_TEXT_COLOR,
                                 borderBottom: "1px solid #f4f4f4",
                                 fontWeight: isSelf ? 400 : 700,
                                 cursor: "default",
@@ -293,10 +290,10 @@ function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
               {/* 凡例 */}
               <div style={{ display: "flex", gap: 16, marginTop: 20, fontSize: 11, color: "#555555", flexWrap: "wrap" }}>
                 {[
-                  { color: "#bbf7d0", label: "90%以上" },
-                  { color: "#d1fae5", label: "70〜89%" },
-                  { color: "#fef9c3", label: "50〜69%" },
-                  { color: "#fee2e2", label: "50%未満" },
+                  { color: "#cfd8e3", label: "90%以上" },
+                  { color: "#dfe5ec", label: "70〜89%" },
+                  { color: "#edf0f4", label: "50〜69%" },
+                  { color: "#f8f9fb", label: "50%未満" },
                 ].map((item) => (
                   <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{ width: 14, height: 14, background: item.color, borderRadius: 2 }} />
@@ -304,9 +301,10 @@ function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
                   </div>
                 ))}
               </div>
-              <p style={{ fontSize: 11, color: "#c8c8c8", marginTop: 12 }}>
-                ※ 各党の多数派（賛成または反対）が一致した採決の割合。欠席は集計対象外。参議院のみ。
+              <p style={{ fontSize: 12, color: "#555555", marginTop: 12 }}>
+                ※ 各党の多数派（賛成または反対）が一致した採決の割合。投票なしは集計対象外。参議院のみ。
               </p>
+              <ListNotices style={{ marginTop: 4 }} />
             </>
           )}
         </div>

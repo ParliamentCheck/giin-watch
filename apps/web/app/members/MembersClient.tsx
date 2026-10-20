@@ -10,6 +10,9 @@ import type { Member } from "../../lib/types";
 import { PARTY_COLORS } from "../../lib/partyColors";
 import { MEMBER_SORT_OPTIONS, type MemberSortKey } from "../../lib/types";
 import { MEMBER_SELECT } from "../../lib/queries";
+import { compareMembersByReading } from "../../lib/memberSort";
+import { ListNotices } from "../components/Notices";
+import { useElectionSafeMode } from "../components/SiteSettings";
 
 type SortKey = MemberSortKey;
 
@@ -26,7 +29,12 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
   const search        = searchParams.get("q")      || "";
   const selectedHouse = searchParams.get("house")  || "";
   const selectedParty = searchParams.get("party")  || "";
-  const sortKey       = (searchParams.get("sort")  || "name") as SortKey;
+  // 選挙セーフモード中は並び替えの状態をURLに載せない（並び替えた一覧を共有リンクにしない）
+  const safeMode      = useElectionSafeMode();
+  const [safeSort, setSafeSort] = useState<SortKey>("name");
+  const sortKey       = (safeMode ? safeSort : (searchParams.get("sort") || "name")) as SortKey;
+  // 閣僚等（cabinet_post あり）は件数で並べるときに初期非表示（PROJECT_SPEC 5.3）
+  const [showCabinet, setShowCabinet] = useState(false);
   const { page, setPage } = usePagination();
 
   // URLのsearchと入力欄を同期（クリア時など）
@@ -41,7 +49,8 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
     if (q)     params.set("q",     q);
     if (house) params.set("house", house);
     if (party) params.set("party", party);
-    if (sort && sort !== "name") params.set("sort", sort);
+    if (safeMode) setSafeSort((sort || "name") as SortKey);
+    else if (sort && sort !== "name") params.set("sort", sort);
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     router.replace(qs ? `/members?${qs}` : "/members", { scroll: false });
@@ -80,8 +89,14 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
     return true;
   });
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortKey === "name") return a.name.localeCompare(b.name, "ja");
+  // 件数で並べる・検索語なし のときだけ閣僚等を初期非表示にする（名前検索では必ず見つかるようにする）
+  const cabinetHideApplies = sortKey !== "name" && !search;
+  const hiddenCabinetCount = cabinetHideApplies && !showCabinet
+    ? filtered.filter((m) => m.cabinet_post).length : 0;
+  const visible = hiddenCabinetCount > 0 ? filtered.filter((m) => !m.cabinet_post) : filtered;
+
+  const sorted = [...visible].sort((a, b) => {
+    if (sortKey === "name") return compareMembersByReading(a, b);
     const av = (a[sortKey] as number | null) ?? -1;
     const bv = (b[sortKey] as number | null) ?? -1;
     return bv - av;
@@ -151,6 +166,19 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
             </button>
           )}
         </div>
+        <ListNotices style={{ marginTop: 12 }} />
+        {cabinetHideApplies && (hiddenCabinetCount > 0 || showCabinet) && (
+          <div style={{ marginTop: 8, fontSize: 12, color: "#555555" }}>
+            {showCabinet
+              ? "閣僚等（大臣・副大臣・政務官等）を表示しています。"
+              : `閣僚等（大臣・副大臣・政務官等）${hiddenCabinetCount}名を非表示にしています。`}
+            <button
+              onClick={() => setShowCabinet((v) => !v)}
+              style={{ marginLeft: 8, fontSize: 12, color: "#333333", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+              {showCabinet ? "非表示にする" : "表示する"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* リストカード */}

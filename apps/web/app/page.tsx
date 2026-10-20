@@ -1,10 +1,10 @@
 export const revalidate = 3600;
 export const metadata = {
   title: { absolute: "はたらく議員 — 国会議員の活動を、データで見える化" },
-  description: "「あの議員、どれだけ国会で働いてる？」国会議員の本当の働きぶりが客観データで丸裸！公的記録から発言・質問主意書・議員立法・採決などを自動集計・毎日処理。有権者が公平に実績を比べられる、有権者のための議員チェックツール「はたらく議員」",
+  description: "国会会議録等の公開記録から、国会議員の発言・質問主意書・議員立法・採決・請願の件数を機械的に集計して表示します。活動の良否を判定するものではありません。",
   openGraph: {
     title: "はたらく議員 — 国会議員の活動を、データで見える化",
-    description: "「あの議員、どれだけ国会で働いてる？」国会議員の本当の働きぶりが客観データで丸裸！公的記録から発言・質問主意書・議員立法・採決などを自動集計・毎日処理。有権者が公平に実績を比べられる、有権者のための議員チェックツール「はたらく議員」",
+    description: "国会会議録等の公開記録から、国会議員の発言・質問主意書・議員立法・採決・請願の件数を機械的に集計して表示します。活動の良否を判定するものではありません。",
   },
 };
 import { supabase } from "../lib/supabase";
@@ -301,18 +301,13 @@ export default async function TopPage() {
           </p>
           <p className="text-sm text-neutral-500 mb-4 leading-relaxed max-w-xl mx-auto text-left">
             国立国会図書館・衆議院・参議院の公開記録をもとに、発言・質問主意書・採決・議員立法・請願など、議員の国会活動に関するデータを自動収集・整理しています。
-            有権者が議員の活動実績を手軽に確認できることを目的としており、特定の政治的立場に偏らず、主観的な評価・スコアリング・ランキングは一切行いません。
+            有権者が議員の活動実績を手軽に確認できることを目的としており、特定の政治的立場に偏らず、主観的な評価・スコアリング・順位付けは一切行いません。
             数値はすべて公的機関の公開情報に基づいており、運営者の判断や意図は介在しない設計です。
           </p>
           <a href="/faq#data-period" className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-neutral-300/60 bg-neutral-100/40 text-xs text-neutral-700 no-underline hover:border-neutral-400 transition-colors">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-neutral-400 animate-pulse" />
             収集期間: 2018年〜現在（詳細はこちら）
           </a>
-          <p className="text-xs mt-3 leading-relaxed max-w-xl mx-auto bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-4 py-2.5">
-            当サイトは、国会会議録等の公開記録および公開情報から機械的に集計した一部指標を表示します。<br className="hidden sm:block" />
-            党務・地元活動・非公開会議等、参照できない活動は含みません。<br className="hidden sm:block" />
-            当サイトの表示は、活動の良否・有無を判定するものではありません。
-          </p>
         </div>
       </section>
 
@@ -400,9 +395,6 @@ export default async function TopPage() {
           const PairRow = ({ pair }: { pair: RankedPair }) => (
             <div className="px-5 py-3.5 border-b border-neutral-200/70 last:border-0">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="text-[10px] font-bold text-neutral-400 w-8 shrink-0 whitespace-nowrap leading-none">
-                  {pair.rank}{pair.isTie && <span className="text-[8px] ml-px">タイ</span>}
-                </span>
                 <span style={{ color: partyColor(pair.p1), fontSize: 9 }}>●</span>
                 <span className="text-xs font-semibold text-neutral-800">{partyShort(pair.p1)}</span>
                 <span className="text-[10px] text-neutral-400">×</span>
@@ -435,20 +427,19 @@ export default async function TopPage() {
                 </Link>
               </div>
               <p className="text-sm text-neutral-500 leading-relaxed mb-5">
-                参議院本会議の採決記録をもとに、各政党ペアの賛否が何割の議案で一致したかを集計しています。
-                数値が高いほど同じ方向に投票する傾向があり、低いほど与野党など立場の違いが賛否に表れやすいことを示します。
-                議案ごとの詳細な賛否パターンや全政党のマトリクスは「全政党マトリクス」から確認できます。
+                参議院本会議の採決記録をもとに、各政党ペアの賛否が何割の議案で一致したかを機械的に集計しています。
+                議案ごとの賛否や全政党のマトリクスは「全政党マトリクス」から確認できます。
               </p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
                   <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
-                    <p className="text-xs font-bold text-neutral-600">賛否が一致しやすいペア</p>
+                    <p className="text-xs font-bold text-neutral-600">一致率が高い組み合わせ</p>
                   </div>
                   {topWithRanks.map((pair, i) => <PairRow key={i} pair={pair} />)}
                 </div>
                 <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
                   <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
-                    <p className="text-xs font-bold text-neutral-600">賛否が乖離しやすいペア</p>
+                    <p className="text-xs font-bold text-neutral-600">一致率が低い組み合わせ</p>
                   </div>
                   {bottomWithRanks.map((pair, i) => <PairRow key={i} pair={pair} />)}
                 </div>
@@ -465,8 +456,8 @@ export default async function TopPage() {
               <p className="text-xs text-neutral-500 mt-0.5">衆議院・直近12ヶ月 — 政党別</p>
             </div>
             <p className="text-sm text-neutral-500 leading-relaxed mb-5">
-              質問主意書は、議員が内閣に対して文書で説明を求める制度です。委員会での発言機会が少ない少数会派の議員も利用しやすく、政府の見解を公式記録として引き出す手段として活用されています。
-              月ごとの提出件数と政党別の内訳を示しています。国会の開会・閉会や政治的な争点の動向によって件数が変化します。各月をクリックすると政党別の内訳を確認できます。
+              質問主意書は、議員が内閣に対して文書で説明を求める制度で、内閣の答弁書とともに公式記録として残ります。
+              月ごとの提出件数と政党別の内訳を示しています。各月をクリックすると政党別の内訳を確認できます。
             </p>
             <div className="bg-white border border-neutral-200 rounded-2xl px-6 py-5 space-y-2.5">
               {(() => {
@@ -520,14 +511,12 @@ export default async function TopPage() {
               </Link>
             </div>
             <p className="text-sm text-neutral-500 leading-relaxed mb-5">
-              議員立法のうち、与野党を問わず複数政党の議員が連名で提出した法案を、参加政党数が多い順に表示しています。
-              政党を超えて共通の課題認識があったことを示す記録です。
+              議員立法のうち、提出者に複数の政党の議員が含まれる法案を表示しています（提出者の所属は現在の所属に基づきます）。
             </p>
             <div className="bg-white border border-neutral-200 rounded-2xl divide-y divide-neutral-200">
-              {crossPartyBills.map((bill, i) => (
+              {crossPartyBills.map((bill) => (
                 <div key={bill.id} className="px-5 py-4">
                   <div className="flex items-start gap-3">
-                    <span className="shrink-0 mt-0.5 text-[11px] font-bold text-neutral-400 w-4 text-right">{i + 1}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1.5">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-neutral-800 text-white text-[10px] font-bold shrink-0">

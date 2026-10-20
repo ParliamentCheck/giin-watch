@@ -65,7 +65,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [bills,         setBills]         = useState<Bill[]>([]);
   const [coSponsors,    setCoSponsors]    = useState<{ id: string; name: string; party: string; count: number }[]>([]);
   const [billsSubTab,   setBillsSubTab]   = useState<"list" | "partners">("list");
-  const [voteFilter,    setVoteFilter]    = useState<"all" | "賛成" | "反対" | "欠席">("all");
+  const [voteFilter,    setVoteFilter]    = useState<"all" | "賛成" | "反対" | "投票なし">("all");
   const [petitions,     setPetitions]     = useState<(Petition | SangiinPetition)[]>([]);
   const [keywords,      setKeywords]      = useState<MemberKeyword[]>([]);
   const [speechExcerpts, setSpeechExcerpts] = useState<SpeechExcerpt[]>([]);
@@ -674,8 +674,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           <h3 className="section-title">
             本会議採決記録（参議院）
           </h3>
-          <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
+          <p style={{ fontSize: 12, color: "#555555", marginBottom: 4 }}>
             {`※ ${SESSION_RANGE_BILLS}の記録に基づく（参議院のみ）。`}
+          </p>
+          <p style={{ fontSize: 12, color: "#555555", marginBottom: 16 }}>
+            ※「投票なし」は参議院の記録上の表記です。投票しなかった理由（議長職・公務等）は記録されていません。
           </p>
           {member.house !== "参議院" ? (
             <div className="empty-state" style={{ padding: "20px 0" }}>
@@ -688,24 +691,23 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           ) : (() => {
             const yea        = voteStats?.yea    ?? 0;
             const nay        = voteStats?.nay    ?? 0;
-            const absent     = voteStats?.absent ?? 0;
-            const total      = voteStats?.total  ?? 0;
-            const absentRate = total > 0 ? (absent / total * 100).toFixed(1) : "0.0";
-            const filteredVotes = voteFilter === "all" ? votes : votes.filter(v => v.vote === voteFilter);
+            const noVote     = voteStats?.absent ?? 0;
+            // 参議院の記録は「投票なし」。旧データは「欠席」で保存されているため表示時に原文表記へ揃える
+            const voteLabel = (v: string) => (v === "欠席" ? "投票なし" : v);
+            const filteredVotes = voteFilter === "all" ? votes : votes.filter(v => voteLabel(v.vote) === voteFilter);
             return (
               <>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                   {([
                     { label: "賛成" as const,  count: `${yea}`,         color: "#22c55e" },
                     { label: "反対" as const,  count: `${nay}`,         color: "#ef4444" },
-                    { label: "欠席" as const,  count: `${absent}`,      color: "#888888" },
-                    { label: "欠席率",          count: `${absentRate}%`, color: absent > 0 ? "#f59e0b" : "#888888" },
+                    { label: "投票なし" as const, count: `${noVote}`, color: "#888888" },
                   ] as { label: string; count: string; color: string }[]).map(({ label, count, color }) => {
-                    const isFilterable = label === "賛成" || label === "反対" || label === "欠席";
+                    const isFilterable = label === "賛成" || label === "反対" || label === "投票なし";
                     const isActive = voteFilter === label;
                     return (
                       <div key={label}
-                        onClick={isFilterable ? () => setVoteFilter(isActive ? "all" : label as "賛成" | "反対" | "欠席") : undefined}
+                        onClick={isFilterable ? () => setVoteFilter(isActive ? "all" : label as "賛成" | "反対" | "投票なし") : undefined}
                         style={{
                           background: isActive ? color : "#f4f4f4",
                           borderRadius: 8, padding: "8px 0", textAlign: "center", flex: 1,
@@ -742,7 +744,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                           {v.bill_title}
                         </span>
                         <span className="badge badge-result" style={{ flexShrink: 0, "--result-color": voteColor } as React.CSSProperties}>
-                          {v.vote}
+                          {voteLabel(v.vote)}
                         </span>
                       </div>
                       <div style={{ fontSize: 12, color: "#555555", marginTop: 4 }}>

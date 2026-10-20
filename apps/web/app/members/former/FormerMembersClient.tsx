@@ -7,6 +7,8 @@ import type { Member } from "../../../lib/types";
 import { MEMBER_SORT_OPTIONS, type MemberSortKey } from "../../../lib/types";
 import { PARTY_COLORS } from "../../../lib/partyColors";
 import { MEMBER_SELECT } from "../../../lib/queries";
+import { compareMembersByReading } from "../../../lib/memberSort";
+import { ListNotices } from "../../components/Notices";
 
 type SortKey = MemberSortKey;
 
@@ -64,7 +66,7 @@ function FormerMembersContent() {
   });
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sortKey === "name") return a.name.localeCompare(b.name, "ja");
+    if (sortKey === "name") return compareMembersByReading(a, b);
     const av = (a[sortKey] as number | null) ?? -1;
     const bv = (b[sortKey] as number | null) ?? -1;
     return bv - av;
@@ -123,6 +125,7 @@ function FormerMembersContent() {
             </button>
           )}
         </div>
+        <ListNotices style={{ marginTop: 12 }} />
       </div>
 
       {/* リストカード */}

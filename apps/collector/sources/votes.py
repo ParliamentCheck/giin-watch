@@ -124,7 +124,8 @@ def parse_vote_page(url: str, session: int, member_ids: set[str]) -> list[dict]:
             vote_value = "反対"
             name = li_text[2:]
         elif li_text.startswith("投票なし"):
-            vote_value = "欠席"
+            # 原文の表記のまま保存する（議長の慣例など理由は記録されないため「欠席」と言い換えない）
+            vote_value = "投票なし"
             name = li_text[4:]
 
         if vote_value and name:

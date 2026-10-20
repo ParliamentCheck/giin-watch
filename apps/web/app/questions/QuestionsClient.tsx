@@ -9,6 +9,7 @@ import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
 import { partyColor } from "../../lib/partyColors";
 import { SESSION_RANGE_QUESTIONS } from "../../lib/constants";
+import { ListNotices } from "../components/Notices";
 
 function sortQuestions(questions: QuestionListItem[]): QuestionListItem[] {
   return [...questions].sort((a, b) => {
@@ -73,35 +74,18 @@ export default function QuestionsClient({ initialQuestions }: Props) {
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // 統計: 政党別件数・議員別件数
-  const { partyTop, memberTop } = useMemo(() => {
-    const partyCounts: Record<string, number> = {};
-    const memberCounts: Record<string, { name: string; alias_name: string | null; party: string; is_active: boolean; count: number }> = {};
-
+  // 統計: 政党別件数（順位は付けず政党名順に並べる。議員別の順位表示は行わない）
+  const partyCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const q of questions) {
       const party = q.members?.party;
-      if (party) partyCounts[party] = (partyCounts[party] ?? 0) + 1;
-
-      if (q.member_id && q.members) {
-        if (!memberCounts[q.member_id]) {
-          memberCounts[q.member_id] = { name: q.members.name, alias_name: q.members.alias_name, party: q.members.party, is_active: q.members.is_active, count: 0 };
-        }
-        memberCounts[q.member_id].count++;
-      }
+      if (party) counts[party] = (counts[party] ?? 0) + 1;
     }
-
-    const partyTop = Object.entries(partyCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
+    return Object.entries(counts)
+      .sort((a, b) => a[0].localeCompare(b[0], "ja"))
       .map(([party, count]) => ({ party, count }));
-
-    const memberTop = Object.entries(memberCounts)
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 10)
-      .map(([id, info]) => ({ id, ...info }));
-
-    return { partyTop, memberTop };
   }, [questions]);
+  const partyMax = Math.max(1, ...partyCounts.map((p) => p.count));
 
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px" }}>
@@ -163,9 +147,10 @@ export default function QuestionsClient({ initialQuestions }: Props) {
             />
           </div>
 
-          <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: "#555555", marginBottom: 4 }}>
             {`※ ${SESSION_RANGE_QUESTIONS}（衆院・参院）の記録に基づく`}
           </div>
+          <ListNotices sort={false} style={{ marginBottom: 12 }} />
 
           {loading ? (
             <div className="empty-state">読み込み中...</div>
@@ -223,7 +208,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
       {/* 統計タブ */}
       {tab === "stats" && (
         <div className="card-xl">
-          <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 20 }}>
+          <div style={{ fontSize: 12, color: "#555555", marginBottom: 20 }}>
             {`※ ${SESSION_RANGE_QUESTIONS}（衆院・参院）の記録に基づく`}
           </div>
 
@@ -232,63 +217,30 @@ export default function QuestionsClient({ initialQuestions }: Props) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
 
-              {/* 政党別件数 TOP5 */}
-              <section style={{ paddingBottom: 32 }}>
+              {/* 政党別件数（政党名順） */}
+              <section style={{ paddingBottom: 8 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#1a1a1a" }}>
-                  提出件数が多い政党 TOP5
+                  政党別の提出件数
                 </h2>
-                <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-                  衆院・参院合計
+                <p style={{ fontSize: 12, color: "#555555", marginBottom: 4 }}>
+                  衆院・参院合計（提出者の現在の所属で集計）。政党名順に表示しています。
                 </p>
-                {partyTop.length === 0 ? (
+                <ListNotices sort={false} style={{ marginBottom: 16 }} />
+                {partyCounts.length === 0 ? (
                   <div className="empty-state">データがありません。</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {partyTop.map(({ party, count }, i) => {
+                    {partyCounts.map(({ party, count }) => {
                       const color = partyColor(party);
-                      const pct = Math.round((count / partyTop[0].count) * 100);
+                      const pct = Math.round((count / partyMax) * 100);
                       return (
                         <div key={party}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{i + 1}. {party}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{party}</span>
                             <span style={{ fontSize: 13, color: "#555555" }}>{count.toLocaleString()}件</span>
                           </div>
                           <div style={{ background: "#f0f0f0", borderRadius: 4, height: 8 }}>
                             <div style={{ width: `${pct}%`, background: color, borderRadius: 4, height: 8 }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-
-              {/* 議員別件数 TOP10 */}
-              <section style={{ paddingTop: 32, borderTop: "1px solid #e0e0e0" }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#1a1a1a" }}>
-                  提出件数が多い議員 TOP10
-                </h2>
-                <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-                  {`衆院・参院合計（${SESSION_RANGE_QUESTIONS}）`}
-                </p>
-                {memberTop.length === 0 ? (
-                  <div className="empty-state">データがありません。</div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {memberTop.map(({ id, name, alias_name, party, is_active, count }, i) => {
-                      const color = partyColor(party);
-                      const pct = Math.round((count / memberTop[0].count) * 100);
-                      return (
-                        <div key={id}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 12, color: "#aaaaaa", width: 20, textAlign: "right", flexShrink: 0 }}>{i + 1}.</span>
-                            <span style={{ flex: 1 }}>
-                              <MemberChip id={id} name={name} alias_name={alias_name} party={party} is_active={is_active} />
-                            </span>
-                            <span style={{ fontSize: 13, color: "#555555", flexShrink: 0 }}>{count.toLocaleString()}件</span>
-                          </div>
-                          <div style={{ background: "#f0f0f0", borderRadius: 4, height: 6, marginLeft: 28 }}>
-                            <div style={{ width: `${pct}%`, background: color, borderRadius: 4, height: 6 }} />
                           </div>
                         </div>
                       );

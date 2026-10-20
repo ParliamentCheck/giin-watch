@@ -258,7 +258,7 @@ export async function getVotesForMember(memberId: string, client: Db = defaultCl
   return data ?? [];
 }
 
-/** 採決の集計値（賛成・反対・欠席・合計）を DB の count:exact で取得 */
+/** 採決の集計値（賛成・反対・投票なし・合計）を DB の count:exact で取得。absent は「投票なし」（旧データの「欠席」を含む）の件数 */
 export async function getVoteStatsForMember(
   memberId: string,
   client: Db = defaultClient,
@@ -267,7 +267,7 @@ export async function getVoteStatsForMember(
     client.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId),
     client.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "賛成"),
     client.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "反対"),
-    client.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).eq("vote", "欠席"),
+    client.from("votes").select("id", { count: "exact", head: true }).eq("member_id", memberId).in("vote", ["投票なし", "欠席"]),
   ]);
   return {
     total:  totalRes.status  === "fulfilled" ? (totalRes.value.count  ?? 0) : 0,

@@ -9,6 +9,7 @@ import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
 import { PARTY_COLORS, partyShort } from "../../lib/partyColors";
+import { ListNotices } from "../components/Notices";
 
 interface PairStat {
   a: string;
@@ -138,7 +139,6 @@ export default function BillsClient() {
   }
 
   // ネットワークタブ用
-  const [topPairs, setTopPairs] = useState<PairStat[]>([]);
   const [matrixParties, setMatrixParties] = useState<string[]>([]);
   const [matrix, setMatrix] = useState<Record<string, Record<string, number>>>({});
   const [networkLoading, setNetworkLoading] = useState(true);
@@ -175,10 +175,8 @@ export default function BillsClient() {
         }
       }
 
-      const pairs = Object.entries(pairCount)
-        .map(([key, count]) => { const [a, b] = key.split("|"); return { a, b, count }; })
-        .sort((x, y) => y.count - x.count);
-      setTopPairs(pairs.slice(0, 10));
+      const pairs: PairStat[] = Object.entries(pairCount)
+        .map(([key, count]) => { const [a, b] = key.split("|"); return { a, b, count }; });
 
       const partyVolume: Record<string, number> = {};
       for (const { a, b, count } of pairs) {
@@ -444,12 +442,13 @@ export default function BillsClient() {
                   <p style={{ fontSize: 13, color: "#555555", marginBottom: 12, lineHeight: 1.7 }}>
                     議員立法（議員提出法案）を共同提出した回数を、政党ペア別に集計しています。
                   </p>
-                  <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 8 }}>
+                  <p style={{ fontSize: 12, color: "#555555", marginBottom: 8 }}>
                     ※中道改革連合は前所属政党（公明党・立憲民主党）に分類して集計。
                   </p>
-                  <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 20 }}>
-                    ※与党は主に内閣を通じて法案（閣法）を提出するため、議員立法の件数が構造的に少なくなります。このマトリックスは国会活動の全体量を比較するものではありません。
+                  <p style={{ fontSize: 12, color: "#555555", marginBottom: 8 }}>
+                    ※閣法（内閣提出法案）はこの集計に含まれません。このマトリックスは国会活動の全体量を比較するものではありません。
                   </p>
+                  <ListNotices sort={false} style={{ marginBottom: 20 }} />
 
                   {networkLoading ? (
                     <div className="loading-block">
@@ -457,41 +456,9 @@ export default function BillsClient() {
                       <span>データを集計しています...</span>
                     </div>
                   ) : (
-                    <>
-                      <h2 style={{ fontSize: 15, fontWeight: 700, color: "#333333", marginBottom: 10 }}>
-                        共同提出の多い政党ペア TOP10
-                      </h2>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {topPairs.map(({ a, b, count }, i) => {
-                          const colorA = PARTY_COLORS[a] || "#7f8c8d";
-                          const colorB = PARTY_COLORS[b] || "#7f8c8d";
-                          return (
-                            <div key={`${a}-${b}`}
-                              style={{ display: "flex", alignItems: "center", gap: 10,
-                                padding: "10px 14px", background: "#f9f9f9", borderRadius: 8,
-                                border: "1px solid #eeeeee" }}>
-                              <span style={{ fontSize: 13, color: "#aaaaaa", width: 22, textAlign: "right", flexShrink: 0 }}>
-                                {i + 1}
-                              </span>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, flexWrap: "wrap" }}>
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorA, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 14, fontWeight: 600, color: colorA }}>{a}</span>
-                                </span>
-                                <span style={{ fontSize: 13, color: "#aaaaaa" }}>×</span>
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: colorB, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 14, fontWeight: 600, color: colorB }}>{b}</span>
-                                </span>
-                              </div>
-                              <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", flexShrink: 0 }}>
-                                {count}<span style={{ fontSize: 11, fontWeight: 400, color: "#888888", marginLeft: 2 }}>法案</span>
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
+                    <p style={{ fontSize: 13, color: "#555555", margin: 0 }}>
+                      政党ペアごとの件数は下の「政党間マトリックス」で確認できます。
+                    </p>
                   )}
                 </div>
 

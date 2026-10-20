@@ -6,6 +6,38 @@ import GlobalNav from "./components/GlobalNav";
 import GlobalFooter from "./components/GlobalFooter";
 import FloatingMemberSearch from "./components/FloatingMemberSearch";
 import Analytics from "@/components/Analytics";
+import { ScopeNotice } from "./components/Notices";
+import { SiteSettingsProvider } from "./components/SiteSettings";
+import { supabaseServer } from "../lib/supabase-server";
+
+// site_settings（選挙セーフモード・メンテナンスバナー）を全ページで1時間ごとに読み直す
+export const revalidate = 3600;
+
+type SiteSettingsRow = { key: string; value: string | null };
+
+/**
+ * site_settings を読む。
+ * - election_safe_mode: 値が空でなければ ON。**読めない・行がない場合も ON**（フェイルセーフ）。
+ * - maintenance_banner: 値が空でなければその文言をバナー表示。読めない場合は表示しない。
+ */
+async function loadSiteSettings(): Promise<{ electionSafeMode: boolean; maintenanceBanner: string }> {
+  try {
+    const { data, error } = await supabaseServer
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["election_safe_mode", "maintenance_banner"]);
+    if (error || !data) return { electionSafeMode: true, maintenanceBanner: "" };
+    const rows = data as SiteSettingsRow[];
+    const safe = rows.find((r) => r.key === "election_safe_mode");
+    const banner = rows.find((r) => r.key === "maintenance_banner");
+    return {
+      electionSafeMode: safe ? (safe.value ?? "").trim() !== "" : true,
+      maintenanceBanner: (banner?.value ?? "").trim(),
+    };
+  } catch {
+    return { electionSafeMode: true, maintenanceBanner: "" };
+  }
+}
 
 const BASE_URL = "https://www.hataraku-giin.com";
 
@@ -71,7 +103,8 @@ const jsonLd = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const settings = await loadSiteSettings();
   return (
     <html lang="ja">
       <head>
@@ -102,9 +135,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Analytics />
         </Suspense>
         <GlobalNav />
-        <main style={{ minHeight: "calc(100vh - 60px - 120px)" }}>
-          {children}
-        </main>
+        {settings.maintenanceBanner && (
+          <div
+            role="status"
+            style={{
+              background: "#fff7e6",
+              borderBottom: "1px solid #f0c36d",
+              color: "#5c3d00",
+              fontSize: 13,
+              padding: "8px 16px",
+              textAlign: "center",
+            }}
+          >
+            {settings.maintenanceBanner}
+          </div>
+        )}
+        <ScopeNotice />
+        <SiteSettingsProvider value={{ electionSafeMode: settings.electionSafeMode }}>
+          <main style={{ minHeight: "calc(100vh - 60px - 120px)" }}>
+            {children}
+          </main>
+        </SiteSettingsProvider>
         <GlobalFooter />
         <FloatingMemberSearch />
       </body>

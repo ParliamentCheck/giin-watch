@@ -9,6 +9,7 @@ import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
 import { partyColor } from "../../lib/partyColors";
 import { SESSION_RANGE_QUESTIONS } from "../../lib/constants";
+import { ListNotices } from "../components/Notices";
 
 type MemberInfo = { name: string; alias_name: string | null; party: string; is_active: boolean };
 type ResultFilter = "採択" | "不採択" | "審査未了";
@@ -112,14 +113,13 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
       }
     }
 
+    // 政党別は順位を付けず政党名順に全政党を表示する
     const partyTop5 = Object.entries(partyPetitionCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
+      .sort((a, b) => a[0].localeCompare(b[0], "ja"))
       .map(([party, count]) => ({ party, count }));
 
     const partyIntroducerTop5 = Object.entries(partyIntroducerCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
+      .sort((a, b) => a[0].localeCompare(b[0], "ja"))
       .map(([party, count]) => ({ party, count }));
 
     const petitionIntroducerTop5 = [...petitions]
@@ -215,9 +215,10 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
             />
           </div>
 
-          <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: "#555555", marginBottom: 4 }}>
             {`※ ${SESSION_RANGE_QUESTIONS}（衆院・参院）の記録に基づく`}
           </div>
+          <ListNotices sort={false} style={{ marginBottom: 12 }} />
 
           {loading ? (
             <div className="empty-state">読み込み中...</div>
@@ -300,7 +301,7 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
       {/* 統計タブ */}
       {tab === "stats" && (
         <div className="card-xl">
-          <div style={{ fontSize: 10, color: "#aaaaaa", marginBottom: 20 }}>
+          <div style={{ fontSize: 12, color: "#555555", marginBottom: 20 }}>
             {`※ ${SESSION_RANGE_QUESTIONS}（衆院・参院）の記録に基づく`}
           </div>
 
@@ -312,22 +313,23 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
               {/* 政党TOP5（請願件数） */}
               <section style={{ paddingBottom: 32 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#1a1a1a" }}>
-                  紹介に関わった請願が多い政党 TOP5
+                  政党別の紹介請願件数
                 </h2>
-                <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-                  同一請願に複数人いても1件としてカウント
+                <p style={{ fontSize: 12, color: "#555555", marginBottom: 4 }}>
+                  同一請願に複数人いても1件としてカウント。紹介議員の現在の所属で集計し、政党名順に表示しています。
                 </p>
+                <ListNotices sort={false} style={{ marginBottom: 16 }} />
                 {partyTop5.length === 0 ? (
                   <div className="empty-state">データがありません。</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {partyTop5.map(({ party, count }, i) => {
+                    {partyTop5.map(({ party, count }) => {
                       const color = partyColor(party);
-                      const pct = Math.round((count / partyTop5[0].count) * 100);
+                      const pct = Math.round((count / Math.max(1, ...partyTop5.map((x) => x.count))) * 100);
                       return (
                         <div key={party}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{i + 1}. {party}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{party}</span>
                             <span style={{ fontSize: 13, color: "#555555" }}>{count.toLocaleString()}件</span>
                           </div>
                           <div style={{ background: "#f0f0f0", borderRadius: 4, height: 8 }}>
@@ -343,22 +345,22 @@ export default function PetitionsClient({ initialPetitions, initialMemberMap }: 
               {/* 政党TOP5（延べ紹介回数） */}
               <section style={{ paddingTop: 32, paddingBottom: 32, borderTop: "1px solid #e0e0e0" }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#1a1a1a" }}>
-                  延べ紹介回数が多い政党 TOP5
+                  政党別の延べ紹介回数
                 </h2>
-                <p style={{ fontSize: 11, color: "#888888", marginBottom: 16 }}>
-                  同一請願に複数人いればその分カウント
+                <p style={{ fontSize: 12, color: "#555555", marginBottom: 16 }}>
+                  同一請願に複数人いればその分カウント。政党名順に表示しています。
                 </p>
                 {partyIntroducerTop5.length === 0 ? (
                   <div className="empty-state">データがありません。</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {partyIntroducerTop5.map(({ party, count }, i) => {
+                    {partyIntroducerTop5.map(({ party, count }) => {
                       const color = partyColor(party);
-                      const pct = Math.round((count / partyIntroducerTop5[0].count) * 100);
+                      const pct = Math.round((count / Math.max(1, ...partyIntroducerTop5.map((x) => x.count))) * 100);
                       return (
                         <div key={party}>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{i + 1}. {party}</span>
+                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{party}</span>
                             <span style={{ fontSize: 13, color: "#555555" }}>{count.toLocaleString()}回</span>
                           </div>
                           <div style={{ background: "#f0f0f0", borderRadius: 4, height: 8 }}>

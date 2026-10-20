@@ -153,7 +153,7 @@ function buildContext(props: AIAnalysisProps): string {
   if (voteStats && voteStats.total > 0) {
     const pct = (n: number) => `${Math.round((n / voteStats.total) * 100)}%`;
     lines.push(`■ 採決集計（全${voteStats.total}件）`);
-    lines.push(`賛成${voteStats.yea}件（${pct(voteStats.yea)}）/ 反対${voteStats.nay}件（${pct(voteStats.nay)}）/ 欠席${voteStats.absent}件（${pct(voteStats.absent)}）`);
+    lines.push(`賛成${voteStats.yea}件（${pct(voteStats.yea)}）/ 反対${voteStats.nay}件（${pct(voteStats.nay)}）/ 投票なし${voteStats.absent}件（理由は記録されていない）`);
     lines.push("※ 党議拘束により党全体の方針と重なる場合があります");
     lines.push("");
   }

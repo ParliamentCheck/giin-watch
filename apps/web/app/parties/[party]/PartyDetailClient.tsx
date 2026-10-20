@@ -11,11 +11,17 @@ import { PARTY_COLORS, partyShort } from "../../../lib/partyColors";
 import { SESSION_RANGE_BILLS } from "../../../lib/constants";
 import { getPartyStatus } from "../../../lib/partyStatus";
 import { usePagination } from "../../../hooks/usePagination";
+import { compareMembersByReading } from "../../../lib/memberSort";
+import { ListNotices } from "../../components/Notices";
+import { useElectionSafeMode } from "../../components/SiteSettings";
 
 interface Member {
   id: string;
   name: string;
   alias_name: string | null;
+  last_name_reading: string | null;
+  first_name_reading: string | null;
+  cabinet_post: string | null;
   house: string;
   district: string;
   terms: number | null;
@@ -114,12 +120,20 @@ function PartyDetailContent() {
     p.set("tab", t);
     router.replace(`${window.location.pathname}?${p.toString()}`);
   };
-  const sortBy = searchParams.get("sort") ?? "session_count";
+  // 既定は氏名の五十音順（PROJECT_SPEC 5.3）。選挙セーフモード中は並び替えをURLに載せない
+  const safeMode = useElectionSafeMode();
+  const [safeSort, setSafeSort] = useState("name");
+  const sortBy = safeMode ? safeSort : (searchParams.get("sort") ?? "name");
+  const [showCabinet, setShowCabinet] = useState(false);
   const { page: membersPage, setPage: setMembersPage, clearPage } = usePagination();
   const setSortBy = (s: string) => {
-    const p = new URLSearchParams(searchParams.toString());
-    p.set("sort", s);
-    router.replace(`${window.location.pathname}?${p.toString()}`);
+    if (safeMode) {
+      setSafeSort(s);
+    } else {
+      const p = new URLSearchParams(searchParams.toString());
+      p.set("sort", s);
+      router.replace(`${window.location.pathname}?${p.toString()}`);
+    }
     clearPage();
   };
 
@@ -135,7 +149,7 @@ function PartyDetailContent() {
       const [membersRes, allMembersRes, committeeRes, alignmentsRes, electionVotesRes] = await Promise.all([
         supabase
           .from("members")
-          .select("id, name, alias_name, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender, election_type")
+          .select("id, name, alias_name, last_name_reading, first_name_reading, cabinet_post, house, district, terms, speech_count, session_count, question_count, bill_count, petition_count, gender, election_type")
           .eq("party", party)
           .eq("is_active", true)
           .limit(2000),
@@ -243,7 +257,7 @@ function PartyDetailContent() {
             supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch),
             supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch).eq("vote", "賛成"),
             supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch).eq("vote", "反対"),
-            supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch).eq("vote", "欠席"),
+            supabase.from("votes").select("id", { count: "exact", head: true }).in("member_id", batch).in("vote", ["投票なし", "欠席"]),
           ]);
           total  += t.count ?? 0;
           yes    += y.count ?? 0;
@@ -340,13 +354,18 @@ function PartyDetailContent() {
   const totalPetitions = members.reduce((s, m) => s + (m.petition_count || 0), 0);
   const totalRoles     = chairs.length;
 
-  const sorted = [...members].sort((a, b) => {
+  // 件数で並べるときは閣僚等を初期非表示（PROJECT_SPEC 5.3）
+  const cabinetHideApplies = sortBy !== "name";
+  const hiddenCabinetCount = cabinetHideApplies && !showCabinet ? members.filter((m) => m.cabinet_post).length : 0;
+  const listMembers = hiddenCabinetCount > 0 ? members.filter((m) => !m.cabinet_post) : members;
+
+  const sorted = [...listMembers].sort((a, b) => {
     if (sortBy === "session_count")  return (b.session_count  || 0) - (a.session_count  || 0);
     if (sortBy === "question_count") return (b.question_count || 0) - (a.question_count || 0);
     if (sortBy === "bill_count")     return (b.bill_count     || 0) - (a.bill_count     || 0);
     if (sortBy === "petition_count") return (b.petition_count || 0) - (a.petition_count || 0);
     if (sortBy === "terms")          return (b.terms          || 0) - (a.terms          || 0);
-    return a.name.localeCompare(b.name);
+    return compareMembersByReading(a, b);
   });
 
   const chairList  = chairs.filter((c) => c.role === "委員長" || c.role === "会長");
@@ -475,7 +494,6 @@ function PartyDetailContent() {
                 {[
                   { label: "賛成率", value: voteStats && voteStats.total > 0 ? (voteStats.yes    / voteStats.total * 100).toFixed(1) : null, unit: "%" },
                   { label: "反対率", value: voteStats && voteStats.total > 0 ? (voteStats.no     / voteStats.total * 100).toFixed(1) : null, unit: "%" },
-                  { label: "欠席率", value: voteStats && voteStats.total > 0 ? (voteStats.absent / voteStats.total * 100).toFixed(1) : null, unit: "%" },
                 ].map((s) => (
                   <div key={s.label}>
                     <div style={{ fontSize: 20, fontWeight: 800, color: "#333333", marginBottom: 2 }}>
@@ -519,12 +537,12 @@ function PartyDetailContent() {
           </div>
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
             {[
+              { value: "name",           label: "名前順" },
               { value: "session_count",  label: "発言順" },
               { value: "question_count", label: "質問主意書順" },
               { value: "bill_count",     label: "議員立法順" },
               { value: "petition_count", label: "請願順" },
               { value: "terms",          label: "当選回数順" },
-              { value: "name",           label: "名前順" },
             ].map((s) => (
               <button key={s.value} onClick={() => setSortBy(s.value)}
                 style={{ background: sortBy === s.value ? color + "33" : "#e0e0e0",
@@ -535,6 +553,19 @@ function PartyDetailContent() {
               </button>
             ))}
           </div>
+          <ListNotices style={{ marginBottom: 8 }} />
+          {cabinetHideApplies && (hiddenCabinetCount > 0 || showCabinet) && (
+            <div style={{ marginBottom: 12, fontSize: 12, color: "#555555" }}>
+              {showCabinet
+                ? "閣僚等（大臣・副大臣・政務官等）を表示しています。"
+                : `閣僚等（大臣・副大臣・政務官等）${hiddenCabinetCount}名を非表示にしています。`}
+              <button
+                onClick={() => setShowCabinet((v) => !v)}
+                style={{ marginLeft: 8, fontSize: 12, color: "#333333", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+                {showCabinet ? "非表示にする" : "表示する"}
+              </button>
+            </div>
+          )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {sorted.slice((membersPage - 1) * PAGE_SIZE, membersPage * PAGE_SIZE).map((m) => (
@@ -965,9 +996,8 @@ function PartyDetailContent() {
         if (voteStats && voteStats.total > 0) {
           const yesRate   = (voteStats.yes    / voteStats.total * 100).toFixed(1);
           const noRate    = (voteStats.no     / voteStats.total * 100).toFixed(1);
-          const absentRate = (voteStats.absent / voteStats.total * 100).toFixed(1);
           lines.push(`■ 本会議採決記録（参議院・${SESSION_RANGE_BILLS}）`);
-          lines.push(`賛成率: ${yesRate}% / 反対率: ${noRate}% / 欠席率: ${absentRate}%`);
+          lines.push(`賛成率: ${yesRate}% / 反対率: ${noRate}%（「投票なし」は理由が記録されていないため率を算出しない）`);
           lines.push("※ 採決データは党議拘束の影響を受けるため、個別議員の意思を完全には反映しません。");
           lines.push("");
         }
