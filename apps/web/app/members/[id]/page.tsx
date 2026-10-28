@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { supabaseServer as supabase } from "../../../lib/supabase-server";
 import type { Member } from "../../../lib/types";
+import { notFound } from "next/navigation";
+import { getFactionHistory } from "../../../lib/queries";
 import MemberDetailClient from "./MemberDetailClient";
 
 export const revalidate = 3600;
@@ -10,7 +12,7 @@ type Props = { params: Promise<{ id: string }> };
 async function getMember(memberId: string): Promise<Member | null> {
   const { data } = await supabase
     .from("members")
-    .select("id, name, alias_name, last_name, first_name, last_name_reading, first_name_reading, party, faction, house, district, terms, is_active, session_count, question_count, bill_count, petition_count, cabinet_post, source_url")
+    .select("id, name, alias_name, last_name, first_name, last_name_reading, first_name_reading, faction, faction_short, house, district, terms, is_active, session_count, question_count, bill_count, petition_count, cabinet_post, source_url, election_type")
     .eq("id", memberId)
     .single();
   return data as Member | null;
@@ -39,7 +41,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!data) return { title: "議員詳細" };
 
   const isFormer = !data.is_active;
-  const parts = [data.party, data.house, data.district, data.terms ? `${data.terms}期` : null, data.cabinet_post].filter(Boolean);
+  // 前議員の会派は信頼できる値がないため出さない
+  const parts = [isFormer ? null : data.faction, data.house, data.district, data.terms ? `${data.terms}期` : null, data.cabinet_post].filter(Boolean);
   const stats = [
     data.session_count  ? `発言セッション数${data.session_count}回`  : null,
     data.question_count ? `質問主意書${data.question_count}件`        : null,
@@ -70,16 +73,20 @@ async function getInitialCounts(memberId: string) {
 export default async function MemberDetailPage({ params }: Props) {
   const { id } = await params;
   const memberId = decodeURIComponent(id);
-  const [member, globalMax, initialCounts] = await Promise.all([getMember(memberId), getGlobalMax(), getInitialCounts(memberId)]);
+  const [member, globalMax, initialCounts, factionHistory] = await Promise.all([
+    getMember(memberId), getGlobalMax(), getInitialCounts(memberId),
+    getFactionHistory(supabase, [memberId]).catch(() => null),
+  ]);
+  if (!member) notFound();
 
   const jsonLd = member ? {
     "@context": "https://schema.org",
     "@type": "Person",
     "name": member.alias_name ?? member.name,
     "jobTitle": member.is_active ? (member.cabinet_post || (member.house === "衆議院" ? "衆議院議員" : "参議院議員")) : `元${member.house === "衆議院" ? "衆議院議員" : "参議院議員"}`,
-    "affiliation": { "@type": "Organization", "name": member.party },
+    ...(member.is_active && member.faction ? { "memberOf": { "@type": "Organization", "name": member.faction } } : {}),
     "url": `https://www.hataraku-giin.com/members/${encodeURIComponent(memberId)}`,
-    "description": `${member.name}（${member.party}・${member.house}・${member.district}${member.terms ? `・${member.terms}期` : ""}）。発言セッション数${member.session_count ?? 0}回、質問主意書${member.question_count ?? 0}件、議員立法${member.bill_count ?? 0}件、請願${member.petition_count ?? 0}件。`,
+    "description": `${member.name}（${[member.is_active ? member.faction : null, member.house, member.district, member.terms ? `${member.terms}期` : null].filter(Boolean).join("・")}）。発言セッション数${member.session_count ?? 0}回、質問主意書${member.question_count ?? 0}件、議員立法${member.bill_count ?? 0}件、請願${member.petition_count ?? 0}件。`,
   } : null;
 
   return (
@@ -90,7 +97,7 @@ export default async function MemberDetailPage({ params }: Props) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <MemberDetailClient initialMember={member} initialGlobalMax={globalMax} initialCommitteeCount={initialCounts.committeeCount} initialVoteCount={initialCounts.voteCount} />
+      <MemberDetailClient initialMember={member} initialGlobalMax={globalMax} initialCommitteeCount={initialCounts.committeeCount} initialVoteCount={initialCounts.voteCount} initialFactionHistory={factionHistory} />
     </>
   );
 }

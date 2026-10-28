@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import type { Member } from "../lib/types";
-import { partyColor } from "../lib/partyColors";
+import { factionColor } from "../lib/factions";
 
-type Props = Pick<Member, "id" | "name" | "alias_name" | "party" | "is_active">;
+type Props = {
+  id: string;
+  name: string;
+  alias_name: string | null;
+  /** 現在の会派（正式名）。前議員は色を付けない */
+  faction?: string | null;
+  is_active: boolean;
+};
 
-export default function MemberChip({ id, name, alias_name, party, is_active }: Props) {
+export default function MemberChip({ id, name, alias_name, faction, is_active }: Props) {
   const displayName = alias_name ?? name;
-  const color = is_active ? partyColor(party) : "#aaaaaa";
+  const color = is_active ? factionColor(faction) : "#888888";
   return (
     <Link
       href={`/members/${encodeURIComponent(id)}`}

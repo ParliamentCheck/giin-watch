@@ -7,7 +7,7 @@ import type { QuestionListItem } from "../../lib/types";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
-import { partyColor } from "../../lib/partyColors";
+import { factionColor } from "../../lib/factions";
 import { SESSION_RANGE_QUESTIONS } from "../../lib/constants";
 import { ListNotices } from "../components/Notices";
 
@@ -74,18 +74,27 @@ export default function QuestionsClient({ initialQuestions }: Props) {
 
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // 統計: 政党別件数（順位は付けず政党名順に並べる。議員別の順位表示は行わない）
-  const partyCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
+  // 統計: 院別・提出時の会派別の件数（会派名順。順位は付けない。議員別の順位表示は行わない）
+  const factionStats = useMemo(() => {
+    const out: Record<"衆" | "参", { counts: Record<string, number>; undetermined: number; total: number }> = {
+      "衆": { counts: {}, undetermined: 0, total: 0 },
+      "参": { counts: {}, undetermined: 0, total: 0 },
+    };
     for (const q of questions) {
-      const party = q.members?.party;
-      if (party) counts[party] = (counts[party] ?? 0) + 1;
+      const bucket = out[q.house];
+      bucket.total++;
+      if (q.faction_at) bucket.counts[q.faction_at] = (bucket.counts[q.faction_at] ?? 0) + 1;
+      else bucket.undetermined++;
     }
-    return Object.entries(counts)
-      .sort((a, b) => a[0].localeCompare(b[0], "ja"))
-      .map(([party, count]) => ({ party, count }));
+    return (["衆", "参"] as const).map((house) => ({
+      house,
+      total: out[house].total,
+      undetermined: out[house].undetermined,
+      rows: Object.entries(out[house].counts)
+        .sort((a, b) => a[0].localeCompare(b[0], "ja"))
+        .map(([faction, count]) => ({ faction, count })),
+    }));
   }, [questions]);
-  const partyMax = Math.max(1, ...partyCounts.map((p) => p.count));
 
   return (
     <main style={{ maxWidth: 960, margin: "0 auto", padding: "24px 16px" }}>
@@ -186,7 +195,7 @@ export default function QuestionsClient({ initialQuestions }: Props) {
                         id={q.member_id}
                         name={q.members.name}
                         alias_name={q.members.alias_name}
-                        party={q.members.party}
+                        faction={q.members.faction}
                         is_active={q.members.is_active}
                       />
                     )}
@@ -217,36 +226,52 @@ export default function QuestionsClient({ initialQuestions }: Props) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
 
-              {/* 政党別件数（政党名順） */}
+              {/* 院別・提出時の会派別の件数（会派名順） */}
               <section style={{ paddingBottom: 8 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "#1a1a1a" }}>
-                  政党別の提出件数
+                  提出時の会派別の提出件数
                 </h2>
-                <p style={{ fontSize: 12, color: "#555555", marginBottom: 4 }}>
-                  衆院・参院合計（提出者の現在の所属で集計）。政党名順に表示しています。
+                <p style={{ fontSize: 12, color: "#555555", marginBottom: 4, lineHeight: 1.7 }}>
+                  提出者の会派は、提出日の時点の会派を当サイトの会派の記録（国会会議録の発言時点の会派と、議員名簿）から求めています。
+                  提出日の前後の記録がともに同じ会派である場合にだけその会派として数え、確定できない提出は「会派を確定できない」に含めています。
+                  会派は院ごとの組織のため、衆院・参院を分けて会派名順に表示しています。
                 </p>
                 <ListNotices sort={false} style={{ marginBottom: 16 }} />
-                {partyCounts.length === 0 ? (
-                  <div className="empty-state">データがありません。</div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {partyCounts.map(({ party, count }) => {
-                      const color = partyColor(party);
-                      const pct = Math.round((count / partyMax) * 100);
-                      return (
-                        <div key={party}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{party}</span>
-                            <span style={{ fontSize: 13, color: "#555555" }}>{count.toLocaleString()}件</span>
-                          </div>
-                          <div style={{ background: "#f0f0f0", borderRadius: 4, height: 8 }}>
-                            <div style={{ width: `${pct}%`, background: color, borderRadius: 4, height: 8 }} />
-                          </div>
+                {factionStats.map(({ house, total, undetermined, rows }) => {
+                  const max = Math.max(1, ...rows.map((r) => r.count));
+                  return (
+                    <div key={house} style={{ marginBottom: 24 }}>
+                      <h3 style={{ fontSize: 14, fontWeight: 700, color: "#333333", margin: "0 0 10px" }}>
+                        {house === "衆" ? "衆議院" : "参議院"}（{total.toLocaleString()}件）
+                      </h3>
+                      {rows.length === 0 ? (
+                        <div className="empty-state">提出時の会派を確定できた提出はありません。</div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {rows.map(({ faction, count }) => {
+                            const color = factionColor(faction);
+                            return (
+                              <div key={faction}>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>
+                                    <span style={{ color, marginRight: 6 }}>●</span>{faction}
+                                  </span>
+                                  <span style={{ fontSize: 13, color: "#555555" }}>{count.toLocaleString()}件</span>
+                                </div>
+                                <div style={{ background: "#f0f0f0", borderRadius: 4, height: 8 }}>
+                                  <div style={{ width: `${Math.round((count / max) * 100)}%`, background: color, borderRadius: 4, height: 8 }} />
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      )}
+                      <p style={{ fontSize: 12, color: "#555555", marginTop: 8 }}>
+                        会派を確定できない提出: {undetermined.toLocaleString()}件
+                      </p>
+                    </div>
+                  );
+                })}
               </section>
 
             </div>

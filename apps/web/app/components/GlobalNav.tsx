@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 const NAV_ITEMS = [
   { label: "議員一覧",     path: "/members" },
   { label: "内閣",         path: "/cabinet" },
-  { label: "政党",         path: "/parties" },
+  { label: "会派",         path: "/factions" },
   { label: "委員会",       path: "/committees" },
   { label: "法案",         path: "/bills" },
   { label: "質問",         path: "/questions" },

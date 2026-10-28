@@ -7,10 +7,10 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "内閣一覧",
-  description: "現在の閣僚・副大臣・政務官の一覧と所属政党。",
+  description: "現在の閣僚・副大臣・政務官の一覧と所属会派。",
   openGraph: {
     title: "内閣一覧 | はたらく議員",
-    description: "現在の閣僚・副大臣・政務官の一覧と所属政党。",
+    description: "現在の閣僚・副大臣・政務官の一覧と所属会派。",
   },
   alternates: { canonical: "https://www.hataraku-giin.com/cabinet" },
 };

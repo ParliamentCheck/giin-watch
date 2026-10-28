@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import fs from "fs";
 import path from "path";
-import { PARTY_COLORS } from "../../../lib/partyColors";
+import { factionColor } from "../../../lib/factions";
 
 export const runtime = "nodejs";
 export const alt = "議員詳細";
@@ -19,13 +19,13 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY || "";
 
   const res = await fetch(
-    `${supabaseUrl}/rest/v1/members?id=eq.${encodeURIComponent(memberId)}&select=name,alias_name,party,house,district,session_count,question_count,bill_count,petition_count,cabinet_post,is_active`,
+    `${supabaseUrl}/rest/v1/members?id=eq.${encodeURIComponent(memberId)}&select=name,alias_name,faction,house,district,session_count,question_count,bill_count,petition_count,cabinet_post,is_active`,
     { headers: { apikey: supabaseKey } }
   );
   const [member] = await res.json();
   if (!member) return new Response("Not found", { status: 404 });
 
-  const color = PARTY_COLORS[member.party] || "#7f8c8d";
+  const color = member.is_active ? factionColor(member.faction) : "#7f8c8d";
 
   const stats = [
     { label: "発言セッション", value: (member.session_count ?? 0).toLocaleString(), unit: "回" },
@@ -61,13 +61,15 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <span style={{
-                background: color, color: "#fff",
-                fontSize: 26, fontWeight: 700,
-                padding: "6px 18px", borderRadius: 8,
-              }}>
-                {member.party}
-              </span>
+              {member.is_active && member.faction ? (
+                <span style={{
+                  background: color, color: "#fff",
+                  fontSize: 26, fontWeight: 700,
+                  padding: "6px 18px", borderRadius: 8,
+                }}>
+                  {member.faction}
+                </span>
+              ) : null}
               <span style={{ fontSize: 28, color: "#555" }}>
                 {member.house} · {member.district}
               </span>

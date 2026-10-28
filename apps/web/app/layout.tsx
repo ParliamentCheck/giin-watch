@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: { default: "はたらく議員", template: "%s | はたらく議員" },
   description: "衆議院・参議院の全議員の発言・質問主意書・委員会活動・議員立法・採決をデータで可視化。毎日自動更新。",
-  keywords: ["国会議員", "議員活動", "衆議院", "参議院", "質問主意書", "委員会", "議員立法", "採決", "政党", "国会"],
+  keywords: ["国会議員", "議員活動", "衆議院", "参議院", "質問主意書", "委員会", "議員立法", "採決", "会派", "国会"],
   applicationName: "はたらく議員",
   authors: [{ name: "はたらく議員" }],
   openGraph: {

@@ -3,22 +3,25 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
-import { getBillsByType, getAllMembers } from "../../lib/queries";
+import { getBillsByType, getAllMembers, getFactionHistory } from "../../lib/queries";
 import type { Bill, Member } from "../../lib/types";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import MemberChip from "../../components/MemberChip";
-import { PARTY_COLORS, partyShort } from "../../lib/partyColors";
+import { buildFactionAt, factionColor } from "../../lib/factions";
 import { ListNotices } from "../components/Notices";
 
-interface PairStat {
-  a: string;
-  b: string;
-  count: number;
-}
+// 会派の数に含めない（会派に属さない議員）
+const NON_FACTIONS = new Set(["無所属", "各派に属しない議員"]);
 
-// 中道改革連合の正式結成日。これ以前の法案は前所属政党として集計する
-const CHUDO_FORMATION_DATE = "2026-01-16";
+interface NetworkData {
+  factions: string[];
+  matrix: Record<string, Record<string, number>>;
+  bills: number;          // 衆議院の議員立法の件数
+  datedBills: number;     // うち提出日の記録がある件数
+  submitters: number;     // 提出日の記録がある法案の提出者（延べ）
+  determined: number;     // うち提出時の会派を確定できた提出者（延べ）
+}
 
 type StatusCategory = "成立" | "廃案" | "閉会中審査" | "審議中";
 
@@ -29,12 +32,6 @@ function classifyStatus(status: string | null): StatusCategory {
   return "審議中"; // null・空・審議中 など
 }
 
-function getEffectiveParty(m: Member, billDate: string | null): string {
-  if (m.party === "中道改革連合" && m.prev_party && (!billDate || billDate < CHUDO_FORMATION_DATE)) {
-    return m.prev_party;
-  }
-  return m.party;
-}
 
 
 function heatmapBg(count: number, max: number): string {
@@ -139,18 +136,21 @@ export default function BillsClient() {
   }
 
   // ネットワークタブ用
-  const [matrixParties, setMatrixParties] = useState<string[]>([]);
-  const [matrix, setMatrix] = useState<Record<string, Record<string, number>>>({});
+  const [network, setNetwork] = useState<NetworkData | null>(null);
+  const [historyError, setHistoryError] = useState(false);
+  // 法案ID → 提出時の会派を確定できた会派（会派に属さない議員を除く）
+  const [billFactions, setBillFactions] = useState<Record<string, Set<string>>>({});
   const [networkLoading, setNetworkLoading] = useState(true);
   const [selectedPair, setSelectedPair] = useState<{ a: string; b: string } | null>(null);
 
   useEffect(() => {
     async function fetchData() {
-      const [memberBillsData, cabinetBillsData, committeeBillsData, membersData] = await Promise.all([
+      const [memberBillsData, cabinetBillsData, committeeBillsData, membersData, historyData] = await Promise.all([
         getBillsByType("議員立法"),
         getBillsByType("閣法"),
         getBillsByType("委員会提出"),
         getAllMembers(),
+        getFactionHistory().catch(() => null),
       ]);
 
       const bills = [...memberBillsData, ...cabinetBillsData, ...committeeBillsData];
@@ -161,41 +161,50 @@ export default function BillsClient() {
       setMemberMap(map);
       setLoading(false);
 
-      // ネットワーク計算（法案ごとに提出日ベースで政党を判定）
+      // 会派ネットワーク（衆議院の議員立法のみ）
+      // 提出者の会派は「提出日の時点の会派」を会派の記録から求め、確定できない提出者は数えない（推測しない）。
+      // 会派は院ごとの組織のため院をまたいで集計しない。参議院の議員立法は当サイトでは筆頭の発議者のみ記録しているため対象外。
+      if (historyData === null) {
+        setHistoryError(true);
+        setNetworkLoading(false);
+        return;
+      }
+      const factionAt = buildFactionAt(historyData);
+      const perBill: Record<string, Set<string>> = {};
       const pairCount: Record<string, number> = {};
-      for (const bill of bills) {
-        const ids = ((bill.submitter_ids || []) as string[]).filter((id) => map[id]);
-        const billParties = [...new Set(ids.map((id) => getEffectiveParty(map[id], bill.submitted_at)))];
-        if (billParties.length < 2) continue;
-        for (let i = 0; i < billParties.length; i++) {
-          for (let j = i + 1; j < billParties.length; j++) {
-            const key = [billParties[i], billParties[j]].sort().join("|");
+      const net: NetworkData = { factions: [], matrix: {}, bills: 0, datedBills: 0, submitters: 0, determined: 0 };
+      for (const bill of memberBillsData) {
+        if (bill.house !== "衆議院") continue;
+        net.bills++;
+        if (!bill.submitted_at) continue;
+        net.datedBills++;
+        const fs = new Set<string>();
+        for (const id of (bill.submitter_ids || []) as string[]) {
+          net.submitters++;
+          const f = factionAt(id, bill.submitted_at);
+          if (!f) continue;
+          net.determined++;
+          if (!NON_FACTIONS.has(f)) fs.add(f);
+        }
+        perBill[bill.id] = fs;
+        const list = [...fs].sort((a, b) => a.localeCompare(b, "ja"));
+        for (let x = 0; x < list.length; x++) {
+          for (let y = x + 1; y < list.length; y++) {
+            const key = `${list[x]}|${list[y]}`;
             pairCount[key] = (pairCount[key] || 0) + 1;
           }
         }
       }
-
-      const pairs: PairStat[] = Object.entries(pairCount)
-        .map(([key, count]) => { const [a, b] = key.split("|"); return { a, b, count }; });
-
-      const partyVolume: Record<string, number> = {};
-      for (const { a, b, count } of pairs) {
-        partyVolume[a] = (partyVolume[a] || 0) + count;
-        partyVolume[b] = (partyVolume[b] || 0) + count;
+      const names = new Set<string>();
+      for (const key of Object.keys(pairCount)) key.split("|").forEach((n) => names.add(n));
+      net.factions = [...names].sort((a, b) => a.localeCompare(b, "ja"));
+      for (const a of net.factions) { net.matrix[a] = {}; for (const b of net.factions) net.matrix[a][b] = 0; }
+      for (const [key, count] of Object.entries(pairCount)) {
+        const [a, b] = key.split("|");
+        net.matrix[a][b] = count; net.matrix[b][a] = count;
       }
-      const dynParties = Object.entries(partyVolume)
-        .sort((x, y) => y[1] - x[1])
-        .slice(0, 8)
-        .map(([p]) => p);
-      setMatrixParties(dynParties);
-
-      const mat: Record<string, Record<string, number>> = {};
-      for (const p of dynParties) { mat[p] = {}; for (const q of dynParties) mat[p][q] = 0; }
-      for (const { a, b, count } of pairs) {
-        if (mat[a]?.[b] !== undefined) mat[a][b] = count;
-        if (mat[b]?.[a] !== undefined) mat[b][a] = count;
-      }
-      setMatrix(mat);
+      setBillFactions(perBill);
+      setNetwork(net);
       setNetworkLoading(false);
     }
     fetchData();
@@ -258,6 +267,8 @@ export default function BillsClient() {
   const rateBase = statusCounts.成立 + statusCounts.廃案;
   const passRate = rateBase > 0 ? (statusCounts.成立 / rateBase * 100).toFixed(1) : null;
 
+  const matrix = network?.matrix ?? {};
+  const matrixFactions = network?.factions ?? [];
   const maxCount = Math.max(
     1,
     ...Object.values(matrix).flatMap((row) => Object.values(row))
@@ -266,7 +277,7 @@ export default function BillsClient() {
   return (
     <div style={{
       minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
-      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px",
+      padding: "24px",
     }}>
       <div style={{ maxWidth: 960, margin: "0 auto" }}>
 
@@ -300,7 +311,7 @@ export default function BillsClient() {
                 <div className="tab-bar-container" style={{ marginBottom: 16 }}>
                   {([
                     { id: "list",    label: "法案一覧" },
-                    { id: "network", label: "🤝 政党ネットワーク" },
+                    { id: "network", label: "🤝 会派ネットワーク" },
                   ] as const).map((tab) => (
                     <button key={tab.id} onClick={() => setMemberSubTab(tab.id)}
                       style={{ flex: 1, padding: "8px 0", fontSize: 13 }}
@@ -403,7 +414,7 @@ export default function BillsClient() {
                           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                             {b.submitter_ids.map((id) => {
                               const m = memberMap[id];
-                              if (m) return <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} party={m.party} is_active={m.is_active} />;
+                              if (m) return <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} faction={m.faction} is_active={m.is_active} />;
                               const name = id.split("-").slice(1).join("-");
                               return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                             })}
@@ -422,7 +433,7 @@ export default function BillsClient() {
               </div>
             )}
 
-            {/* 政党ネットワーク */}
+            {/* 会派ネットワーク */}
             {memberSubTab === "network" && (
               <>
                 <div className="card-xl">
@@ -430,7 +441,7 @@ export default function BillsClient() {
                   <div className="tab-bar-container" style={{ marginBottom: 16 }}>
                     {([
                       { id: "list",    label: "法案一覧" },
-                      { id: "network", label: "🤝 政党ネットワーク" },
+                      { id: "network", label: "🤝 会派ネットワーク" },
                     ] as const).map((tab) => (
                       <button key={tab.id} onClick={() => setMemberSubTab(tab.id)}
                         style={{ flex: 1, padding: "8px 0", fontSize: 13 }}
@@ -440,62 +451,76 @@ export default function BillsClient() {
                     ))}
                   </div>
                   <p style={{ fontSize: 13, color: "#555555", marginBottom: 12, lineHeight: 1.7 }}>
-                    議員立法（議員提出法案）を共同提出した回数を、政党ペア別に集計しています。
+                    衆議院の議員立法（議員提出法案）を、提出者の会派の組み合わせ別に数えています。
+                    提出者の会派は<strong>法案を提出した日の時点の会派</strong>です（現在の会派ではありません）。
                   </p>
-                  <p style={{ fontSize: 12, color: "#555555", marginBottom: 8 }}>
-                    ※中道改革連合は前所属政党（公明党・立憲民主党）に分類して集計。
-                  </p>
-                  <p style={{ fontSize: 12, color: "#555555", marginBottom: 8 }}>
-                    ※閣法（内閣提出法案）はこの集計に含まれません。このマトリックスは国会活動の全体量を比較するものではありません。
-                  </p>
-                  <ListNotices sort={false} style={{ marginBottom: 20 }} />
+                  <ul style={{ fontSize: 12, color: "#555555", margin: "0 0 12px", paddingLeft: 18, lineHeight: 1.8 }}>
+                    <li>提出日の会派は、国会会議録の発言時点の会派と議員名簿の記録から求めています。前後の記録が同じ会派の場合のみ会派を確定し、確定できない提出者は数えていません。</li>
+                    <li>提出日の記録がない法案は対象外です。無所属・各派に属しない議員は会派の組み合わせに含めていません。</li>
+                    <li>参議院の議員立法は、当サイトでは筆頭の発議者のみを記録しているため対象外です。</li>
+                    <li>閣法（内閣提出法案）は含みません。国会活動の全体量を比べるものではありません。</li>
+                  </ul>
+                  <ListNotices sort={false} style={{ marginBottom: 16 }} />
 
                   {networkLoading ? (
                     <div className="loading-block">
                       <div className="loading-spinner" />
                       <span>データを集計しています...</span>
                     </div>
+                  ) : historyError || !network ? (
+                    <p style={{ fontSize: 13, color: "#555555", margin: 0 }}>会派の記録を取得できませんでした。時間をおいて再度お試しください。</p>
                   ) : (
-                    <p style={{ fontSize: 13, color: "#555555", margin: 0 }}>
-                      政党ペアごとの件数は下の「政党間マトリックス」で確認できます。
-                    </p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {[
+                        { label: "衆議院の議員立法", value: `${network.bills.toLocaleString()}件` },
+                        { label: "うち提出日の記録あり", value: `${network.datedBills.toLocaleString()}件` },
+                        { label: "提出時の会派を確定できた提出者", value: `${network.determined.toLocaleString()} / ${network.submitters.toLocaleString()}人（延べ）` },
+                      ].map((c) => (
+                        <div key={c.label} style={{ flex: "1 1 180px", background: "#f4f4f4", borderRadius: 8, padding: "8px 12px" }}>
+                          <div style={{ fontSize: 15, fontWeight: 800, color: "#333333" }}>{c.value}</div>
+                          <div style={{ fontSize: 11, color: "#555555" }}>{c.label}</div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
                 {/* マトリックス */}
-                {!networkLoading && (
+                {!networkLoading && network && (
                   <div className="card-xl" style={{ marginTop: 16 }}>
                     <h2 style={{ fontSize: 15, fontWeight: 700, color: "#333333", marginBottom: 6 }}>
-                      政党間マトリックス
+                      会派の組み合わせ（衆議院）
                     </h2>
-                    <p style={{ fontSize: 11, color: "#aaaaaa", marginBottom: 12 }}>
-                      数字は共同提出した議員立法の件数。色が濃いほど件数が多い。セルをクリックで法案一覧を表示。
+                    <p style={{ fontSize: 11, color: "#555555", marginBottom: 12 }}>
+                      数字は、その2つの会派の議員がともに提出者に入っている議員立法の件数。色が濃いほど件数が多い。セルを選ぶと法案の一覧を表示します。並び順は会派名の順です。
                     </p>
+                    {matrixFactions.length === 0 ? (
+                      <p style={{ fontSize: 13, color: "#555555", margin: 0 }}>該当する法案はありません（0件）。</p>
+                    ) : (
                     <div style={{ overflowX: "auto" }}>
-                      <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth: 420, width: "100%" }}>
+                      <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth: 420 }}>
                         <thead>
                           <tr>
-                            <th style={{ width: 44, padding: "6px 4px", position: "sticky", left: 0, background: "#ffffff", zIndex: 2 }} />
-                            {matrixParties.map((p) => (
-                              <th key={p} style={{ padding: "6px 4px", textAlign: "center",
-                                fontWeight: 700, color: PARTY_COLORS[p] || "#555",
-                                fontSize: 12, whiteSpace: "nowrap", minWidth: 48,
-                                position: "sticky", top: 0, background: "#ffffff", zIndex: 1 }}>
-                                {partyShort(p)}
+                            <th style={{ padding: "6px 4px", position: "sticky", left: 0, background: "#ffffff", zIndex: 2 }} />
+                            {matrixFactions.map((f) => (
+                              <th key={f} scope="col" style={{ padding: "6px 4px", fontWeight: 700, color: "#333333", fontSize: 11,
+                                minWidth: 36, background: "#ffffff", borderBottom: `3px solid ${factionColor(f)}`,
+                                writingMode: "vertical-rl", whiteSpace: "nowrap", textAlign: "end", letterSpacing: 1 }}>
+                                {f}
                               </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {matrixParties.map((row) => (
+                          {matrixFactions.map((row) => (
                             <tr key={row}>
-                              <td style={{ padding: "6px 6px", fontWeight: 700,
-                                color: PARTY_COLORS[row] || "#555", fontSize: 12,
-                                whiteSpace: "nowrap", textAlign: "right",
+                              <th scope="row" style={{ padding: "6px 8px", fontWeight: 700,
+                                color: "#333333", fontSize: 12, textAlign: "right", whiteSpace: "nowrap",
+                                borderLeft: `3px solid ${factionColor(row)}`,
                                 position: "sticky", left: 0, background: "#ffffff", zIndex: 1 }}>
-                                {partyShort(row)}
-                              </td>
-                              {matrixParties.map((col) => {
+                                {row}
+                              </th>
+                              {matrixFactions.map((col) => {
                                 const same = row === col;
                                 const count = same ? 0 : (matrix[row]?.[col] || 0);
                                 const isSelected = selectedPair &&
@@ -508,13 +533,13 @@ export default function BillsClient() {
                                       if (isSelected) { setSelectedPair(null); return; }
                                       setSelectedPair({ a: row, b: col });
                                     }}
+                                    title={same ? undefined : `${row} × ${col}: ${count}件`}
                                     style={{
-                                      padding: "8px 4px", textAlign: "center",
+                                      padding: "8px 4px", textAlign: "center", minWidth: 36,
                                       background: isSelected ? "#1a1a1a" : same ? "#eeeeee" : heatmapBg(count, maxCount),
                                       color: isSelected ? "#ffffff" : same ? "#cccccc" : heatmapText(count, maxCount),
                                       fontWeight: count > 0 ? 700 : 400,
                                       border: isSelected ? "2px solid #1a1a1a" : "1px solid #eeeeee",
-                                      borderRadius: 4,
                                       cursor: count > 0 && !same ? "pointer" : "default",
                                     }}>
                                     {same ? "—" : count > 0 ? count : ""}
@@ -526,32 +551,33 @@ export default function BillsClient() {
                         </tbody>
                       </table>
                     </div>
+                    )}
                   </div>
                 )}
 
                 {/* ドリルダウン */}
                 {selectedPair && (() => {
                   const { a, b } = selectedPair;
-                  const pairBills = bills.filter((bill) => {
-                    const ids = (bill.submitter_ids || []).filter((id) => memberMap[id]);
-                    const parties = new Set(ids.map((id) => getEffectiveParty(memberMap[id], bill.submitted_at)));
-                    return parties.has(a) && parties.has(b);
+                  const pairBills = memberBills.filter((bill) => {
+                    const fs = billFactions[bill.id];
+                    return !!fs && fs.has(a) && fs.has(b);
                   });
-                  const colorA = PARTY_COLORS[a] || "#7f8c8d";
-                  const colorB = PARTY_COLORS[b] || "#7f8c8d";
                   return (
                     <div className="card-xl" style={{ marginTop: 16 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: colorA }}>{a}</span>
-                        <span style={{ color: "#aaaaaa" }}>×</span>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: colorB }}>{b}</span>
-                        <span style={{ fontSize: 13, color: "#888888" }}>の共同提出法案（{pairBills.length}件）</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", borderLeft: `3px solid ${factionColor(a)}`, paddingLeft: 6 }}>{a}</span>
+                        <span style={{ color: "#888888" }}>×</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", borderLeft: `3px solid ${factionColor(b)}`, paddingLeft: 6 }}>{b}</span>
+                        <span style={{ fontSize: 13, color: "#555555" }}>（{pairBills.length}件）</span>
                         <button onClick={() => setSelectedPair(null)}
-                          style={{ marginLeft: "auto", fontSize: 12, color: "#888888", background: "none",
+                          style={{ marginLeft: "auto", fontSize: 12, color: "#555555", background: "none",
                             border: "1px solid #dddddd", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>
                           閉じる
                         </button>
                       </div>
+                      <p style={{ fontSize: 11, color: "#555555", margin: "0 0 12px" }}>
+                        会派は提出日の時点のものです。下の議員名の色は現在の会派を表します。
+                      </p>
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         {pairBills.map((b) => (
                           <div key={b.id} className="card" style={{ padding: "14px 18px" }}>
@@ -559,10 +585,10 @@ export default function BillsClient() {
                               <span style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a" }}>{b.title}</span>
                             </div>
                             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: "#555555", marginBottom: 6 }}>
-                              {b.submitted_at && <span>{b.submitted_at}</span>}
+                              {b.submitted_at && <span>{b.submitted_at} 提出</span>}
                               {b.session_number && <span>第{b.session_number}回国会</span>}
                               {b.house && <span className="badge badge-house">{b.house}</span>}
-                              {b.status && <span style={{ color: "#888888" }}>{b.status}</span>}
+                              {b.status && <span style={{ color: "#555555" }}>{b.status}</span>}
                               {b.honbun_url && <a href={b.honbun_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>本文↗</a>}
                               {b.keika_url && <a href={b.keika_url} target="_blank" rel="noopener noreferrer" style={{ color: "#555555", textDecoration: "underline", textDecorationColor: "#aaaaaa", textUnderlineOffset: "2px" }}>経過↗</a>}
                             </div>
@@ -570,12 +596,12 @@ export default function BillsClient() {
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                 {b.submitter_ids.map((id) => {
                                   const m = memberMap[id];
-                                  if (m) return <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} party={m.party} is_active={m.is_active} />;
+                                  if (m) return <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} faction={m.faction} is_active={m.is_active} />;
                                   const name = id.split("-").slice(1).join("-");
-                                  return <span key={id} style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
+                                  return <span key={id} style={{ fontSize: 12, color: "#888888", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>{name}</span>;
                                 })}
                                 {(b.submitter_extra_count ?? 0) > 0 && (
-                                  <span style={{ fontSize: 12, color: "#aaaaaa", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>他{b.submitter_extra_count}名</span>
+                                  <span style={{ fontSize: 12, color: "#888888", background: "#f9f9f9", border: "1px solid #cccccc", borderRadius: 4, padding: "2px 8px", display: "inline-block", whiteSpace: "nowrap" }}>他{b.submitter_extra_count}名</span>
                                 )}
                               </div>
                             )}
@@ -734,7 +760,7 @@ export default function BillsClient() {
                                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                         {h.members.map((id) => {
                                           const m = memberMap[id];
-                                          return m ? <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} party={m.party} is_active={m.is_active} /> : null;
+                                          return m ? <MemberChip key={id} id={id} name={m.name} alias_name={m.alias_name} faction={m.faction} is_active={m.is_active} /> : null;
                                         })}
                                       </div>
                                     )}

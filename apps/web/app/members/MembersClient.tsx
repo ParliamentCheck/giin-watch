@@ -7,7 +7,7 @@ import { getFavorites, addFavorite, removeFavorite } from "../../lib/favorites";
 import Paginator, { PAGE_SIZE } from "../../components/Paginator";
 import { usePagination } from "../../hooks/usePagination";
 import type { Member } from "../../lib/types";
-import { PARTY_COLORS } from "../../lib/partyColors";
+import { factionColor } from "../../lib/factions";
 import { MEMBER_SORT_OPTIONS, type MemberSortKey } from "../../lib/types";
 import { MEMBER_SELECT } from "../../lib/queries";
 import { compareMembersByReading } from "../../lib/memberSort";
@@ -28,7 +28,8 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
 
   const search        = searchParams.get("q")      || "";
   const selectedHouse = searchParams.get("house")  || "";
-  const selectedParty = searchParams.get("party")  || "";
+  // 会派の絞り込み値は「院|会派の正式名」（同じ会派名が衆参両方にあるため院も含める）
+  const selectedParty = searchParams.get("faction") || "";
   // 選挙セーフモード中は並び替えの状態をURLに載せない（並び替えた一覧を共有リンクにしない）
   const safeMode      = useElectionSafeMode();
   const [safeSort, setSafeSort] = useState<SortKey>("name");
@@ -48,7 +49,7 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
     const params = new URLSearchParams();
     if (q)     params.set("q",     q);
     if (house) params.set("house", house);
-    if (party) params.set("party", party);
+    if (party) params.set("faction", party);
     if (safeMode) setSafeSort((sort || "name") as SortKey);
     else if (sort && sort !== "name") params.set("sort", sort);
     if (p > 1) params.set("page", String(p));
@@ -72,7 +73,9 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
     fetchMembers();
   }, []);
 
-  const parties = Array.from(new Set(members.map((m) => m.party))).sort();
+  const factionOptions = Array.from(new Set(
+    members.filter((m) => m.faction && (!selectedHouse || m.house === selectedHouse)).map((m) => `${m.house}|${m.faction}`),
+  )).sort((a, b) => a.localeCompare(b, "ja"));
 
   const filtered = members.filter((m) => {
     const norm = (s: string) => s.replace(/[\s\u3000]+/g, "");
@@ -85,7 +88,7 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
       if (!matchName && !matchAlias && !matchReading && !matchDist) return false;
     }
     if (selectedHouse && m.house  !== selectedHouse) return false;
-    if (selectedParty && m.party  !== selectedParty) return false;
+    if (selectedParty && `${m.house}|${m.faction}` !== selectedParty) return false;
     return true;
   });
 
@@ -142,7 +145,8 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
             style={{ flex: 1, minWidth: 160 }}
           />
           <select value={selectedHouse}
-            onChange={(e) => updateUrl(search, e.target.value, selectedParty, sortKey)}
+            onChange={(e) => updateUrl(search, e.target.value,
+              !e.target.value || selectedParty.startsWith(e.target.value + "|") ? selectedParty : "", sortKey)}
             className="input-field">
             <option value="">🏛 衆院・参院</option>
             <option value="衆議院">衆議院</option>
@@ -151,8 +155,11 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
           <select value={selectedParty}
             onChange={(e) => updateUrl(search, selectedHouse, e.target.value, sortKey)}
             className="input-field">
-            <option value="">🗳 政党を選択</option>
-            {parties.map((p) => <option key={p} value={p}>{p}</option>)}
+            <option value="">🏛 会派を選択</option>
+            {factionOptions.map((v) => {
+              const [h, f] = v.split("|");
+              return <option key={v} value={v}>{selectedHouse ? f : `${h === "衆議院" ? "衆" : "参"}：${f}`}</option>;
+            })}
           </select>
           <select value={sortKey}
             onChange={(e) => updateUrl(search, selectedHouse, selectedParty, e.target.value)}
@@ -196,7 +203,7 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((m) => {
-            const color = PARTY_COLORS[m.party] || "#7f8c8d";
+            const color = factionColor(m.faction);
             return (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
@@ -212,9 +219,9 @@ function MembersContent({ initialMembers }: { initialMembers?: Member[] }) {
                       </span>
                     )}
                   </span>
-                  {/* 政党バッジ */}
+                  {/* 会派バッジ */}
                   <span className="badge badge-party" style={{ "--party-color": color } as React.CSSProperties}>
-                    {m.party}
+                    {m.faction_short ?? m.faction ?? "—"}
                   </span>
                   {/* 院・選挙区・期数 */}
                   <span style={{ color: "#555555", fontSize: 12, whiteSpace: "nowrap" }}>

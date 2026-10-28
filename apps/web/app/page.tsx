@@ -11,67 +11,56 @@ import { supabase } from "../lib/supabase";
 import { supabaseServer } from "../lib/supabase-server";
 import {
   getTopPageStats,
-  getPartyBreakdown,
+  getFactionBreakdown,
   getTopRecentQuestions,
   getTopRecentPetitions,
   getLatestCommitteeActivity,
   getMonthlyQuestionsTrend,
+  getFactionHistory,
+  getFactionVoteAlignments,
 } from "../lib/queries";
 import Link from "next/link";
 import ActivityTabs from "./components/ActivityTabs";
 import changelog from "../lib/changelog";
-import { partyColor, partyShort } from "../lib/partyColors";
+import { buildFactionAt, factionColor, factionPath, type House } from "../lib/factions";
+import { CURRENT_SESSION } from "../lib/constants";
 
 /* ─── データ取得（サーバーサイド） ─────────────────────────────── */
 
-async function getCrossPartyBills() {
+/**
+ * 複数の会派の議員が提出者に含まれる議員立法。
+ * 提出者の会派は「提出日の時点の会派」を会派の履歴から求め、確定できない提出者は数えない（推測しない）。
+ */
+async function getCrossFactionBills() {
   try {
-    const { data: bills } = await supabase
+    const { data: bills } = await supabaseServer
       .from("bills")
-      .select("id, title, session_number, submitted_at, honbun_url, keika_url, submitter_ids")
+      .select("id, title, session_number, submitted_at, house, honbun_url, keika_url, submitter_ids")
       .eq("bill_type", "議員立法")
       .limit(1000);
     if (!bills || bills.length === 0) return [];
-
-    const allIds = [...new Set(bills.flatMap((b: any) => (b.submitter_ids as string[]) || []))];
-    if (allIds.length === 0) return [];
-
-    const memberParty: Record<string, string> = {};
-    const memberPrevParty: Record<string, string | null> = {};
-    for (let i = 0; i < allIds.length; i += 50) {
-      const { data: members } = await supabase
-        .from("members")
-        .select("id, party, prev_party")
-        .in("id", allIds.slice(i, i + 50));
-      for (const m of (members || []) as Array<{ id: string; party: string; prev_party: string | null }>) {
-        memberParty[m.id] = m.party;
-        memberPrevParty[m.id] = m.prev_party ?? null;
-      }
-    }
-
-    const EXCLUDE = new Set(["無所属", "不明（前議員）"]);
-    const CHUDOKAIKAKU = "中道改革連合";
+    const history = await getFactionHistory(supabaseServer);
+    const factionAt = buildFactionAt(history);
+    const EXCLUDE = new Set(["無所属", "各派に属しない議員"]);
 
     return bills
       .map((b: any) => {
-        const beforeChudo = !b.submitted_at || b.submitted_at < "2026-01";
-        const parties = [...new Set<string>(
-          ((b.submitter_ids as string[]) || [])
-            .map((id) => {
-              const p = memberParty[id];
-              // 2026年1月以前の法案で中道改革連合員は prev_party（立憲・公明等）を使う
-              if (beforeChudo && p === CHUDOKAIKAKU) return memberPrevParty[id] ?? null;
-              return p;
-            })
-            .filter((p): p is string => !!p && !EXCLUDE.has(p))
-        )];
-        return { id: b.id as string, title: b.title as string, session: b.session_number as number, honbun_url: b.honbun_url as string | null, keika_url: b.keika_url as string | null, parties };
+        const ids = ((b.submitter_ids as string[]) || []);
+        const resolved = ids.map((id) => factionAt(id, b.submitted_at));
+        const determined = resolved.filter((f): f is string => !!f);
+        const factions = [...new Set(determined.filter((f) => !EXCLUDE.has(f)))].sort((a, c) => a.localeCompare(c, "ja"));
+        return {
+          id: b.id as string, title: b.title as string, session: b.session_number as number,
+          house: b.house as House,
+          honbun_url: b.honbun_url as string | null, keika_url: b.keika_url as string | null,
+          factions, determinedCount: determined.length, submitterCount: ids.length,
+        };
       })
-      .filter((b) => b.parties.length >= 3)
-      .sort((a, b) => b.parties.length - a.parties.length)
+      .filter((b) => b.factions.length >= 3)
+      .sort((a, b) => b.factions.length - a.factions.length || b.session - a.session)
       .slice(0, 5);
   } catch (e) {
-    console.error("[crossParty] error:", e);
+    console.error("[crossFaction] error:", e);
     return [];
   }
 }
@@ -105,186 +94,69 @@ async function getRecentBills() {
 
   const membersRes = await supabase
     .from("members")
-    .select("id, name, alias_name, party, is_active")
+    .select("id, name, alias_name, faction, is_active")
     .in("id", allIds.slice(0, 100));
 
-  const memberMap: Record<string, { name: string; alias_name: string | null; party: string; is_active: boolean }> = {};
-  for (const m of (membersRes.data || []) as Array<{ id: string; name: string; alias_name: string | null; party: string; is_active: boolean }>) {
-    memberMap[m.id] = { name: m.name, alias_name: m.alias_name ?? null, party: m.party, is_active: m.is_active };
+  const memberMap: Record<string, { name: string; alias_name: string | null; faction: string | null; is_active: boolean }> = {};
+  for (const m of (membersRes.data || []) as Array<{ id: string; name: string; alias_name: string | null; faction: string | null; is_active: boolean }>) {
+    memberMap[m.id] = { name: m.name, alias_name: m.alias_name ?? null, faction: m.faction ?? null, is_active: m.is_active };
   }
 
   return bills.map((b: any) => ({
     ...b,
     submitters: (b.submitter_ids || [])
-      .map((id: string) => memberMap[id] ? { id, name: memberMap[id].name, alias_name: memberMap[id].alias_name, party: memberMap[id].party, is_active: memberMap[id].is_active } : null)
+      .map((id: string) => memberMap[id] ? { id, name: memberMap[id].name, alias_name: memberMap[id].alias_name, faction: memberMap[id].faction, is_active: memberMap[id].is_active } : null)
       .filter(Boolean),
   }));
 }
 
 
 /* ─── 今国会・独自コンテンツ ────────────────────────────────── */
-const CURRENT_SESSION = 221;
-
 
 async function getCurrentSessionStats() {
-  const [qShuRes, billsRes, latestBillRes, latestQRes, petitionsShuRes, petitionsSanRes, latestPetitionRes] = await Promise.all([
-    supabase.from("questions")
-      .select("id", { count: "exact", head: true })
-      .eq("session", CURRENT_SESSION),
-    supabase.from("bills")
-      .select("id", { count: "exact", head: true })
-      .gte("submitted_at", "2026-01-01"),
-    supabase.from("bills")
-      .select("submitted_at")
-      .gte("submitted_at", "2026-01-01")
-      .order("submitted_at", { ascending: false })
-      .limit(1),
-    supabase.from("questions")
-      .select("submitted_at")
-      .eq("session", CURRENT_SESSION)
-      .order("id", { ascending: false })
-      .limit(5),
-    supabase.from("petitions")
-      .select("id", { count: "exact", head: true })
-      .eq("session", CURRENT_SESSION),
-    supabase.from("sangiin_petitions")
-      .select("id", { count: "exact", head: true })
-      .eq("session", CURRENT_SESSION),
-    supabase.from("petitions")
-      .select("result_date")
-      .eq("session", CURRENT_SESSION)
-      .not("result_date", "is", null)
-      .order("result_date", { ascending: false })
-      .limit(1),
+  const [qShuRes, qSanRes, petitionsShuRes, petitionsSanRes] = await Promise.all([
+    supabaseServer.from("questions").select("id", { count: "exact", head: true }).eq("session", CURRENT_SESSION),
+    supabaseServer.from("sangiin_questions").select("id", { count: "exact", head: true }).eq("session", CURRENT_SESSION),
+    supabaseServer.from("petitions").select("id", { count: "exact", head: true }).eq("session", CURRENT_SESSION),
+    supabaseServer.from("sangiin_petitions").select("id", { count: "exact", head: true }).eq("session", CURRENT_SESSION),
   ]);
-
-  // 令和7年 3月18日 → Date
-  function parseWareki(s: string): Date | null {
-    const m = s.match(/^令和\s*(\d+|元)年\s*(\d+)月\s*(\d+)日/);
-    if (!m) return null;
-    const y = m[1] === "元" ? 2019 : 2018 + parseInt(m[1]);
-    return new Date(`${y}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`);
-  }
-
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 5);
-
-  const latestBill     = latestBillRes.data?.[0]?.submitted_at ? new Date(latestBillRes.data[0].submitted_at as string) : null;
-  const latestPetition = latestPetitionRes.data?.[0]?.result_date ? new Date(latestPetitionRes.data[0].result_date as string) : null;
-  const latestQ        = (latestQRes.data || []).reduce<Date | null>((best, q) => {
-    const d = parseWareki(q.submitted_at as string);
-    return d && (!best || d > best) ? d : best;
-  }, null);
-
-  const isNew = {
-    questions: latestQ        ? latestQ        >= cutoff : false,
-    bills:     latestBill     ? latestBill     >= cutoff : false,
-    petitions: latestPetition ? latestPetition >= cutoff : false,
+  // 取得に失敗した場合は件数を 0 と表示しない（null = 取得できなかった）
+  const n = (r: { count: number | null; error: unknown }) => (r.error ? null : r.count ?? 0);
+  return {
+    questionsShu: n(qShuRes), questionsSan: n(qSanRes),
+    petitionsShu: n(petitionsShuRes), petitionsSan: n(petitionsSanRes),
   };
-
-  const petitions = (petitionsShuRes.count || 0) + (petitionsSanRes.count || 0);
-
-  return { questions: qShuRes.count || 0, bills: billsRes.count || 0, petitions, isNew };
 }
 
-// 採決一致率（全会期・ページネーションで全件取得）
-async function getPartyAlignmentMatrix() {
-  type VoteRow = { member_id: string; vote: string; bill_title: string; vote_date: string; session_number: number | null };
-  let allVotes: VoteRow[] = [];
-  let from = 0;
-  const PAGE = 1000;
-  while (true) {
-    const { data } = await supabase
-      .from("votes")
-      .select("member_id, vote, bill_title, vote_date, session_number")
-      .in("vote", ["賛成", "反対"])
-      .range(from, from + PAGE - 1);
-    if (!data || data.length === 0) break;
-    allVotes = allVotes.concat(data);
-    if (data.length < PAGE) break;
-    from += PAGE;
-  }
-  const votes = allVotes;
-  if (votes.length === 0) return null;
-
-  const { data: members } = await supabase
-    .from("members").select("id, party").limit(2000);
-
-  const memberParty: Record<string, string> = {};
-  for (const m of members || []) memberParty[m.id] = m.party;
-
-  const billVotes: Record<string, Record<string, string[]>> = {};
-  for (const v of votes) {
-    const party = memberParty[v.member_id];
-    if (!party || party === "無所属") continue;
-    const key = `${v.vote_date}__${v.bill_title}`;
-    if (!billVotes[key]) billVotes[key] = {};
-    if (!billVotes[key][party]) billVotes[key][party] = [];
-    billVotes[key][party].push(v.vote);
-  }
-
-  const positions: Record<string, Record<string, string>> = {};
-  for (const [bill, partyMap] of Object.entries(billVotes)) {
-    positions[bill] = {};
-    for (const [party, pvotes] of Object.entries(partyMap)) {
-      const yes = pvotes.filter((v) => v === "賛成").length;
-      const no  = pvotes.filter((v) => v === "反対").length;
-      if (yes + no === 0) continue;
-      positions[bill][party] = yes >= no ? "賛成" : "反対";
-    }
-  }
-
-  const billCount = Object.keys(positions).length;
-  if (billCount < 1) return null;
-
-  const partyCount: Record<string, number> = {};
-  for (const pos of Object.values(positions))
-    for (const p of Object.keys(pos)) partyCount[p] = (partyCount[p] || 0) + 1;
-
-  const parties = Object.entries(partyCount)
-    .filter(([, c]) => c >= 1)
-    .sort((a, b) => b[1] - a[1])
-    .map(([p]) => p)
-    .slice(0, 9);
-
-  const matrix: Record<string, Record<string, { rate: number; total: number }>> = {};
-  for (const p1 of parties) {
-    matrix[p1] = {};
-    for (const p2 of parties) {
-      let agree = 0, total = 0;
-      for (const pos of Object.values(positions))
-        if (pos[p1] && pos[p2]) { total++; if (pos[p1] === pos[p2]) agree++; }
-      matrix[p1][p2] = { rate: total > 0 ? agree / total : 0, total };
-    }
-  }
-
-  const sessionNums = [...new Set(votes.map((v: any) => v.session_number as number))].sort((a, b) => a - b);
-  const sessionLabel = sessionNums.length <= 1
-    ? `第${sessionNums[0]}回国会`
-    : `第${sessionNums[0]}〜${sessionNums[sessionNums.length - 1]}回国会`;
-
-  return { matrix, parties, billCount, sessionLabel };
+// 会派ペアの採決一致（参院・直近の会期）。コレクターが公式の会派別票数から集計した値を読むだけ
+async function getLatestFactionAlignments() {
+  const rows = await getFactionVoteAlignments(supabaseServer);
+  if (rows.length === 0) return null;
+  const session = Math.max(...rows.map((r) => r.session_number));
+  const pairs = rows
+    .filter((r) => r.session_number === session && r.total_count >= 10)
+    .filter((r) => r.faction_a !== "各派に属しない議員" && r.faction_b !== "各派に属しない議員")
+    .map((r) => ({ a: r.faction_a, b: r.faction_b, rate: r.agree_count / r.total_count, total: r.total_count }));
+  if (pairs.length < 2) return null;
+  return { session, pairs };
 }
-
-// 質問主意書の月別推移（政党別）
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
-  const [stats, recentQuestions, committeeActivities, partyBreakdown, petitionsResult, recentBills, currentStats, alignmentMatrix, monthlyQuestions, crossPartyBills] = await Promise.all([
+  const [stats, recentQuestions, committeeActivities, factionBreakdown, petitionsResult, recentBills, currentStats, alignment, monthlyQuestions, crossFactionBills] = await Promise.all([
     getTopPageStats(supabaseServer),
     getTopRecentQuestions(supabaseServer),
     getLatestCommitteeActivity(supabaseServer),
-    getPartyBreakdown(supabaseServer),
+    getFactionBreakdown(supabaseServer),
     getTopRecentPetitions(supabaseServer),
     getRecentBills(),
     getCurrentSessionStats(),
-    getPartyAlignmentMatrix(),
+    getLatestFactionAlignments(),
     getMonthlyQuestionsTrend(CURRENT_SESSION - 4, supabaseServer),
-    getCrossPartyBills(),
+    getCrossFactionBills(),
   ]);
 
   const { petitions: recentPetitions, memberMap: petitionMemberMap } = petitionsResult;
-  const maxPartyCount = partyBreakdown[0]?.total || 1;
 
   return (
     <div className="min-h-screen text-neutral-900">
@@ -315,13 +187,13 @@ export default async function TopPage() {
         {/* ── メインナビゲーション ────────────────────────────── */}
         <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
           {[
-            { icon: "👤", title: "議員一覧",   desc: "政党・院・選挙区で絞り込み。各議員の活動実績・頻出キーワード・AI分析を確認できます",       path: "/members",    img: "/card-members.jpg"    },
+            { icon: "👤", title: "議員一覧",   desc: "院・会派・選挙区で絞り込み。各議員の活動の記録・会派の遍歴・頻出キーワードを確認できます",       path: "/members",    img: "/card-members.jpg"    },
             { icon: "👑", title: "内閣",       desc: "現在の大臣・副大臣・政務官の一覧。各閣僚の議員ページにもリンク",                           path: "/cabinet",    img: "/card-cabinet.jpg"    },
-            { icon: "🏢", title: "政党・会派", desc: "会派ごとの所属議員数・活動バランス。採決での政党間距離感やAI分析も確認できます",             path: "/parties",    img: "/card-parties.jpg"    },
+            { icon: "🏢", title: "会派",       desc: "衆参それぞれの会派と所属議員。参議院本会議の採決での会派間の賛否の一致も確認できます",             path: "/factions",   img: "/card-parties.jpg"    },
             { icon: "🏛️", title: "委員会別",   desc: "委員会ごとの所属議員と活動状況。委員長・理事も確認できます",                               path: "/committees", img: "/card-committees.jpg" },
-            { icon: "📋", title: "法案",         desc: "議員立法・閣法（参議院）の一覧。超党派共同提出フィルターと政党間共同提出ネットワーク図も確認できます", path: "/bills",     img: "/card-bills.jpg"      },
+            { icon: "📋", title: "法案",         desc: "議員立法・閣法（参議院）の一覧と、会派をまたいだ共同提出の集計を確認できます", path: "/bills",     img: "/card-bills.jpg"      },
             { icon: "📝", title: "質問主意書", desc: "議員が内閣に文書で提出する質問主意書の一覧。衆院・参院合わせて検索・絞り込みできます",           path: "/questions",  img: "/card-questions.jpg"  },
-            { icon: "🗳️", title: "採決記録",   desc: "政党別の採決一致率マトリクス。参議院本会議の賛否パターンを会期ごとに確認",                     path: "/votes",      img: "/card-votes.jpg"      },
+            { icon: "🗳️", title: "採決記録",   desc: "参議院本会議の採決での会派間の賛否の一致を、会期ごとに確認できます",                     path: "/votes",      img: "/card-votes.jpg"      },
           ].map((item) => (
             <Link key={item.path} href={item.path}
               className="group relative block bg-white border border-neutral-200 rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-400">
@@ -351,7 +223,7 @@ export default async function TopPage() {
                 <h2 className="text-base font-bold text-neutral-900">AI分析機能（BYOK）</h2>
               </div>
               <p className="text-sm text-neutral-600 leading-relaxed">
-                各議員・各政党ページでは、質問主意書・議員立法・採決・委員会・発言キーワードなどの活動データをもとに、AIによる傾向分析を利用できます。
+                各議員ページでは、質問主意書・議員立法・採決・委員会・発言キーワードなどの活動データをもとに、AIによる傾向分析を利用できます。
                 分析にはご自身のAPIキー（Gemini / ChatGPT / Grok など）を使用します。データはサーバーを経由せず、お使いのブラウザから直接AIサービスへ送信されます。
               </p>
               <p className="text-xs text-neutral-400 mt-2">
@@ -361,183 +233,144 @@ export default async function TopPage() {
           </div>
         </section>
 
-        {/* ── A: 採決で見る政党の距離感 ───────────────────── */}
-        {alignmentMatrix && (() => {
-          const m = alignmentMatrix.matrix;
-          const allPairs: { p1: string; p2: string; rate: number; total: number }[] = [];
-          for (let i = 0; i < alignmentMatrix.parties.length; i++) {
-            for (let j = i + 1; j < alignmentMatrix.parties.length; j++) {
-              const p1 = alignmentMatrix.parties[i], p2 = alignmentMatrix.parties[j];
-              const { rate, total } = m[p1]?.[p2] ?? { rate: 0, total: 0 };
-              if (total < 10) continue;
-              allPairs.push({ p1, p2, rate, total });
-            }
-          }
-          if (allPairs.length < 2) return null;
-          allPairs.sort((a, b) => b.rate - a.rate);
-
-          type Pair = { p1: string; p2: string; rate: number; total: number };
-          const getWithRanks = (sorted: Pair[]) => {
-            let n = Math.min(3, sorted.length);
-            while (n < sorted.length && sorted[n].rate === sorted[n - 1].rate) n++;
-            const items = sorted.slice(0, n);
-            return items.map((pair) => {
-              const rank = items.findIndex((p) => p.rate === pair.rate) + 1;
-              const isTie = items.filter((p) => p.rate === pair.rate).length > 1;
-              return { ...pair, rank, isTie };
-            });
+        {/* ── A: 参議院本会議の採決での会派間の賛否の一致 ─────── */}
+        {alignment && (() => {
+          type Pair = { a: string; b: string; rate: number; total: number };
+          const sorted = [...alignment.pairs].sort((x, y) => y.rate - x.rate || x.a.localeCompare(y.a, "ja"));
+          // 上位・下位それぞれ3組（同率は含める）。順位の番号は付けない
+          const take = (list: Pair[]) => {
+            let n = Math.min(3, list.length);
+            while (n < list.length && list[n].rate === list[n - 1].rate) n++;
+            return list.slice(0, n);
           };
-
-          const topWithRanks    = getWithRanks(allPairs);
-          const bottomWithRanks = getWithRanks([...allPairs].reverse());
-
-          type RankedPair = ReturnType<typeof getWithRanks>[0];
-          const PairRow = ({ pair }: { pair: RankedPair }) => (
+          const high = take(sorted);
+          const low  = take([...sorted].reverse());
+          const PairRow = ({ pair }: { pair: Pair }) => (
             <div className="px-5 py-3.5 border-b border-neutral-200/70 last:border-0">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span style={{ color: partyColor(pair.p1), fontSize: 9 }}>●</span>
-                <span className="text-xs font-semibold text-neutral-800">{partyShort(pair.p1)}</span>
-                <span className="text-[10px] text-neutral-400">×</span>
-                <span style={{ color: partyColor(pair.p2), fontSize: 9 }}>●</span>
-                <span className="text-xs font-semibold text-neutral-800">{partyShort(pair.p2)}</span>
+              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                <span style={{ color: factionColor(pair.a), fontSize: 9 }}>●</span>
+                <span className="text-xs font-semibold text-neutral-800">{pair.a}</span>
+                <span className="text-[10px] text-neutral-500">×</span>
+                <span style={{ color: factionColor(pair.b), fontSize: 9 }}>●</span>
+                <span className="text-xs font-semibold text-neutral-800">{pair.b}</span>
                 <span className="text-xs font-bold tabular-nums text-neutral-900 ml-auto shrink-0">
                   {(pair.rate * 100).toFixed(1)}%
+                  <span className="text-[10px] font-normal text-neutral-500 ml-1">（{pair.total}件中）</span>
                 </span>
               </div>
-              <div className="flex items-center gap-2 pl-5">
-                <div className="flex-1 h-1.5 bg-neutral-200 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full"
-                    style={{ width: `${(pair.rate * 100).toFixed(1)}%`, background: `linear-gradient(to right, ${partyColor(pair.p1)}, ${partyColor(pair.p2)})` }} />
-                </div>
+              <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-neutral-500" style={{ width: `${(pair.rate * 100).toFixed(1)}%` }} />
               </div>
             </div>
           );
-
           return (
             <section className="mb-16">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h2 className="text-lg font-bold text-neutral-900">採決で見る政党の距離感</h2>
-                  <p className="text-xs text-neutral-500 mt-0.5">
-                    {alignmentMatrix.sessionLabel}・採決{alignmentMatrix.billCount}件（参議院本会議）— 賛否の一致率
-                  </p>
+                  <h2 className="text-lg font-bold text-neutral-900">参議院本会議の採決での会派間の賛否の一致</h2>
+                  <p className="text-xs text-neutral-600 mt-0.5">第{alignment.session}回国会・参議院本会議（押しボタン式投票の記録）</p>
                 </div>
                 <Link href="/votes" className="text-xs text-neutral-600 hover:text-neutral-900 bg-white border border-neutral-300 hover:border-neutral-500 rounded-full px-3 py-1 transition-colors shrink-0 ml-4 mt-1">
-                  全政党マトリクス →
+                  全会派の一覧 →
                 </Link>
               </div>
-              <p className="text-sm text-neutral-500 leading-relaxed mb-5">
-                参議院本会議の採決記録をもとに、各政党ペアの賛否が何割の議案で一致したかを機械的に集計しています。
-                議案ごとの賛否や全政党のマトリクスは「全政党マトリクス」から確認できます。
+              <p className="text-sm text-neutral-600 leading-relaxed mb-5">
+                参議院の投票結果ページに記載された会派別の賛成票・反対票から、各会派の賛否（賛成票と反対票の多い方）を求め、
+                2つの会派の賛否が同じだった採決の割合を機械的に集計しています。賛成票と反対票が同数の場合は対象外です。
               </p>
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
                   <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
-                    <p className="text-xs font-bold text-neutral-600">一致率が高い組み合わせ</p>
+                    <p className="text-xs font-bold text-neutral-700">一致の割合が高い組み合わせ</p>
                   </div>
-                  {topWithRanks.map((pair, i) => <PairRow key={i} pair={pair} />)}
+                  {high.map((pair) => <PairRow key={`${pair.a}|${pair.b}`} pair={pair} />)}
                 </div>
                 <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
                   <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
-                    <p className="text-xs font-bold text-neutral-600">一致率が低い組み合わせ</p>
+                    <p className="text-xs font-bold text-neutral-700">一致の割合が低い組み合わせ</p>
                   </div>
-                  {bottomWithRanks.map((pair, i) => <PairRow key={i} pair={pair} />)}
+                  {low.map((pair) => <PairRow key={`${pair.a}|${pair.b}`} pair={pair} />)}
                 </div>
               </div>
             </section>
           );
         })()}
 
-        {/* ── B: 質問主意書の月別推移 ──────────────────────── */}
+        {/* ── B: 質問主意書の月別推移（院別） ───────────────── */}
         {monthlyQuestions.length > 0 && (
           <section className="mb-16">
             <div className="mb-3">
               <h2 className="text-lg font-bold text-neutral-900">質問主意書の月別推移</h2>
-              <p className="text-xs text-neutral-500 mt-0.5">衆議院・直近12ヶ月 — 政党別</p>
+              <p className="text-xs text-neutral-600 mt-0.5">直近12ヶ月・提出月別（衆議院・参議院）</p>
             </div>
-            <p className="text-sm text-neutral-500 leading-relaxed mb-5">
+            <p className="text-sm text-neutral-600 leading-relaxed mb-5">
               質問主意書は、議員が内閣に対して文書で説明を求める制度で、内閣の答弁書とともに公式記録として残ります。
-              月ごとの提出件数と政党別の内訳を示しています。各月をクリックすると政党別の内訳を確認できます。
+              月ごとの提出件数を院別に示しています。
             </p>
             <div className="bg-white border border-neutral-200 rounded-2xl px-6 py-5 space-y-2.5">
+              <div className="flex gap-4 text-[11px] text-neutral-600 mb-1">
+                <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-neutral-700" />衆議院</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-neutral-400" />参議院</span>
+              </div>
               {(() => {
                 const max = Math.max(...monthlyQuestions.map((m) => m.total), 1);
                 return monthlyQuestions.map((m) => (
-                  <details key={m.month} className="group">
-                    <summary className="flex items-center gap-3 cursor-pointer list-none">
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 px-2 py-0.5 rounded-md border border-neutral-300 bg-white text-[11px] tabular-nums text-neutral-600 group-open:bg-neutral-800 group-open:text-white group-open:border-neutral-800 transition-colors">
-                        {m.month}
-                        <span className="text-red-400 text-[10px] not-italic group-open:rotate-90 inline-block transition-transform">›</span>
-                      </span>
-                      <div className="flex-1 h-4 bg-neutral-200 rounded-full overflow-hidden">
-                        <div className="h-full flex" style={{ width: `${(m.total / max) * 100}%` }}>
-                          {m.parties.map((p) => (
-                            <div
-                              key={p.party}
-                              className="h-full"
-                              style={{ width: `${(p.count / m.total) * 100}%`, background: partyColor(p.party) }}
-                            />
-                          ))}
-                        </div>
+                  <div key={m.month} className="flex items-center gap-3">
+                    <span className="whitespace-nowrap shrink-0 w-16 text-[11px] tabular-nums text-neutral-600">{m.month}</span>
+                    <div className="flex-1 h-4 bg-neutral-100 rounded-full overflow-hidden">
+                      <div className="h-full flex" style={{ width: `${(m.total / max) * 100}%` }}>
+                        <div className="h-full bg-neutral-700" style={{ width: `${m.total ? (m.shugiin / m.total) * 100 : 0}%` }} />
+                        <div className="h-full bg-neutral-400" style={{ width: `${m.total ? (m.sangiin / m.total) * 100 : 0}%` }} />
                       </div>
-                      <span className="text-[11px] text-neutral-500 tabular-nums w-8 text-right shrink-0">{m.total}</span>
-                    </summary>
-                    <div className="mt-2 mb-1 ml-[4.5rem] flex flex-wrap gap-x-4 gap-y-1">
-                      {m.parties.map((p) => (
-                        <span key={p.party} className="flex items-center gap-1 text-[11px] text-neutral-600">
-                          <span style={{ color: partyColor(p.party) }}>●</span>
-                          {partyShort(p.party)}
-                          <span className="tabular-nums text-neutral-400">{p.count}</span>
-                        </span>
-                      ))}
                     </div>
-                  </details>
+                    <span className="text-[11px] text-neutral-600 tabular-nums w-20 text-right shrink-0">
+                      {m.total}<span className="text-neutral-500">（衆{m.shugiin}/参{m.sangiin}）</span>
+                    </span>
+                  </div>
                 ));
               })()}
             </div>
           </section>
         )}
 
-        {/* ── 超党派議員立法 ──────────────────────────────── */}
-        {crossPartyBills.length > 0 && (
+        {/* ── 複数の会派の議員が提出した議員立法 ─────────────── */}
+        {crossFactionBills.length > 0 && (
           <section className="mb-16">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h2 className="text-lg font-bold text-neutral-900">超党派で提出された議員立法</h2>
-                <p className="text-xs text-neutral-500 mt-0.5">最も多くの政党の議員が連名した法案 — 2022年〜現在</p>
+                <h2 className="text-lg font-bold text-neutral-900">複数の会派の議員が提出した議員立法</h2>
+                <p className="text-xs text-neutral-600 mt-0.5">提出時の会派が確定できた提出者で、会派の数が多い法案</p>
               </div>
               <Link href="/bills" className="text-xs text-neutral-600 hover:text-neutral-900 bg-white border border-neutral-300 hover:border-neutral-500 rounded-full px-3 py-1 transition-colors shrink-0 ml-4 mt-1">
                 法案一覧 →
               </Link>
             </div>
-            <p className="text-sm text-neutral-500 leading-relaxed mb-5">
-              議員立法のうち、提出者に複数の政党の議員が含まれる法案を表示しています（提出者の所属は現在の所属に基づきます）。
+            <p className="text-sm text-neutral-600 leading-relaxed mb-5">
+              提出者の会派は、提出日の時点の会派を当サイトの会派の記録（国会会議録の発言時点の会派と、議員名簿）から求めています。
+              提出日の前後の記録がともに同じ会派である場合にだけその会派として数え、確定できない提出者は数えていません。無所属は会派の数に含めていません。
             </p>
             <div className="bg-white border border-neutral-200 rounded-2xl divide-y divide-neutral-200">
-              {crossPartyBills.map((bill) => (
+              {crossFactionBills.map((bill) => (
                 <div key={bill.id} className="px-5 py-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-neutral-800 text-white text-[10px] font-bold shrink-0">
-                          {bill.parties.length}党
-                        </span>
-                        <span className="text-[11px] text-neutral-400">第{bill.session}回国会</span>
-                      </div>
-                      <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{bill.title}</span>
-                      <div className="flex gap-3 mt-1">
-                        {bill.honbun_url && <a href={bill.honbun_url} target="_blank" rel="noopener noreferrer" className="text-xs text-neutral-500 underline underline-offset-2 decoration-neutral-400 hover:text-neutral-700">本文↗</a>}
-                        {bill.keika_url && <a href={bill.keika_url} target="_blank" rel="noopener noreferrer" className="text-xs text-neutral-500 underline underline-offset-2 decoration-neutral-400 hover:text-neutral-700">経過↗</a>}
-                      </div>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {bill.parties.map((party: string) => (
-                          <span key={party} className="inline-flex items-center gap-1 text-[10px] text-neutral-600">
-                            <span style={{ color: partyColor(party), fontSize: 8 }}>●</span>
-                            {partyShort(party)}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-neutral-800 text-white text-[10px] font-bold shrink-0">
+                      {bill.factions.length}会派
+                    </span>
+                    <span className="text-[11px] text-neutral-600">{bill.house} 第{bill.session}回国会</span>
+                    <span className="text-[11px] text-neutral-500">提出者の会派を確定: {bill.determinedCount}/{bill.submitterCount}名</span>
+                  </div>
+                  <span className="text-sm text-neutral-800 leading-snug line-clamp-2">{bill.title}</span>
+                  <div className="flex gap-3 mt-1">
+                    {bill.honbun_url && <a href={bill.honbun_url} target="_blank" rel="noopener noreferrer" className="text-xs text-neutral-600 underline underline-offset-2 decoration-neutral-400 hover:text-neutral-800">本文↗</a>}
+                    {bill.keika_url && <a href={bill.keika_url} target="_blank" rel="noopener noreferrer" className="text-xs text-neutral-600 underline underline-offset-2 decoration-neutral-400 hover:text-neutral-800">経過↗</a>}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                    {bill.factions.map((f: string) => (
+                      <span key={f} className="inline-flex items-center gap-1 text-[11px] text-neutral-700">
+                        <span style={{ color: factionColor(f), fontSize: 8 }}>●</span>
+                        {f}
+                      </span>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -549,21 +382,21 @@ export default async function TopPage() {
         <section className="mb-8">
           <div className="mb-5">
             <h2 className="text-lg font-bold text-neutral-900">今国会のうごき</h2>
-            <p className="text-xs text-neutral-500 mt-0.5">第{CURRENT_SESSION}回国会（2026年〜）の集計</p>
+            <p className="text-xs text-neutral-600 mt-0.5">第{CURRENT_SESSION}回国会の集計（当サイトの収集分）</p>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "質問主意書", value: currentStats.questions, note: "衆議院",   isNew: currentStats.isNew.questions },
-              { label: "議員立法",   value: currentStats.bills,     note: "提出",     isNew: currentStats.isNew.bills },
-              { label: "請願",       value: currentStats.petitions, note: "衆参合計", isNew: currentStats.isNew.petitions },
+              { label: "質問主意書", shu: currentStats.questionsShu, san: currentStats.questionsSan },
+              { label: "請願",       shu: currentStats.petitionsShu, san: currentStats.petitionsSan },
             ].map((item) => (
-              <div key={item.label} className="relative bg-white border border-neutral-200 rounded-xl px-4 py-5 text-center">
-                {item.isNew && (
-                  <span className="absolute top-2 right-2 text-[9px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 leading-none">NEW</span>
-                )}
-                <div className="text-2xl font-extrabold tabular-nums text-neutral-900">{item.value.toLocaleString()}</div>
-                <div className="text-[11px] text-neutral-500 mt-1">{item.label}</div>
-                <div className="text-[10px] text-neutral-400">{item.note}</div>
+              <div key={item.label} className="bg-white border border-neutral-200 rounded-xl px-4 py-5 text-center">
+                <div className="text-2xl font-extrabold tabular-nums text-neutral-900">
+                  {item.shu === null || item.san === null ? "—" : (item.shu + item.san).toLocaleString()}
+                </div>
+                <div className="text-[11px] text-neutral-600 mt-1">{item.label}</div>
+                <div className="text-[11px] text-neutral-600">
+                  衆 {item.shu ?? "取得できませんでした"} / 参 {item.san ?? "取得できませんでした"}
+                </div>
               </div>
             ))}
           </div>
@@ -578,33 +411,40 @@ export default async function TopPage() {
           recentBills={recentBills}
         />
 
-        {/* ── 政党別 議員数 ──────────────────────────────────── */}
-        {partyBreakdown.length > 0 && (
+        {/* ── 会派別 議員数（院別） ───────────────────────────── */}
+        {factionBreakdown.length > 0 && (
           <section className="mb-16">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-neutral-900">政党・会派別 議員数</h2>
-              <Link href="/parties" className="text-xs text-neutral-500 hover:text-neutral-500 transition-colors">
-                詳しく見る →
+              <h2 className="text-lg font-bold text-neutral-900">会派別 議員数</h2>
+              <Link href="/factions" className="text-xs text-neutral-600 hover:text-neutral-800 transition-colors">
+                会派の一覧 →
               </Link>
             </div>
-
-            <div className="bg-white border border-neutral-200 rounded-2xl p-6 space-y-4">
-              {partyBreakdown.map((p) => (
-                <div key={p.party}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm text-neutral-800 truncate mr-4">{p.party}</span>
-                    <span className="text-xs text-neutral-500 tabular-nums shrink-0">
-                      {p.total}名
-                      <span className="text-neutral-400 ml-1">（衆{p.shugiin} / 参{p.sangiin}）</span>
-                    </span>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {(["衆議院", "参議院"] as const).map((house) => {
+                const rows = factionBreakdown.filter((f) => f.house === house).sort((a, b) => b.count - a.count || a.faction.localeCompare(b.faction, "ja"));
+                const max = Math.max(1, ...rows.map((r) => r.count));
+                return (
+                  <div key={house} className="bg-white border border-neutral-200 rounded-2xl p-5 space-y-3">
+                    <p className="text-sm font-bold text-neutral-800">{house}</p>
+                    {rows.map((f) => (
+                      <div key={f.faction}>
+                        <div className="flex items-center justify-between mb-1">
+                          <Link href={factionPath(house, f.faction)} className="text-xs text-neutral-800 truncate mr-3 hover:underline">{f.faction}</Link>
+                          <span className="text-xs text-neutral-600 tabular-nums shrink-0">{f.count}名</span>
+                        </div>
+                        <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${(f.count / max) * 100}%`, background: factionColor(f.faction) }} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full"
-                      style={{ width: `${(p.total / maxPartyCount) * 100}%`, background: partyColor(p.party) }} />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+            <p className="text-xs text-neutral-600 mt-3">
+              会派は、衆議院・参議院それぞれの中で活動を共にする議員のグループです。会派名は各院の公式の会派一覧の表記です。
+            </p>
           </section>
         )}
 
@@ -640,7 +480,7 @@ export default async function TopPage() {
             { label: "現職議員",   value: stats.total,     unit: "名" },
             { label: "衆議院",     value: stats.shugiin,   unit: "名" },
             { label: "参議院",     value: stats.sangiin,   unit: "名" },
-            { label: "政党・会派", value: stats.parties,   unit: "党" },
+            { label: "会派（衆参）", value: stats.factions, unit: "" },
             { label: "発言記録",   value: stats.speeches,  unit: "件" },
             { label: "質問主意書", value: stats.questions, unit: "件" },
             { label: "議員立法",   value: stats.bills,     unit: "件" },

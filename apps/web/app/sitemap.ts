@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { supabaseServer as supabase } from "../lib/supabase-server";
+import { factionPath } from "../lib/factions";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE,                     lastModified: now, changeFrequency: "daily",   priority: 1.0 },
     { url: `${BASE}/members`,        lastModified: now, changeFrequency: "daily",   priority: 0.9 },
     { url: `${BASE}/members/former`, lastModified: now, changeFrequency: "weekly",  priority: 0.6 },
-    { url: `${BASE}/parties`,        lastModified: now, changeFrequency: "weekly",  priority: 0.8 },
+    { url: `${BASE}/factions`,       lastModified: now, changeFrequency: "weekly",  priority: 0.8 },
+    { url: `${BASE}/elections`,      lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE}/committees`,     lastModified: now, changeFrequency: "weekly",  priority: 0.8 },
     { url: `${BASE}/bills`,          lastModified: now, changeFrequency: "daily",   priority: 0.7 },
     { url: `${BASE}/votes`,          lastModified: now, changeFrequency: "weekly",  priority: 0.7 },
@@ -39,17 +41,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  // 政党ページ
-  const partiesRes = await supabase
-    .from("members")
-    .select("party")
-    .eq("is_active", true)
-    .limit(2000);
-  const partySet = new Set<string>(
-    (partiesRes.data || []).map((m: any) => m.party).filter(Boolean)
-  );
-  const partyRoutes: MetadataRoute.Sitemap = Array.from(partySet).map((party) => ({
-    url: `${BASE}/parties/${encodeURIComponent(party)}`,
+  // 会派ページ（公式の会派一覧に載っている現在の会派）
+  const factionsRes = await supabase
+    .from("factions")
+    .select("house,name")
+    .eq("is_current", true)
+    .limit(1000);
+  const factionRoutes: MetadataRoute.Sitemap = (factionsRes.data || []).map((f: { house: "衆議院" | "参議院"; name: string }) => ({
+    url: `${BASE}${factionPath(f.house, f.name)}`,
     lastModified: now,
     changeFrequency: "weekly" as const,
     priority: 0.8,
@@ -70,5 +69,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...memberRoutes, ...partyRoutes, ...committeeRoutes];
+  return [...staticRoutes, ...memberRoutes, ...factionRoutes, ...committeeRoutes];
 }

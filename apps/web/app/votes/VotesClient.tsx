@@ -1,70 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "../../lib/supabase";
-import { partyShort } from "../../lib/partyColors";
+import type { FactionVoteAlignment } from "../../lib/types";
+import { factionColor } from "../../lib/factions";
 import { ListNotices } from "../components/Notices";
-
-interface VoteRow {
-  member_id: string;
-  vote: string;
-  bill_title: string;
-  vote_date: string;
-  session_number: number;
-}
-
-type PartyPositions = Record<string, Record<string, string>>;
-type AlignmentMatrix = Record<string, Record<string, { agree: number; total: number }>>;
-
-
-function calcAlignment(
-  votes: VoteRow[],
-  memberParty: Record<string, string>,
-): { matrix: AlignmentMatrix; parties: string[]; billCount: number } {
-  const billVotes: Record<string, Record<string, string[]>> = {};
-  for (const v of votes) {
-    if (!v.member_id || !memberParty[v.member_id]) continue;
-    if (v.vote !== "賛成" && v.vote !== "反対") continue;
-    const key = `${v.vote_date}__${v.bill_title}`;
-    const party = memberParty[v.member_id];
-    if (!billVotes[key]) billVotes[key] = {};
-    if (!billVotes[key][party]) billVotes[key][party] = [];
-    billVotes[key][party].push(v.vote);
-  }
-
-  const positions: PartyPositions = {};
-  for (const [bill, partyMap] of Object.entries(billVotes)) {
-    positions[bill] = {};
-    for (const [party, pvotes] of Object.entries(partyMap)) {
-      const yes = pvotes.filter((v) => v === "賛成").length;
-      const no  = pvotes.filter((v) => v === "反対").length;
-      if (yes + no === 0) continue;
-      positions[bill][party] = yes >= no ? "賛成" : "反対";
-    }
-  }
-
-  const partySet = new Set<string>();
-  for (const p of Object.values(positions)) Object.keys(p).forEach((k) => partySet.add(k));
-  const parties = Array.from(partySet).sort();
-
-  const matrix: AlignmentMatrix = {};
-  for (const p1 of parties) {
-    matrix[p1] = {};
-    for (const p2 of parties) {
-      let agree = 0, total = 0;
-      for (const pos of Object.values(positions)) {
-        if (pos[p1] && pos[p2]) {
-          total++;
-          if (pos[p1] === pos[p2]) agree++;
-        }
-      }
-      matrix[p1][p2] = { agree, total };
-    }
-  }
-
-  return { matrix, parties, billCount: Object.keys(positions).length };
-}
 
 function alignColor(rate: number): string {
   if (rate >= 0.9) return "#cfd8e3";
@@ -73,211 +13,130 @@ function alignColor(rate: number): string {
   return "#f8f9fb";
 }
 
-// 文字色は一致率によらず一定（良し悪しを連想させる色分けをしない）
+// 文字色は一致の割合によらず一定（良し悪しを連想させる色分けをしない）
 const ALIGN_TEXT_COLOR = "#1f2937";
 
-function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
-  initialRawVotes?: VoteRow[];
-  initialMemberPartyMap?: Record<string, string>;
+function VotesContent({ alignments, voteCounts }: {
+  alignments: FactionVoteAlignment[] | null;
+  voteCounts: Record<number, number>;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  useEffect(() => { document.title = "政党別採決一致率 | はたらく議員"; }, []);
 
-  const [loading, setLoading]               = useState(!initialRawVotes);
-  const [rawVotes, setRawVotes]             = useState<VoteRow[]>(initialRawVotes ?? []);
-  const [memberPartyMap, setMemberPartyMap] = useState<Record<string, string>>(initialMemberPartyMap ?? {});
-  const [availableSessions, setAvailableSessions] = useState<number[]>(
-    initialRawVotes
-      ? ([...new Set(initialRawVotes.map((v) => v.session_number))].filter(Boolean).sort() as number[])
-      : []
+  const sessions = useMemo(
+    () => [...new Set((alignments ?? []).map((a) => a.session_number))].sort((a, b) => b - a),
+    [alignments],
   );
+  const requested = Number(searchParams.get("session"));
+  const session = sessions.includes(requested) ? requested : sessions[0];
 
-  // URLの ?session= を読み取り
-  const selectedSession = useMemo(() => {
-    const v = searchParams.get("session");
-    return v ? Number(v) : null;
-  }, [searchParams]);
-
-  const setSelectedSession = (s: number | null) => {
+  const setSession = (s: number) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (s === null) {
-      params.delete("session");
-    } else {
-      params.set("session", String(s));
-    }
-    router.replace(`/votes?${params.toString()}`);
+    params.set("session", String(s));
+    router.replace(`/votes?${params.toString()}`, { scroll: false });
   };
 
-  useEffect(() => {
-    if (initialRawVotes) return;
-    async function fetchData() {
-      let allVotes: VoteRow[] = [];
-      let from = 0;
-      const PAGE = 1000;
-      while (true) {
-        const res = await supabase
-          .from("votes")
-          .select("member_id,vote,bill_title,vote_date,session_number")
-          .range(from, from + PAGE - 1);
-        const batch = res.data || [];
-        allVotes = allVotes.concat(batch);
-        if (batch.length < PAGE) break;
-        from += PAGE;
-      }
-
-      const sessions = [...new Set(allVotes.map((v) => v.session_number))]
-        .filter(Boolean).sort() as number[];
-      setAvailableSessions(sessions);
-
-      const membersRes = await supabase.from("members").select("id,party").limit(2000);
-      const memberParty: Record<string, string> = {};
-      for (const m of membersRes.data || []) {
-        memberParty[m.id] = m.party || "無所属";
-      }
-
-      setRawVotes(allVotes);
-      setMemberPartyMap(memberParty);
-      setLoading(false);
+  const { factions, cell } = useMemo(() => {
+    const rows = (alignments ?? []).filter((a) => a.session_number === session);
+    const names = new Set<string>();
+    const map = new Map<string, FactionVoteAlignment>();
+    for (const r of rows) {
+      names.add(r.faction_a); names.add(r.faction_b);
+      map.set(`${r.faction_a}|${r.faction_b}`, r);
+      map.set(`${r.faction_b}|${r.faction_a}`, r);
     }
-    fetchData();
-  }, []);
-
-  const fullResult = useMemo(
-    () => calcAlignment(rawVotes, memberPartyMap),
-    [rawVotes, memberPartyMap],
-  );
-
-  const fixedOrder = useMemo(() => {
-    const ref = "自民党";
-    return [...fullResult.parties].sort((a, b) => {
-      if (!fullResult.matrix[ref]) return 0;
-      const ra = fullResult.matrix[ref][a]?.total > 0
-        ? fullResult.matrix[ref][a].agree / fullResult.matrix[ref][a].total : 0;
-      const rb = fullResult.matrix[ref][b]?.total > 0
-        ? fullResult.matrix[ref][b].agree / fullResult.matrix[ref][b].total : 0;
-      return rb - ra;
-    });
-  }, [fullResult]);
-
-  const { matrix, parties, billCount, sessionRange } = useMemo(() => {
-    const filtered = selectedSession
-      ? rawVotes.filter((v) => v.session_number === selectedSession)
-      : rawVotes;
-    const result = calcAlignment(filtered, memberPartyMap);
-    const range = selectedSession
-      ? `第${selectedSession}回国会`
-      : availableSessions.length === 0 ? ""
-      : availableSessions.length === 1
-        ? `第${availableSessions[0]}回国会`
-        : `第${availableSessions[0]}〜${availableSessions[availableSessions.length - 1]}回国会`;
-    return { ...result, sessionRange: range };
-  }, [rawVotes, memberPartyMap, selectedSession, availableSessions]);
-
-  const sortedParties = fixedOrder.filter((p) => parties.includes(p))
-    .concat(parties.filter((p) => !fixedOrder.includes(p)));
+    return {
+      // 並び順は会派名の順（一致の割合で並べない）
+      factions: [...names].sort((a, b) => a.localeCompare(b, "ja")),
+      cell: (a: string, b: string) => map.get(`${a}|${b}`),
+    };
+  }, [alignments, session]);
 
   return (
     <div style={{
       minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
-      fontFamily: "'Hiragino Kaku Gothic ProN', sans-serif", padding: "24px",
+      padding: "24px",
     }}>
       <div style={{ maxWidth: 960, margin: "0 auto" }}>
 
-        {/* タイトル・フィルターカード */}
         <div className="card-xl" style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🗳 政党別採決一致率</h1>
-          <p style={{ color: "#555555", fontSize: 13, marginBottom: 4 }}>
-            参議院本会議の採決記録をもとに、政党間の投票行動の一致率を集計しています。
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>🗳 会派別の採決一致</h1>
+          <p style={{ color: "#555555", fontSize: 13, marginBottom: 8, lineHeight: 1.7 }}>
+            参議院本会議の投票結果ページに記載された<strong>会派別の票数</strong>をもとに、2つの会派の賛否が一致した採決の割合を、国会の回次ごとに集計しています。
+            会派は採決の時点のものです。
           </p>
-          {!loading && (
-            <p style={{ color: "#888888", fontSize: 12, marginBottom: 16 }}>
-              対象: {sessionRange}（採決 {billCount} 件）
+          {session !== undefined && (
+            <p style={{ color: "#555555", fontSize: 12, marginBottom: 12 }}>
+              対象: 第{session}回国会（会派別の票数が記録されている採決 {(voteCounts[session] ?? 0).toLocaleString()} 件）
             </p>
           )}
-
-          {/* 国会回次フィルター（プルダウン） */}
-          {!loading && availableSessions.length > 1 && (
-            <div style={{ marginBottom: 0 }}>
-              <select
-                value={selectedSession ?? ""}
-                onChange={(e) => setSelectedSession(e.target.value === "" ? null : Number(e.target.value))}
-                className="input-field"
-                style={{ minWidth: 160 }}>
-                <option value="">全期間</option>
-                {availableSessions.map((s) => (
-                  <option key={s} value={s}>第{s}回国会</option>
-                ))}
-              </select>
-            </div>
+          {sessions.length > 1 && (
+            <select
+              value={session}
+              onChange={(e) => setSession(Number(e.target.value))}
+              className="input-field"
+              aria-label="国会の回次"
+              style={{ minWidth: 160 }}>
+              {sessions.map((s) => (
+                <option key={s} value={s}>第{s}回国会</option>
+              ))}
+            </select>
           )}
         </div>
 
-        {/* 一覧カード */}
         <div className="card-xl">
-          {loading ? (
-            <div className="loading-block">
-              <div className="loading-spinner" />
-              <span>採決データを読み込んでいます...</span>
-            </div>
-          ) : parties.length === 0 ? (
-            <div className="empty-state">データがありません。</div>
+          {alignments === null ? (
+            <div className="empty-state">採決のデータを取得できませんでした。時間をおいて再度お試しください。</div>
+          ) : factions.length === 0 ? (
+            <div className="empty-state">該当する採決はありません（0件）。</div>
           ) : (
             <>
-              {/* マトリックス */}
               <div style={{ overflowX: "auto" }}>
-                <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
+                <table style={{ borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
                     <tr>
-                      <th style={{ padding: "8px 12px", textAlign: "left", color: "#888888",
-                        borderBottom: "1px solid #e0e0e0", whiteSpace: "nowrap",
-                        position: "sticky", left: 0, background: "#f4f4f4", zIndex: 2 }}>
-                        政党
+                      <th scope="col" style={{ padding: "8px 12px", textAlign: "left", color: "#555555",
+                        borderBottom: "1px solid #e0e0e0", whiteSpace: "nowrap", verticalAlign: "bottom",
+                        position: "sticky", left: 0, background: "#ffffff", zIndex: 2 }}>
+                        会派
                       </th>
-                      {sortedParties.map((p) => (
-                        <th key={p} style={{ padding: "6px 4px", color: "#888888",
-                          borderBottom: "1px solid #e0e0e0",
-                          writingMode: "vertical-rl", textOrientation: "mixed",
-                          whiteSpace: "nowrap", minWidth: 28, fontSize: 11 }}>
-                          {partyShort(p)}
+                      {factions.map((f) => (
+                        <th key={f} scope="col" style={{ padding: "6px 4px", color: "#333333", fontWeight: 600,
+                          borderBottom: `3px solid ${factionColor(f)}`, writingMode: "vertical-rl", whiteSpace: "nowrap",
+                          textAlign: "end", minWidth: 44, fontSize: 11, letterSpacing: 1 }}>
+                          {f}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedParties.map((rowParty) => (
-                      <tr key={rowParty}>
-                        <td style={{ padding: "6px 12px", whiteSpace: "nowrap",
-                          color: "#444444", fontWeight: 600, fontSize: 12,
-                          borderBottom: "1px solid #e0e0e0",
-                          position: "sticky", left: 0, background: "#f4f4f4", zIndex: 1 }}>
-                          {rowParty}
-                        </td>
-                        {sortedParties.map((colParty) => {
-                          const cell = matrix[rowParty]?.[colParty];
-                          if (!cell || cell.total === 0) {
-                            return (
-                              <td key={colParty} style={{ padding: "6px 4px", textAlign: "center",
-                                background: "#f0f0f0", borderBottom: "1px solid #f4f4f4",
-                                color: "#aaaaaa" }}>
-                                —
-                              </td>
-                            );
+                    {factions.map((row) => (
+                      <tr key={row}>
+                        <th scope="row" style={{ padding: "6px 12px", whiteSpace: "nowrap", textAlign: "left",
+                          color: "#333333", fontWeight: 600, fontSize: 12,
+                          borderBottom: "1px solid #e0e0e0", borderLeft: `3px solid ${factionColor(row)}`,
+                          position: "sticky", left: 0, background: "#ffffff", zIndex: 1 }}>
+                          {row}
+                        </th>
+                        {factions.map((col) => {
+                          if (row === col) {
+                            return <td key={col} style={{ padding: "6px 4px", textAlign: "center", background: "#e8e8e8", color: "#888888", borderBottom: "1px solid #f4f4f4" }}>—</td>;
                           }
-                          const rate   = cell.agree / cell.total;
-                          const isSelf = rowParty === colParty;
+                          const c = cell(row, col);
+                          if (!c || c.total_count === 0) {
+                            return <td key={col} style={{ padding: "6px 4px", textAlign: "center", background: "#f0f0f0", color: "#888888", borderBottom: "1px solid #f4f4f4" }}>—</td>;
+                          }
+                          const rate = c.agree_count / c.total_count;
                           return (
-                            <td key={colParty}
-                              title={`${rowParty} × ${colParty}: ${cell.agree}/${cell.total}件一致`}
+                            <td key={col}
+                              title={`${row} × ${col}: ${c.total_count}件中 ${c.agree_count}件で賛否が一致`}
                               style={{
-                                padding: "6px 4px", textAlign: "center",
-                                background: isSelf ? "#e8e8e8" : alignColor(rate),
-                                color: isSelf ? "#888888" : ALIGN_TEXT_COLOR,
+                                padding: "4px 4px", textAlign: "center", lineHeight: 1.2,
+                                background: alignColor(rate), color: ALIGN_TEXT_COLOR,
                                 borderBottom: "1px solid #f4f4f4",
-                                fontWeight: isSelf ? 400 : 700,
-                                cursor: "default",
                               }}>
-                              {isSelf ? "—" : `${Math.round(rate * 100)}%`}
+                              <div style={{ fontWeight: 700 }}>{Math.round(rate * 100)}%</div>
+                              <div style={{ fontSize: 10, color: "#555555" }}>{c.agree_count}/{c.total_count}</div>
                             </td>
                           );
                         })}
@@ -287,7 +146,6 @@ function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
                 </table>
               </div>
 
-              {/* 凡例 */}
               <div style={{ display: "flex", gap: 16, marginTop: 20, fontSize: 11, color: "#555555", flexWrap: "wrap" }}>
                 {[
                   { color: "#cfd8e3", label: "90%以上" },
@@ -301,10 +159,13 @@ function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
                   </div>
                 ))}
               </div>
-              <p style={{ fontSize: 12, color: "#555555", marginTop: 12 }}>
-                ※ 各党の多数派（賛成または反対）が一致した採決の割合。投票なしは集計対象外。参議院のみ。
-              </p>
-              <ListNotices style={{ marginTop: 4 }} />
+              <ul style={{ fontSize: 12, color: "#555555", margin: "12px 0 0", paddingLeft: 18, lineHeight: 1.8 }}>
+                <li>各セルの上段は一致した割合、下段は「一致した採決 / 2つの会派がともに対象になった採決」の件数です。対象の採決が少ない回次は、割合が大きく動きます。</li>
+                <li>会派の賛否は、その採決の会派別の票数で賛成票が多ければ賛成、反対票が多ければ反対としています。賛成と反対が同数の場合と、票がない場合（投票なしのみ）は、その採決では対象外です。</li>
+                <li>参議院のみです（衆議院本会議は議員ごとの投票記録が公開されていません）。参議院でも起立採決や異議なし採決は会派別の票数が記録されないため含まれません。</li>
+                <li>並び順は会派名の順です。</li>
+              </ul>
+              <ListNotices sort={false} style={{ marginTop: 8 }} />
             </>
           )}
         </div>
@@ -313,9 +174,9 @@ function VotesContent({ initialRawVotes, initialMemberPartyMap }: {
   );
 }
 
-export default function VotesClient({ initialRawVotes, initialMemberPartyMap }: {
-  initialRawVotes?: VoteRow[];
-  initialMemberPartyMap?: Record<string, string>;
+export default function VotesClient(props: {
+  alignments: FactionVoteAlignment[] | null;
+  voteCounts: Record<number, number>;
 }) {
   return (
     <Suspense fallback={
@@ -326,7 +187,7 @@ export default function VotesClient({ initialRawVotes, initialMemberPartyMap }: 
         </div>
       </div>
     }>
-      <VotesContent initialRawVotes={initialRawVotes} initialMemberPartyMap={initialMemberPartyMap} />
+      <VotesContent {...props} />
     </Suspense>
   );
 }

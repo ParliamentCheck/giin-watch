@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { getCabinetMembers } from "../../lib/queries";
 import type { Member } from "../../lib/types";
-import { PARTY_COLORS } from "../../lib/partyColors";
+import { factionColor } from "../../lib/factions";
 
 // 役職の表示優先度（上位ほど先）
 const POST_PRIORITY: string[] = [
@@ -80,7 +80,7 @@ export default function CabinetClient({ initialMembers }: { initialMembers?: Mem
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {members.map((m) => {
-              const color = PARTY_COLORS[m.party] || "#7f8c8d";
+              const color = factionColor(m.faction);
               return (
                 <div key={m.id}
                   onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
@@ -95,9 +95,9 @@ export default function CabinetClient({ initialMembers }: { initialMembers?: Mem
                     <span style={{ fontWeight: 700, fontSize: 15, color: "#111111", minWidth: 90 }}>
                       {m.alias_name ?? m.name}
                     </span>
-                    {/* 政党バッジ */}
+                    {/* 会派バッジ */}
                     <span className="badge badge-party" style={{ "--party-color": color } as React.CSSProperties}>
-                      {m.party}
+                      {m.faction_short ?? m.faction ?? "—"}
                     </span>
                     {/* 院・選挙区 */}
                     <span style={{ color: "#555555", fontSize: 12, whiteSpace: "nowrap" }}>

@@ -3,6 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
+  async redirects() {
+    // 表示単位を政党から会派に切り替えた（2026-10）。旧「政党」は衆参の複数の会派にまたがるため、
+    // 特定の会派ページに決め打ちせず会派一覧に集約する（設計書 claude/design_kaiha_v1.md 6章）
+    return [
+      { source: "/parties", destination: "/factions", statusCode: 301 },
+      { source: "/parties/:party*", destination: "/factions", statusCode: 301 },
+    ];
+  },
   async headers() {
     return [
       {

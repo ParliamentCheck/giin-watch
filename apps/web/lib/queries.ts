@@ -21,11 +21,13 @@ import type {
   Petition,
   SangiinPetition,
   MemberKeyword,
-  PartyKeyword,
+  MemberRef,
   CommitteeMember,
+  FactionVoteAlignment,
   QuestionListItem,
   PetitionListItem,
 } from "./types";
+import type { FactionRow, FactionHistoryRow } from "./factions";
 
 // ============================================================
 // クライアント型
@@ -42,22 +44,40 @@ type Db = typeof defaultClient;
  * クライアントコンポーネントの members 直接クエリで使用する。
  */
 export const MEMBER_SELECT =
-  "id,name,alias_name,last_name,first_name,last_name_reading,first_name_reading,party,prev_party,faction,house,district,prefecture,is_active,cabinet_post,session_count,question_count,bill_count,petition_count,speech_count,terms" as const;
+  "id,name,alias_name,last_name,first_name,last_name_reading,first_name_reading,faction,faction_short,house,district,prefecture,is_active,cabinet_post,session_count,question_count,bill_count,petition_count,speech_count,terms,election_type,source_url,ndl_names" as const;
 
 /**
  * 他テーブルから members を JOIN するときの埋め込みフィールドセット。
  * 使い方: .select(`..., members(${MEMBER_JOIN_SELECT})`)
  * alias_name と is_active を必ず含めることで渡し忘れを防ぐ。
  */
-export const MEMBER_JOIN_SELECT = "id,name,alias_name,party,is_active" as const;
+export const MEMBER_JOIN_SELECT = "id,name,alias_name,faction,is_active" as const;
 
 /**
  * 部分的な members クエリ結果の型。
  * MEMBER_JOIN_SELECT と対応。as any[] の代替として使う。
  */
-type MemberRow = { id: string; name: string; alias_name: string | null; party: string; is_active: boolean };
+type MemberRow = { id: string } & MemberRef;
 
 const DEFAULT_LIMIT = 2000;
+
+/**
+ * 1000行を超える表を全件取得する（本番の max_rows は 1000。limit(2000) では1000行で切れる）。
+ * order に一意な列を指定し、range で順に読む。
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function fetchAllRows<T>(build: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: { message: string } | null }>, label: string): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build(from, from + PAGE - 1);
+    if (error) throw new Error(`${label}: ${error.message}`);
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+  return out;
+}
 
 // ============================================================
 // Members
@@ -65,44 +85,75 @@ const DEFAULT_LIMIT = 2000;
 
 /** 現職議員一覧を取得 */
 export async function getActiveMembers(client: Db = defaultClient): Promise<Member[]> {
-  const { data, error } = await client
-    .from("members")
-    .select("*")
-    .eq("is_active", true)
-    .limit(DEFAULT_LIMIT);
-
-  if (error) throw new Error(`getActiveMembers: ${error.message}`);
-  return (data ?? []) as Member[];
+  return fetchAllRows<Member>(
+    (from, to) => client.from("members").select(MEMBER_SELECT).eq("is_active", true).order("id").range(from, to),
+    "getActiveMembers",
+  );
 }
 
 /** 前議員一覧を取得 */
 export async function getFormerMembers(client: Db = defaultClient): Promise<Member[]> {
-  const { data, error } = await client
-    .from("members")
-    .select("*")
-    .eq("is_active", false)
-    .limit(DEFAULT_LIMIT);
-
-  if (error) throw new Error(`getFormerMembers: ${error.message}`);
-  return (data ?? []) as Member[];
+  return fetchAllRows<Member>(
+    (from, to) => client.from("members").select(MEMBER_SELECT).eq("is_active", false).order("id").range(from, to),
+    "getFormerMembers",
+  );
 }
 
 /** 全議員取得 */
 export async function getAllMembers(client: Db = defaultClient): Promise<Member[]> {
-  const { data, error } = await client
-    .from("members")
-    .select("*")
-    .limit(DEFAULT_LIMIT);
+  return fetchAllRows<Member>(
+    (from, to) => client.from("members").select(MEMBER_SELECT).order("id").range(from, to),
+    "getAllMembers",
+  );
+}
 
-  if (error) throw new Error(`getAllMembers: ${error.message}`);
-  return (data ?? []) as Member[];
+// ============================================================
+// 会派
+// ============================================================
+
+/** 会派一覧（公式の会派一覧に載っている現在の会派） */
+export async function getCurrentFactions(client: Db = defaultClient): Promise<FactionRow[]> {
+  const { data, error } = await client.from("factions").select("*").eq("is_current", true).order("house").order("name");
+  if (error) throw new Error(`getCurrentFactions: ${error.message}`);
+  return (data ?? []) as FactionRow[];
+}
+
+/** 会派の所属履歴（全件、または指定議員分） */
+export async function getFactionHistory(client: Db = defaultClient, memberIds?: string[]): Promise<FactionHistoryRow[]> {
+  const cols = "member_id,house,faction_name,source,start_on,end_on,record_count";
+  if (memberIds) {
+    if (memberIds.length === 0) return [];
+    const out: FactionHistoryRow[] = [];
+    for (let i = 0; i < memberIds.length; i += 200) {
+      const chunk = memberIds.slice(i, i + 200);
+      out.push(...await fetchAllRows<FactionHistoryRow>(
+        (from, to) => client.from("member_faction_history").select(cols).in("member_id", chunk).order("id").range(from, to),
+        "getFactionHistory",
+      ));
+    }
+    return out;
+  }
+  return fetchAllRows<FactionHistoryRow>(
+    (from, to) => client.from("member_faction_history").select(cols).order("id").range(from, to),
+    "getFactionHistory",
+  );
+}
+
+/** 会派ペアの採決一致（参院・会期ごと） */
+export async function getFactionVoteAlignments(client: Db = defaultClient): Promise<FactionVoteAlignment[]> {
+  return fetchAllRows<FactionVoteAlignment>(
+    (from, to) => client.from("faction_vote_alignments")
+      .select("house,session_number,faction_a,faction_b,agree_count,total_count")
+      .order("session_number").order("faction_a").order("faction_b").range(from, to),
+    "getFactionVoteAlignments",
+  );
 }
 
 /** 議員単体取得 */
 export async function getMemberById(id: string, client: Db = defaultClient): Promise<Member | null> {
   const { data, error } = await client
     .from("members")
-    .select("*")
+    .select(MEMBER_SELECT)
     .eq("id", id)
     .single();
 
@@ -115,7 +166,7 @@ export async function getMembersByIds(ids: string[], client: Db = defaultClient)
   if (ids.length === 0) return [];
   const { data, error } = await client
     .from("members")
-    .select("*")
+    .select(MEMBER_SELECT)
     .in("id", ids);
 
   if (error) {
@@ -129,7 +180,7 @@ export async function getMembersByIds(ids: string[], client: Db = defaultClient)
 export async function getCabinetMembers(client: Db = defaultClient): Promise<Member[]> {
   const { data, error } = await client
     .from("members")
-    .select("*")
+    .select(MEMBER_SELECT)
     .eq("is_active", true)
     .not("cabinet_post", "is", null);
 
@@ -358,20 +409,6 @@ export async function getMemberKeywords(memberId: string, client: Db = defaultCl
   return data ?? [];
 }
 
-export async function getPartyKeywords(party: string, client: Db = defaultClient): Promise<PartyKeyword[]> {
-  const { data, error } = await client
-    .from("party_keywords")
-    .select("*")
-    .eq("party", party)
-    .order("count", { ascending: false })
-    .limit(100);
-
-  if (error) {
-    console.warn("getPartyKeywords:", error.message);
-    return [];
-  }
-  return data ?? [];
-}
 
 // ============================================================
 // Committee Members
@@ -395,50 +432,11 @@ export async function getCommitteesForMember(
 // Site Settings
 // ============================================================
 
-export async function getSiteSetting(key: string, client: Db = defaultClient): Promise<string | null> {
-  const { data, error } = await client
-    .from("site_settings")
-    .select("value")
-    .eq("key", key)
-    .single();
-
-  if (error || !data) return null;
-  return data.value || null;
-}
 
 // ============================================================
 // 統計
 // ============================================================
 
-export async function getDashboardStats(client: Db = defaultClient): Promise<{
-  totalMembers: number;
-  totalSpeeches: number;
-  totalQuestions: number;
-  partyBreakdown: { party: string; count: number }[];
-}> {
-  const members = await getActiveMembers(client);
-
-  const partyCount: Record<string, number> = {};
-  let totalSpeeches = 0;
-  let totalQuestions = 0;
-
-  for (const m of members) {
-    partyCount[m.party] = (partyCount[m.party] || 0) + 1;
-    totalSpeeches += m.speech_count || 0;
-    totalQuestions += m.question_count || 0;
-  }
-
-  const partyBreakdown = Object.entries(partyCount)
-    .map(([party, count]) => ({ party, count }))
-    .sort((a, b) => b.count - a.count);
-
-  return {
-    totalMembers: members.length,
-    totalSpeeches,
-    totalQuestions,
-    partyBreakdown,
-  };
-}
 
 // ============================================================
 // トップページ専用クエリ
@@ -446,12 +444,12 @@ export async function getDashboardStats(client: Db = defaultClient): Promise<{
 // ============================================================
 
 export async function getTopPageStats(client: Db = defaultClient): Promise<{
-  total: number; shugiin: number; sangiin: number; parties: number;
+  total: number; shugiin: number; sangiin: number; factions: number;
   speeches: number; questions: number; bills: number; petitions: number;
 }> {
   const [membersRes, shugiinCountRes, sangiinCountRes, questionRes, billsRes, petitionRes, sangiinPetitionRes] =
     await Promise.all([
-      client.from("members").select("id, party, speech_count, question_count").eq("is_active", true).limit(2000),
+      client.from("members").select("id, house, faction, speech_count, question_count").eq("is_active", true).limit(1000),
       client.from("members").select("id", { count: "exact", head: true }).eq("is_active", true).eq("house", "衆議院"),
       client.from("members").select("id", { count: "exact", head: true }).eq("is_active", true).eq("house", "参議院"),
       client.from("questions").select("id", { count: "exact", head: true }),
@@ -460,53 +458,49 @@ export async function getTopPageStats(client: Db = defaultClient): Promise<{
       client.from("sangiin_petitions").select("id", { count: "exact", head: true }),
     ]);
 
-  const members = (membersRes.data || []) as { party: string; speech_count: number | null; question_count: number | null }[];
-  const parties = new Set(members.map((m) => m.party)).size;
+  const members = (membersRes.data || []) as { house: string; faction: string | null; speech_count: number | null; question_count: number | null }[];
+  const factions = new Set(members.filter((m) => m.faction).map((m) => `${m.house}|${m.faction}`)).size;
   const shugiin = shugiinCountRes.count ?? 0;
   const sangiin = sangiinCountRes.count ?? 0;
   const speeches = members.reduce((sum, m) => sum + (m.speech_count || 0), 0);
   const petitions = (petitionRes.count || 0) + (sangiinPetitionRes.count || 0);
 
   return {
-    total: shugiin + sangiin, shugiin, sangiin, parties, speeches,
+    total: shugiin + sangiin, shugiin, sangiin, factions, speeches,
     questions: questionRes.count || 0, bills: billsRes.count || 0, petitions,
   };
 }
 
-export async function getPartyBreakdown(client: Db = defaultClient): Promise<
-  { party: string; total: number; shugiin: number; sangiin: number }[]
+/** 現在の会派ごとの所属議員数（院別） */
+export async function getFactionBreakdown(client: Db = defaultClient): Promise<
+  { house: "衆議院" | "参議院"; faction: string; short: string | null; count: number }[]
 > {
-  const { data } = await client.from("members").select("party, house").eq("is_active", true).limit(2000);
+  const { data } = await client.from("members").select("house, faction, faction_short").eq("is_active", true).limit(1000);
   if (!data) return [];
-
-  const map = new Map<string, { total: number; shugiin: number; sangiin: number }>();
-  for (const m of data as { party: string; house: string }[]) {
-    const cur = map.get(m.party) || { total: 0, shugiin: 0, sangiin: 0 };
-    cur.total++;
-    if (m.house === "衆議院") cur.shugiin++;
-    else cur.sangiin++;
-    map.set(m.party, cur);
+  const map = new Map<string, { house: "衆議院" | "参議院"; faction: string; short: string | null; count: number }>();
+  for (const m of data as { house: "衆議院" | "参議院"; faction: string | null; faction_short: string | null }[]) {
+    if (!m.faction) continue;
+    const key = `${m.house}|${m.faction}`;
+    const cur = map.get(key) || { house: m.house, faction: m.faction, short: m.faction_short, count: 0 };
+    cur.count++;
+    map.set(key, cur);
   }
-
-  return [...map.entries()]
-    .map(([party, counts]) => ({ party, ...counts }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 8);
+  return [...map.values()];
 }
 
 type RecentQuestionItem = {
   id: string; title: string; submitted_at: string | null; member_id: string | null;
   source_url: string | null; house: "衆" | "参";
-  members: { name: string; alias_name: string | null; party: string; is_active: boolean } | null;
+  members: MemberRef | null;
 };
 
 export async function getTopRecentQuestions(client: Db = defaultClient): Promise<RecentQuestionItem[]> {
   const [shuRes, sanRes] = await Promise.all([
     client.from("questions")
-      .select("id, title, submitted_at, member_id, source_url, members(name, alias_name, party, is_active)")
+      .select("id, title, submitted_at, member_id, source_url, members(name, alias_name, faction, is_active)")
       .order("session", { ascending: false }).order("number", { ascending: false }).limit(10),
     client.from("sangiin_questions")
-      .select("id, title, submitted_at, member_id, url, members(name, alias_name, party, is_active)")
+      .select("id, title, submitted_at, member_id, source_url, members(name, alias_name, faction, is_active)")
       .order("submitted_at", { ascending: false }).limit(10),
   ]);
 
@@ -526,7 +520,7 @@ type RecentPetitionItem = {
   source_url: string | null; introducer_ids: string[] | null; introducer_names: string[] | null;
   house: "衆" | "参";
 };
-type PetitionMemberMap = Record<string, { name: string; party: string; is_active: boolean }>;
+type PetitionMemberMap = Record<string, { name: string; faction: string | null; is_active: boolean }>;
 
 export async function getTopRecentPetitions(
   client: Db = defaultClient,
@@ -554,9 +548,9 @@ export async function getTopRecentPetitions(
   const memberMap: PetitionMemberMap = {};
   if (allIds.length > 0) {
     const { data: members } = await client.from("members")
-      .select("id, name, alias_name, party, is_active").in("id", allIds).limit(500);
+      .select("id, name, alias_name, faction, is_active").in("id", allIds).limit(500);
     for (const m of (members as MemberRow[] ?? [])) {
-      const info = { name: m.name, party: m.party, is_active: m.is_active };
+      const info = { name: m.name, faction: m.faction ?? null, is_active: m.is_active };
       memberMap[m.id] = info;
       if (m.alias_name) {
         const houseLabel = m.id.startsWith("衆議院") ? "衆議院" : "参議院";
@@ -570,7 +564,7 @@ export async function getTopRecentPetitions(
 
 type CommitteeActivityItem = {
   date: string; committee: string; ndlUrl: string;
-  members: { id: string; name: string; alias_name: string | null; party: string; is_active: boolean }[];
+  members: ({ id: string } & MemberRef)[];
 };
 
 export async function getLatestCommitteeActivity(client: Db = defaultClient): Promise<CommitteeActivityItem[]> {
@@ -595,12 +589,12 @@ export async function getLatestCommitteeActivity(client: Db = defaultClient): Pr
 
   const groups = [...groupMap.values()].slice(0, 8);
   const allIds = [...new Set(groups.flatMap((g) => [...g.memberIds]))];
-  const memberMap = new Map<string, { name: string; alias_name: string | null; party: string; is_active: boolean }>();
+  const memberMap = new Map<string, MemberRef>();
   if (allIds.length > 0) {
     const { data: members } = await client.from("members")
-      .select("id, name, alias_name, party, is_active").in("id", allIds).limit(500);
+      .select("id, name, alias_name, faction, is_active").in("id", allIds).limit(500);
     for (const m of (members as MemberRow[] ?? []))
-      memberMap.set(m.id, { name: m.name, alias_name: m.alias_name ?? null, party: m.party, is_active: m.is_active });
+      memberMap.set(m.id, { name: m.name, alias_name: m.alias_name ?? null, faction: m.faction ?? null, is_active: m.is_active });
   }
 
   return groups.map((g) => ({
@@ -610,7 +604,7 @@ export async function getLatestCommitteeActivity(client: Db = defaultClient): Pr
       id,
       name:      memberMap.get(id)?.name      || "",
       alias_name: memberMap.get(id)?.alias_name ?? null,
-      party:     memberMap.get(id)?.party     || "",
+      faction:   memberMap.get(id)?.faction   ?? null,
       is_active: memberMap.get(id)?.is_active ?? true,
     })),
     ndlUrl: g.sourceUrl ? g.sourceUrl.replace(/\/\d+$/, "/0") : "",
@@ -630,7 +624,7 @@ export async function getAllQuestionsWithMembers(client: Db = defaultClient): Pr
   let from = 0;
   while (true) {
     const { data } = await client.from("questions")
-      .select("id,session,number,title,submitted_at,answered_at,source_url,member_id,members(name,alias_name,party,is_active)")
+      .select("id,session,number,title,submitted_at,answered_at,source_url,member_id,members(name,alias_name,faction,is_active)")
       .range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
     for (const d of data as unknown as Row[]) all.push({ ...d, house: "衆" as const });
@@ -646,7 +640,7 @@ export async function getAllSangiinQuestionsWithMembers(client: Db = defaultClie
   let from = 0;
   while (true) {
     const { data } = await client.from("sangiin_questions")
-      .select("id,session,number,title,submitted_at,source_url,member_id,members(name,alias_name,party,is_active)")
+      .select("id,session,number,title,submitted_at,source_url,member_id,members(name,alias_name,faction,is_active)")
       .range(from, from + BATCH - 1);
     if (!data || data.length === 0) break;
     for (const d of data as unknown as Row[]) all.push({ ...d, house: "参" as const, answered_at: null });
@@ -689,12 +683,14 @@ export async function getAllSangiinPetitionRows(client: Db = defaultClient): Pro
 /** 請願ページ用 memberMap（alias_name による別IDも登録） */
 export async function getPetitionMemberMap(
   client: Db = defaultClient,
-): Promise<Record<string, { name: string; alias_name: string | null; party: string; is_active: boolean }>> {
-  const { data } = await client.from("members")
-    .select("id, name, alias_name, party, is_active").limit(2000);
-  const map: Record<string, { name: string; alias_name: string | null; party: string; is_active: boolean }> = {};
-  for (const m of (data as MemberRow[] ?? [])) {
-    const info = { name: m.name, alias_name: m.alias_name ?? null, party: m.party, is_active: m.is_active };
+): Promise<Record<string, MemberRef>> {
+  const data = await fetchAllRows<MemberRow>(
+    (from, to) => client.from("members").select("id, name, alias_name, faction, is_active").order("id").range(from, to),
+    "getPetitionMemberMap",
+  );
+  const map: Record<string, MemberRef> = {};
+  for (const m of data) {
+    const info: MemberRef = { name: m.name, alias_name: m.alias_name ?? null, faction: m.faction ?? null, is_active: m.is_active };
     map[m.id] = info;
     if (m.alias_name) {
       const houseLabel = m.id.startsWith("衆議院") ? "衆議院" : "参議院";
@@ -705,43 +701,27 @@ export async function getPetitionMemberMap(
 }
 
 /**
- * 質問主意書の月別推移（政党別）
+ * 質問主意書の月別推移（院別）
  * minSession: 衆院質問のフィルター下限（例: CURRENT_SESSION - 4）
  * 衆院は session >= minSession、参院は提出日14ヶ月以内を取得し全件ページネーション
+ * ※ 政党・会派別の内訳は、過去の提出を現在の所属で数えることになるため出さない
  */
 export async function getMonthlyQuestionsTrend(
   minSession: number,
   client: Db = defaultClient,
-): Promise<{ month: string; total: number; parties: { party: string; count: number }[] }[]> {
+): Promise<{ month: string; total: number; shugiin: number; sangiin: number }[]> {
   const cutoffDate = new Date();
   cutoffDate.setMonth(cutoffDate.getMonth() - 14);
   const cutoffIso = cutoffDate.toISOString().slice(0, 10);
 
-  type Row = { submitted_at: string; members: { party: string } | null };
-
-  // 衆院：ページネーションで全件取得
-  const shuData: Row[] = [];
-  for (let from = 0; ; from += BATCH) {
-    const { data } = await client.from("questions")
-      .select("submitted_at, members(party)")
-      .gte("session", minSession)
-      .range(from, from + BATCH - 1);
-    if (!data || data.length === 0) break;
-    for (const d of data) shuData.push({ submitted_at: d.submitted_at as string, members: (d.members as unknown as { party: string } | null) ?? null });
-    if (data.length < BATCH) break;
-  }
-
-  // 参院：ページネーションで全件取得
-  const sanData: Row[] = [];
-  for (let from = 0; ; from += BATCH) {
-    const { data } = await client.from("sangiin_questions")
-      .select("submitted_at, members(party)")
-      .gte("submitted_at", cutoffIso)
-      .range(from, from + BATCH - 1);
-    if (!data || data.length === 0) break;
-    for (const d of data) sanData.push({ submitted_at: d.submitted_at as string, members: (d.members as unknown as { party: string } | null) ?? null });
-    if (data.length < BATCH) break;
-  }
+  const shuData = await fetchAllRows<{ submitted_at: string | null }>(
+    (from, to) => client.from("questions").select("submitted_at").gte("session", minSession).order("id").range(from, to),
+    "getMonthlyQuestionsTrend:shu",
+  );
+  const sanData = await fetchAllRows<{ submitted_at: string | null }>(
+    (from, to) => client.from("sangiin_questions").select("submitted_at").gte("submitted_at", cutoffIso).order("id").range(from, to),
+    "getMonthlyQuestionsTrend:san",
+  );
 
   function shuToYearMonth(s: string): string | null {
     const m = s.match(/^令和\s*(\d+|元)年\s*(\d+)月/);
@@ -754,38 +734,22 @@ export async function getMonthlyQuestionsTrend(
     return m ? `${m[1]}-${m[2]}` : null;
   }
 
-  const monthMap: Record<string, Record<string, number>> = {};
-  const partyTotal: Record<string, number> = {};
-
+  const monthMap: Record<string, { shugiin: number; sangiin: number }> = {};
   for (const q of shuData) {
-    const ym = shuToYearMonth(q.submitted_at);
+    const ym = q.submitted_at ? shuToYearMonth(q.submitted_at) : null;
     if (!ym) continue;
-    const party = q.members?.party || "その他";
-    if (!monthMap[ym]) monthMap[ym] = {};
-    monthMap[ym][party] = (monthMap[ym][party] || 0) + 1;
-    partyTotal[party] = (partyTotal[party] || 0) + 1;
+    (monthMap[ym] ??= { shugiin: 0, sangiin: 0 }).shugiin++;
   }
   for (const q of sanData) {
-    const ym = sanToYearMonth(q.submitted_at);
+    const ym = q.submitted_at ? sanToYearMonth(q.submitted_at) : null;
     if (!ym) continue;
-    const party = q.members?.party || "その他";
-    if (!monthMap[ym]) monthMap[ym] = {};
-    monthMap[ym][party] = (monthMap[ym][party] || 0) + 1;
-    partyTotal[party] = (partyTotal[party] || 0) + 1;
+    (monthMap[ym] ??= { shugiin: 0, sangiin: 0 }).sangiin++;
   }
-
-  const sortedParties = Object.entries(partyTotal)
-    .sort((a, b) => b[1] - a[1])
-    .map(([p]) => p);
 
   return Object.entries(monthMap)
     .sort(([a], [b]) => b.localeCompare(a))
     .slice(0, 12)
-    .map(([month, partyMap]) => ({
-      month,
-      total: Object.values(partyMap).reduce((s, c) => s + c, 0),
-      parties: sortedParties.filter((p) => partyMap[p]).map((p) => ({ party: p, count: partyMap[p] })),
-    }));
+    .map(([month, c]) => ({ month, total: c.shugiin + c.sangiin, ...c }));
 }
 
 /** 法案リストページ用（bill_type でフィルター） */

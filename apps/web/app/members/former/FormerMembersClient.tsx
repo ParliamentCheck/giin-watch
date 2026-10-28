@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import type { Member } from "../../../lib/types";
 import { MEMBER_SORT_OPTIONS, type MemberSortKey } from "../../../lib/types";
-import { PARTY_COLORS } from "../../../lib/partyColors";
 import { MEMBER_SELECT } from "../../../lib/queries";
 import { compareMembersByReading } from "../../../lib/memberSort";
 import { ListNotices } from "../../components/Notices";
@@ -23,7 +22,8 @@ function FormerMembersContent() {
 
   const search        = searchParams.get("q")     || "";
   const selectedHouse = searchParams.get("house") || "";
-  const selectedParty = searchParams.get("party") || "";
+  // 前議員の会派は信頼できる値がないため、会派での絞り込みは行わない（会派の遍歴は各議員ページで確認できる）
+  const selectedParty = "";
   const sortKey       = (searchParams.get("sort") || "name") as MemberSortKey;
 
   useEffect(() => {
@@ -34,7 +34,7 @@ function FormerMembersContent() {
     const params = new URLSearchParams();
     if (q)     params.set("q",     q);
     if (house) params.set("house", house);
-    if (party) params.set("party", party);
+    void party;
     if (sort && sort !== "name") params.set("sort", sort);
     const qs = params.toString();
     router.replace(qs ? `/members/former?${qs}` : "/members/former", { scroll: false });
@@ -55,13 +55,11 @@ function FormerMembersContent() {
     fetchMembers();
   }, []);
 
-  const parties = Array.from(new Set(members.map((m) => m.party))).sort();
 
   const filtered = members.filter((m) => {
     const norm = (s: string) => s.replace(/[\s\u3000]+/g, "");
     if (search && !norm(m.name).includes(norm(search)) && !m.district.includes(search)) return false;
     if (selectedHouse && m.house !== selectedHouse) return false;
-    if (selectedParty && m.party !== selectedParty) return false;
     return true;
   });
 
@@ -107,12 +105,6 @@ function FormerMembersContent() {
             <option value="衆議院">衆議院</option>
             <option value="参議院">参議院</option>
           </select>
-          <select value={selectedParty}
-            onChange={(e) => updateUrl(search, selectedHouse, e.target.value, sortKey)}
-            className="input-field">
-            <option value="">🗳 政党を選択</option>
-            {parties.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
           <select value={sortKey}
             onChange={(e) => updateUrl(search, selectedHouse, selectedParty, e.target.value)}
             className="input-field">
@@ -140,7 +132,7 @@ function FormerMembersContent() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {sorted.map((m) => {
-            const color = PARTY_COLORS[m.party] || "#7f8c8d";
+            const color = "#7f8c8d";
             return (
               <div key={m.id}
                 onClick={() => router.push(`/members/${encodeURIComponent(m.id)}`)}
@@ -150,10 +142,6 @@ function FormerMembersContent() {
                   {/* 名前 */}
                   <span style={{ fontWeight: 700, fontSize: 15, color: "#111111", minWidth: 90 }}>
                     {m.alias_name ?? m.name}
-                  </span>
-                  {/* 政党バッジ */}
-                  <span className="badge badge-party" style={{ "--party-color": "#aaaaaa" } as React.CSSProperties}>
-                    元{m.party}
                   </span>
                   {/* 院・選挙区・期数 */}
                   <span style={{ color: "#555555", fontSize: 12, whiteSpace: "nowrap" }}>

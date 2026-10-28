@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { supabaseServer } from "../../lib/supabase-server";
 import { SESSION_RANGE_QUESTIONS } from "../../lib/constants";
-import { getAllQuestionsWithMembers, getAllSangiinQuestionsWithMembers } from "../../lib/queries";
+import { getAllQuestionsWithMembers, getAllSangiinQuestionsWithMembers, getFactionHistory } from "../../lib/queries";
+import { buildFactionAt, toIsoDate } from "../../lib/factions";
 import type { QuestionListItem } from "../../lib/types";
 import QuestionsClient from "./QuestionsClient";
 
@@ -28,12 +29,18 @@ export async function generateMetadata(): Promise<Metadata> {
 // ── ページ ────────────────────────────────────────────────���───
 
 export default async function QuestionsPage() {
-  const [shu, san] = await Promise.all([
+  const [shu, san, history] = await Promise.all([
     getAllQuestionsWithMembers(supabaseServer),
     getAllSangiinQuestionsWithMembers(supabaseServer),
+    getFactionHistory(supabaseServer).catch(() => []),
   ]);
 
-  const initialQuestions: QuestionListItem[] = [...shu, ...san];
+  // 提出日の時点の会派（確定できない場合は null）
+  const factionAt = buildFactionAt(history);
+  const initialQuestions: QuestionListItem[] = [...shu, ...san].map((q) => ({
+    ...q,
+    faction_at: q.member_id ? factionAt(q.member_id, toIsoDate(q.submitted_at)) : null,
+  }));
 
   // JSON-LD（直近20件）
   const recent = [...initialQuestions]

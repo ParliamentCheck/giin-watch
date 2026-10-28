@@ -15,8 +15,8 @@ export interface Member {
   first_name: string | null;
   last_name_reading: string | null;
   first_name_reading: string | null;
-  party: string;
-  faction: string | null;
+  faction: string | null;          // 現在の会派（公式の正式名）。前議員は信頼できる値がないため表示に使わない
+  faction_short: string | null;    // 会派の公式の略称
   house: "衆議院" | "参議院";
   district: string;
   prefecture: string | null;
@@ -31,7 +31,6 @@ export interface Member {
   source_url: string | null;
   ndl_names: string[] | null;
   speech_count: number | null;   // 発言セッション数（speeches テーブルの集計値）
-  prev_party: string | null;     // 直前の所属政党（中道改革連合等の表示で使用）
 }
 
 // ============================================================
@@ -180,23 +179,16 @@ export interface MemberKeyword {
 }
 
 // ============================================================
-// party_keywords テーブル
+// faction_vote_alignments テーブル（参院・会期ごと・会派ペア）
+// 会派の賛否は投票結果ページの会派別票数で決める（同数・0票は対象外）
 // ============================================================
-export interface PartyKeyword {
-  party: string;
-  word: string;
-  count: number;
-}
-
-// ============================================================
-// vote_alignment テーブル
-// ============================================================
-export interface VoteAlignment {
-  party_a: string;
-  party_b: string;
-  align_rate: number;
-  total_bills: number;
-  session_number: number | null;
+export interface FactionVoteAlignment {
+  house: "参議院";
+  session_number: number;
+  faction_a: string;
+  faction_b: string;
+  agree_count: number;
+  total_count: number;
 }
 
 // ============================================================
@@ -228,7 +220,17 @@ export interface QuestionListItem {
   source_url: string | null;
   member_id: string | null;
   house: "衆" | "参";
-  members: { name: string; alias_name: string | null; party: string; is_active: boolean } | null;
+  members: MemberRef | null;
+  /** 提出日の時点の会派（会派の記録から一意に定まる場合のみ。サーバー側で付与） */
+  faction_at?: string | null;
+}
+
+/** 一覧などで議員名を表示するための最小限の情報 */
+export interface MemberRef {
+  name: string;
+  alias_name: string | null;
+  faction: string | null;
+  is_active: boolean;
 }
 
 export interface PetitionListItem {

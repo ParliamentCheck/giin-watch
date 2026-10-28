@@ -7,13 +7,14 @@ import {
   getFavorites, removeFavorite, isFavorite,
   favoritesToShareUrl, importFromUrl, MAX_FAVORITES,
 } from "../../lib/favorites";
-import { PARTY_COLORS } from "../../lib/partyColors";
+import { factionColor } from "../../lib/factions";
 
 interface Member {
   id: string;
   name: string;
   alias_name: string | null;
-  party: string;
+  faction: string | null;
+  is_active: boolean;
   house: string;
   cabinet_post: string | null;
 }
@@ -73,7 +74,7 @@ function FavoritesContent() {
     async function fetchAll() {
       const [membersRes, speechRes, questionRes, sangiinQRes, billRes, voteRes] =
         await Promise.allSettled([
-          supabase.from("members").select("id, name, alias_name, party, house, cabinet_post")
+          supabase.from("members").select("id, name, alias_name, faction, is_active, house, cabinet_post")
             .in("id", memberIds),
           supabase.from("speeches")
             .select("member_id, spoken_at, committee, source_url")
@@ -87,13 +88,13 @@ function FavoritesContent() {
             .order("submitted_at", { ascending: false })
             .limit(memberIds.length * 3),
           supabase.from("sangiin_questions")
-            .select("member_id, title, submitted_at, url")
+            .select("member_id, title, submitted_at, source_url")
             .in("member_id", memberIds)
             .order("submitted_at", { ascending: false })
             .limit(memberIds.length * 3),
           supabase.from("bills")
             .select("submitter_ids, title, submitted_at, honbun_url")
-            .containedBy("submitter_ids", memberIds)
+            .overlaps("submitter_ids", memberIds)
             .order("submitted_at", { ascending: false })
             .limit(memberIds.length * 3),
           supabase.from("votes")
@@ -258,7 +259,7 @@ function FavoritesContent() {
                         <div style={{ display: "flex", alignItems: "center",
                           gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
                           <span style={{ fontSize: 12, fontWeight: 700,
-                            color: PARTY_COLORS[members.find(m => m.id === a.memberId)?.party || ""] || "#888888" }}>
+                            color: (() => { const mm = members.find(m => m.id === a.memberId); return mm?.is_active ? factionColor(mm.faction) : "#888888"; })() }}>
                             {a.memberName}
                           </span>
                           <span style={{ fontSize: 11, color: "#888888" }}>{a.date}</span>
@@ -297,7 +298,7 @@ function FavoritesContent() {
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {members.map((m) => {
-              const color = PARTY_COLORS[m.party] || "#7f8c8d";
+              const color = m.is_active ? factionColor(m.faction) : "#7f8c8d";
               return (
                 <div key={m.id} className="card"
                   style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -313,7 +314,7 @@ function FavoritesContent() {
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: "#555555", marginTop: 2 }}>
-                      <span style={{ color }}>{m.party}</span>
+                      <span style={{ color }}>{m.is_active ? (m.faction ?? "") : "前議員"}</span>
                       <span style={{ marginLeft: 8 }}>{m.house}</span>
                     </div>
                   </div>

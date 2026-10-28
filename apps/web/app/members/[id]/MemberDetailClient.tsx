@@ -8,7 +8,8 @@ import { isFavorite, addFavorite, removeFavorite } from "../../../lib/favorites"
 import Paginator, { PAGE_SIZE } from "../../../components/Paginator";
 import { usePagination } from "../../../hooks/usePagination";
 import AIAnalysis from "./AIAnalysis";
-import { PARTY_COLORS } from "../../../lib/partyColors";
+import { factionColor, factionPath, type FactionHistoryRow } from "../../../lib/factions";
+import FactionHistory from "./FactionHistory";
 import { SESSION_RANGE_SPEECHES, SESSION_RANGE_QUESTIONS, SESSION_RANGE_BILLS } from "../../../lib/constants";
 import type {
   Member, Speech, SpeechExcerpt,
@@ -46,11 +47,12 @@ const ROLE_COLORS: Record<string, string> = {
   "副会長": "#333333",
 };
 
-function MemberDetailContent({ initialMember, initialGlobalMax, initialCommitteeCount, initialVoteCount }: {
+function MemberDetailContent({ initialMember, initialGlobalMax, initialCommitteeCount, initialVoteCount, initialFactionHistory }: {
   initialMember?: Member | null;
   initialGlobalMax?: { session: number; question: number; bill: number; petition: number };
   initialCommitteeCount?: number | null;
   initialVoteCount?: number | null;
+  initialFactionHistory?: FactionHistoryRow[] | null;
 }) {
   const params   = useParams();
   const router   = useRouter();
@@ -63,7 +65,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   const [votes,         setVotes]         = useState<Vote[]>([]);
   const [voteStats,     setVoteStats]     = useState<{ yea: number; nay: number; absent: number; total: number } | null>(null);
   const [bills,         setBills]         = useState<Bill[]>([]);
-  const [coSponsors,    setCoSponsors]    = useState<{ id: string; name: string; party: string; count: number }[]>([]);
+  const [coSponsors,    setCoSponsors]    = useState<{ id: string; name: string; faction: string | null; is_active: boolean; count: number }[]>([]);
   const [billsSubTab,   setBillsSubTab]   = useState<"list" | "partners">("list");
   const [voteFilter,    setVoteFilter]    = useState<"all" | "賛成" | "反対" | "投票なし">("all");
   const [petitions,     setPetitions]     = useState<(Petition | SangiinPetition)[]>([]);
@@ -179,10 +181,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           .map((m) => ({
             id: m.id,
             name: (m.alias_name ?? m.name).replace(/\u3000|\s/g, ""),
-            party: m.party === "中道改革連合" && m.prev_party ? m.prev_party : m.party,
+            faction: m.is_active ? m.faction : null,
+            is_active: m.is_active,
             count: countMap[m.id] || 0,
           }))
-          .sort((a, b) => b.count - a.count)
+          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ja"))
           .slice(0, 10);
         setCoSponsors(sorted);
       }
@@ -247,8 +250,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
     </div>
   );
 
-  const color       = PARTY_COLORS[member.party] || "#7f8c8d";
-  const showFaction = member.faction && member.faction !== member.party;
+  const color       = member.is_active ? factionColor(member.faction) : "#7f8c8d";
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f4f4", color: "#1a1a1a",
@@ -326,13 +328,11 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         </div>
         {/* バッジ類（元のまま・全幅） */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <span className="badge badge-party" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, "--party-color": member.is_active ? color : "#aaaaaa" } as React.CSSProperties}>
-            🗳 {member.is_active ? member.party : `元${member.party}`}
-          </span>
-          {showFaction && (
-            <span className="badge badge-house" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12 }}>
+          {member.is_active && member.faction && (
+            <a href={factionPath(member.house, member.faction)}
+              className="badge badge-party" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, textDecoration: "none", "--party-color": color } as React.CSSProperties}>
               🏛 会派: {member.faction}
-            </span>
+            </a>
           )}
           {member.cabinet_post && (
             <span className="badge badge-cabinet" style={{ padding: "3px 10px", borderRadius: 6, fontSize: 12, whiteSpace: "normal" }}>
@@ -347,6 +347,14 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
           )}
         </div>
       </div>
+
+      {/* 会派の遍歴 */}
+      <FactionHistory
+        rows={initialFactionHistory ?? null}
+        speakerNames={[member.alias_name ?? member.name].map((n) => n.replace(/[\s\u3000]+/g, ""))}
+        house={member.house}
+        isActive={member.is_active}
+      />
 
       {/* 活動バランス + サマリー */}
       <div className="card" style={{ padding: "16px 20px", marginBottom: 16 }}>
@@ -364,7 +372,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                 { key: "bill",     label: "議員立法",   value: member.bill_count     ?? 0, globalMax: globalMax.bill     },
                 { key: "question", label: "質問主意書", value: member.question_count ?? 0, globalMax: globalMax.question },
               ]}
-              color={PARTY_COLORS[member.party] || "#333333"}
+              color={member.is_active ? factionColor(member.faction) : "#333333"}
             />
           </div>
           <div className="summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, flex: 1 }}>
@@ -608,7 +616,7 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
         <div style={{ padding: "16px 0" }}>
           <WordCloud keywords={keywords} width={600} height={320} />
           <p style={{ textAlign: "center", fontSize: 11, color: "#888888", marginTop: 8 }}>
-            <a href="/faq#keywords" style={{ color: "#888888" }}>集計方法はこちら ↗</a>
+            <a href="/faq#wordcloud" style={{ color: "#888888" }}>集計方法はこちら ↗</a>
           </p>
         </div>
       )}
@@ -839,26 +847,17 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {coSponsors.map((p, i) => {
-                    const partyColor = PARTY_COLORS[p.party] || "#7f8c8d";
-                    const isCross = p.party !== member?.party &&
-                      !(member?.party === "中道改革連合" && (p.party === "公明党" || p.party === "立憲民主党"));
+                  {coSponsors.map((p) => {
+                    const pColor = p.is_active ? factionColor(p.faction) : "#888888";
                     return (
                       <div key={p.id}
                         onClick={() => router.push(`/members/${encodeURIComponent(p.id)}`)}
                         style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
                           background: "#f9f9f9", borderRadius: 8, border: "1px solid #eeeeee",
                           cursor: "pointer" }}>
-                        <span style={{ fontSize: 12, color: "#aaaaaa", width: 20, textAlign: "right", flexShrink: 0 }}>
-                          {i + 1}
-                        </span>
-                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: partyColor, flexShrink: 0 }} />
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: pColor, flexShrink: 0 }} />
                         <span style={{ fontSize: 14, fontWeight: 600, flex: 1, color: "#1a1a1a" }}>{p.name}</span>
-                        <span style={{ fontSize: 11, color: partyColor, fontWeight: 600, flexShrink: 0 }}>{p.party}</span>
-                        {isCross && (
-                          <span style={{ fontSize: 10, color: "#ffffff", background: "#888888",
-                            borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>超党派</span>
-                        )}
+                        <span style={{ fontSize: 11, color: "#555555", flexShrink: 0 }}>{p.is_active ? (p.faction ?? "") : "前議員"}</span>
                         <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a", flexShrink: 0 }}>
                           {p.count}<span style={{ fontSize: 11, fontWeight: 400, color: "#888888", marginLeft: 2 }}>件</span>
                         </span>
@@ -892,15 +891,16 @@ function MemberDetailContent({ initialMember, initialGlobalMax, initialCommittee
   );
 }
 
-export default function MemberDetailClient({ initialMember, initialGlobalMax, initialCommitteeCount, initialVoteCount }: {
+export default function MemberDetailClient({ initialMember, initialGlobalMax, initialCommitteeCount, initialVoteCount, initialFactionHistory }: {
   initialMember?: Member | null;
   initialGlobalMax?: { session: number; question: number; bill: number; petition: number };
   initialCommitteeCount?: number | null;
   initialVoteCount?: number | null;
+  initialFactionHistory?: FactionHistoryRow[] | null;
 }) {
   return (
     <Suspense fallback={<div className="loading-block" style={{ minHeight: "100vh" }}><div className="loading-spinner" /></div>}>
-      <MemberDetailContent initialMember={initialMember} initialGlobalMax={initialGlobalMax} initialCommitteeCount={initialCommitteeCount} initialVoteCount={initialVoteCount} />
+      <MemberDetailContent initialMember={initialMember} initialGlobalMax={initialGlobalMax} initialCommitteeCount={initialCommitteeCount} initialVoteCount={initialVoteCount} initialFactionHistory={initialFactionHistory} />
     </Suspense>
   );
 }

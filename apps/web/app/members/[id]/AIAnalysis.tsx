@@ -59,13 +59,13 @@ const SYSTEM_PROMPT =
   "※この分析は公開データに基づくAI生成推測であり、『はたらく議員』の公式見解ではありません。所属政党・採決記録・議席数などの基本情報は参議院（https://www.sangiin.go.jp/）・衆議院（https://www.shugiin.go.jp/）公式サイトで最新情報を確認してください。特に2025年以降の選挙後の党派再編（新党結成・合流・解党など）は変動が激しいため、事実確認を強く推奨します。";
 
 interface AIAnalysisProps {
-  member: { name: string; alias_name?: string | null; party: string; house: string; district?: string | null; cabinet_post?: string | null; session_count?: number | null; terms?: number | null; is_active?: boolean } | null;
+  member: { name: string; alias_name?: string | null; faction: string | null; house: string; district?: string | null; cabinet_post?: string | null; session_count?: number | null; terms?: number | null; is_active?: boolean } | null;
   questions: { title: string; submitted_at: string }[];
   votes: { bill_title: string; vote: string; vote_date: string | null }[];
   bills: { title: string; submitted_at: string | null }[];
   petitions: { title: string; result: string | null }[];
   committees: { committee: string; role: string }[];
-  coSponsors?: { name: string; party: string; count: number }[];
+  coSponsors?: { name: string; faction: string | null; is_active?: boolean; count: number }[];
   speeches?: { committee: string; spoken_at: string }[];
   keywords?: { word: string; count: number }[];
   voteStats?: { yea: number; nay: number; absent: number; total: number } | null;
@@ -104,7 +104,8 @@ function buildContext(props: AIAnalysisProps): string {
   const lines: string[] = [];
   const districtPart = member.district ? `・${member.district}` : "";
   const isFormer = member.is_active === false;
-  const partyLabel = isFormer ? `元${member.party}` : member.party;
+  // 会派は現職のみ（前議員は信頼できる値がないため記載しない）
+  const partyLabel = isFormer ? "前議員" : `会派: ${member.faction ?? "不明"}`;
 
   if (isFormer) {
     lines.push("=".repeat(60));
@@ -201,8 +202,8 @@ function buildContext(props: AIAnalysisProps): string {
 
   if (coSponsors && coSponsors.length > 0) {
     lines.push("■ 共同提出パートナー（件数上位）");
-    lines.push("※ 議員立法の共同提出が多い議員。党を超えた協力関係の参考情報。");
-    for (const s of coSponsors) lines.push(`- ${s.name}（${s.party}）: ${s.count}件`);
+    lines.push("※ 議員立法を共同で提出した件数が多い議員（会派は現在の会派）。");
+    for (const s of coSponsors) lines.push(`- ${s.name}（${s.is_active === false ? "前議員" : (s.faction ?? "不明")}）: ${s.count}件`);
     lines.push("");
   }
 

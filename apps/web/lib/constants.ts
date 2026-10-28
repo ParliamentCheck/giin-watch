@@ -5,7 +5,7 @@
  */
 
 /** 現在（最新）の国会会期番号 */
-export const CURRENT_SESSION = 221;
+export const CURRENT_SESSION = 222;
 
 /** 各データの収集開始回次 */
 export const SPEECHES_START_SESSION   = 210;
