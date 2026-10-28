@@ -116,7 +116,11 @@ def collect_shugiin_committees() -> None:
 # 参議院 委員会
 # ============================================================
 
-SANGIIN_INDEX_URL = "https://www.sangiin.go.jp/japanese/kon_kokkaijyoho/index.html"
+# 参院サイトの構成変更（2026年10月）で旧 /japanese/kon_kokkaijyoho/index.html は 404。新しい委員会一覧を先に試す
+SANGIIN_INDEX_URLS = [
+    "https://www.sangiin.go.jp/jpn/gikai/kon_kokkai/iin.html",
+    "https://www.sangiin.go.jp/japanese/kon_kokkaijyoho/index.html",
+]
 SANGIIN_BASE_URL  = "https://www.sangiin.go.jp/japanese/joho1/kousei/konkokkai/current/list/"
 
 SANGIIN_EXCLUDE = {
@@ -131,19 +135,33 @@ def _normalize_san(name: str) -> str:
 
 
 def _get_sangiin_urls() -> list[str]:
-    resp = httpx.get(SANGIIN_INDEX_URL, headers=HEADERS, timeout=30)
-    resp.encoding = "utf-8"
-    soup = BeautifulSoup(resp.text, "html.parser")
-    seen: set[str] = set()
-    urls: list[str] = []
-    for link in soup.select("a"):
-        href = link.get("href", "")
-        if "list/l0" in href:
-            filename = href.split("/")[-1]
-            if filename not in seen:
-                seen.add(filename)
-                urls.append(SANGIIN_BASE_URL + filename)
-    return urls
+    """委員会一覧ページから委員名簿（list/l0xxx.htm）のURLを集める。"""
+    for index_url in SANGIIN_INDEX_URLS:
+        resp = None
+        for attempt in range(3):
+            try:
+                resp = httpx.get(index_url, headers=HEADERS, timeout=30)
+                break
+            except httpx.HTTPError as exc:
+                logger.warning("委員会一覧の取得に失敗（%d/3）%s: %s", attempt + 1, index_url, exc)
+                time.sleep(3 * (attempt + 1))
+        if resp is None or resp.status_code != 200:
+            logger.warning("委員会一覧を取得できません: %s（%s）", index_url, resp.status_code if resp else "接続失敗")
+            continue
+        soup = BeautifulSoup(resp.content.decode("utf-8", errors="replace"), "html.parser")
+        seen: set[str] = set()
+        urls: list[str] = []
+        for link in soup.select("a"):
+            href = link.get("href", "")
+            if "list/l0" in href:
+                filename = href.split("/")[-1].split("#")[0]
+                if filename not in seen:
+                    seen.add(filename)
+                    urls.append(SANGIIN_BASE_URL + filename)
+        if urls:
+            logger.info("委員会一覧: %s", index_url)
+            return urls
+    return []
 
 
 def _scrape_sangiin_committee(url: str) -> tuple[str, list[dict]]:

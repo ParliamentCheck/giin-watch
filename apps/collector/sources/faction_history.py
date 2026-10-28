@@ -2,13 +2,19 @@
 はたらく議員 — 会議録からの会派履歴の構築（会派への移行 F3）
 
 国会会議録APIは発言ごとに「発言時点の会派」（speakerGroup）を返す。
-議員ごとに全期間の発言を取得し、同じ会派が続く期間ごとに
+議員（人物）ごとに全期間・衆参両院の発言を取得し、同じ会派が続く区間ごとに
 「その会派での最初の発言日〜最後の発言日」を member_faction_history（source='ndl'）に保存する。
 
-正確性のための約束:
-  - 話者名と院が完全一致する発言だけを使う（APIの話者検索は部分一致のため、他人の発言が混ざる）
+正確性のための約束（同姓同名の別人の発言を混ぜない）:
+  - 話者名が完全一致する発言だけを使う（APIの話者検索は部分一致のため）
+  - 読み仮名が名簿と会議録の両方にあって異なる発言は使わない（同じ漢字表記の別人）
+  - 同姓同名の別人として登録済みの名前（config.HOMONYM_SPEAKER_GROUPS）は、その議員の会派の発言だけを使う
+  - 同じ日に異なる会派で記録されている議員は、別人の発言が混ざっている可能性があるため履歴を作らない
+    （ログに出し、データ品質監査の対象にする）
   - 会派が空の発言（議長としての発言など）は期間の判定に使わない
   - 発言のない期間は推測で埋めない（画面では空白のまま）
+  - 院は区別しない（大臣・発議者として他院の会議で発言した記録も本人の記録として扱う）。
+    house 列は議員レコード（現在または最後の院）を表し、各区間の院を表すものではない
 
 使い方（議員を分けて実行できる）:
   python apps/collector/sources/faction_history.py --offset 0 --limit 300
@@ -25,7 +31,7 @@ from urllib.parse import urlencode
 
 import requests
 
-from config import NDL_API_BASE, NDL_HEADERS, NDL_RATE_LIMIT_SEC
+from config import NDL_API_BASE, NDL_HEADERS, NDL_RATE_LIMIT_SEC, HOMONYM_SPEAKER_GROUPS
 from db import get_client, execute_with_retry, batch_upsert
 
 logger = logging.getLogger("faction_history")
@@ -34,18 +40,21 @@ PAGE_SIZE = 100
 MAX_RETRIES = 3
 
 
+class ConflictError(Exception):
+    """同じ日に異なる会派の記録がある（別人の発言が混ざっている可能性）"""
+
+
 def _norm(name: str) -> str:
-    return re.sub(r"[\s　]+", "", name or "")
+    return re.sub(r"[\s\u3000]+", "", name or "")
 
 
-def fetch_member_speeches(speaker: str, house: str) -> list[tuple[str, str]]:
-    """話者名・院が完全一致する発言の (日付, 会派) を返す。会派が空の発言は除く。"""
-    out: list[tuple[str, str]] = []
+def fetch_member_speeches(speaker: str) -> list[dict]:
+    """話者名が完全一致する発言の {date, group, yomi, house} を返す（衆参両院）。"""
+    out: list[dict] = []
     start = 1
     while True:
         params = {
             "speaker": speaker,
-            "nameOfHouse": house,
             "recordPacking": "json",
             "maximumRecords": PAGE_SIZE,
             "startRecord": start,
@@ -63,18 +72,17 @@ def fetch_member_speeches(speaker: str, house: str) -> list[tuple[str, str]]:
                 time.sleep(5 * (attempt + 1))
         if data is None:
             # 途中のページが取れないと期間が欠けるため、この議員の履歴は作らない（推測で埋めない）
-            raise RuntimeError(f"NDL API から {speaker}（{house}）の発言を取得できませんでした（start={start}）")
+            raise RuntimeError(f"NDL API から {speaker} の発言を取得できませんでした（start={start}）")
 
         records = data.get("speechRecord", []) or []
         for rec in records:
             if _norm(rec.get("speaker", "")) != _norm(speaker):
                 continue
-            if house not in (rec.get("nameOfHouse") or ""):
-                continue
             group = (rec.get("speakerGroup") or "").strip()
             spoken = rec.get("date") or ""
             if group and spoken:
-                out.append((spoken, group))
+                out.append({"date": spoken, "group": group,
+                            "yomi": _norm(rec.get("speakerYomi") or ""), "house": rec.get("nameOfHouse") or ""})
 
         total = data.get("numberOfRecords", 0)
         total = int(total) if str(total).isdigit() else 0
@@ -98,20 +106,39 @@ def build_runs(speeches: list[tuple[str, str]]) -> list[dict]:
 
 
 def build_for_member(member: dict) -> list[dict]:
-    house = member["house"]
     names = {_norm(member.get("name", ""))}
     names |= {_norm(n) for n in (member.get("ndl_names") or [])}
     if member.get("alias_name"):
         names.add(_norm(member["alias_name"]))
     names.discard("")
+    reading = _norm((member.get("last_name_reading") or "") + (member.get("first_name_reading") or ""))
 
-    speeches: list[tuple[str, str]] = []
+    kept: list[tuple[str, str]] = []
+    skipped_yomi = skipped_homonym = 0
     for name in sorted(names):
-        speeches.extend(fetch_member_speeches(name, house))
+        allowed = HOMONYM_SPEAKER_GROUPS.get(name, {}).get(member["id"]) if name in HOMONYM_SPEAKER_GROUPS else None
+        for rec in fetch_member_speeches(name):
+            if name in HOMONYM_SPEAKER_GROUPS and rec["group"] not in (allowed or []):
+                skipped_homonym += 1
+                continue
+            if reading and rec["yomi"] and rec["yomi"] != reading:
+                skipped_yomi += 1
+                continue
+            kept.append((rec["date"], rec["group"]))
         time.sleep(NDL_RATE_LIMIT_SEC)
-    # 話者名の完全一致で絞っているため、別名の検索どうしで同じ発言が重複することはない
-    runs = build_runs(speeches)
-    return [{"member_id": member["id"], "house": house, "source": "ndl", **r} for r in runs]
+
+    # 同じ日に異なる会派 → 別人の発言が混ざっている可能性があるため履歴を作らない
+    by_date: dict[str, set[str]] = {}
+    for d, g in kept:
+        by_date.setdefault(d, set()).add(g)
+    conflicts = sorted(d for d, gs in by_date.items() if len(gs) > 1)
+    if conflicts:
+        raise ConflictError(f"{member['id']}: 同じ日に異なる会派の記録があります（{len(conflicts)}日、例: {conflicts[:3]}）")
+
+    if skipped_yomi or skipped_homonym:
+        logger.info("%s: 読み仮名の不一致 %d件・同姓同名の別人 %d件を除外", member["id"], skipped_yomi, skipped_homonym)
+    runs = build_runs(kept)
+    return [{"member_id": member["id"], "house": member["house"], "source": "ndl", **r} for r in runs]
 
 
 def main() -> None:
@@ -126,7 +153,7 @@ def main() -> None:
     while True:
         batch = execute_with_retry(
             lambda lid=last_id: client.table("members")
-                .select("id, name, alias_name, ndl_names, house")
+                .select("id, name, alias_name, ndl_names, house, last_name_reading, first_name_reading")
                 .gt("id", lid).order("id").limit(1000),
             label="fetch_members",
         ).data or []
@@ -140,9 +167,15 @@ def main() -> None:
                 args.offset + len(target), len(target))
 
     done = failed = 0
+    conflicted: list[str] = []
     for i, m in enumerate(target, start=1):
         try:
             rows = build_for_member(m)
+        except ConflictError as exc:
+            # 別人の発言が混ざっている可能性 → 既存の会議録ベースの履歴も消して表示させない
+            conflicted.append(m["id"])
+            logger.warning("履歴を作りません（要確認）: %s", exc)
+            rows = []
         except Exception:
             failed += 1
             logger.exception("履歴の構築に失敗: %s", m["id"])
@@ -159,7 +192,9 @@ def main() -> None:
         done += 1
         logger.info("[%d/%d] %s: %d区間", i, len(target), m["id"], len(rows))
 
-    logger.info("完了: 成功 %d名 / 失敗 %d名", done, failed)
+    logger.info("完了: 成功 %d名 / 失敗 %d名 / 要確認（同じ日に異なる会派） %d名", done, failed, len(conflicted))
+    if conflicted:
+        logger.warning("要確認の議員: %s", ", ".join(conflicted))
     if failed:
         sys.exit(1)
 

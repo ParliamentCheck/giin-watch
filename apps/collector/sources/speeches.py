@@ -30,7 +30,7 @@ from config import (
     NDL_RATE_LIMIT_SEC,
 )
 from db import get_client, batch_upsert, execute_with_retry
-from utils import make_member_id, is_procedural_speech
+from utils import SpeakerResolver, is_procedural_speech
 
 try:
     from keywords import save_member_keywords_from_texts, rebuild_party_keywords
@@ -118,18 +118,12 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
         lambda: client.table("members").select("id, name, house, ndl_names").limit(2000),
         label="fetch_members",
     )
-    # (院, 正規化名) -> member_id。衆参の同名議員や院を移った議員を取り違えないよう院ごとに分ける
-    ndl_name_to_id: dict[tuple[str, str], str] = {}
+    # 話者 → member_id の名寄せ（utils.SpeakerResolver に一本化）
+    resolver = SpeakerResolver(members_result.data or [])
     member_info: dict[str, dict] = {}    # member_id -> {name, house}
     for m in (members_result.data or []):
-        m_house = m.get("house") or ""
-        for ndl_name in (m.get("ndl_names") or []):
-            ndl_name_to_id[(m_house, re.sub(r"\s+", "", ndl_name))] = m["id"]
-        if m.get("name"):
-            normalized = re.sub(r"\s+", "", m["name"])
-            ndl_name_to_id.setdefault((m_house, normalized), m["id"])
         member_info[m["id"]] = {"name": m.get("name", ""), "house": m.get("house", "")}
-    logger.info("Member name map built: %d entries", len(ndl_name_to_id))
+    logger.info("Member name map built: %d names", len(resolver.by_name))
 
     # キーワード構築用テキスト蓄積バッファ
     member_texts: dict[str, list[tuple[str, str]]] = defaultdict(list)
@@ -202,7 +196,7 @@ def collect_speeches(date_from: str | None = None, date_until: str | None = None
                 continue
 
             speaker_normalized = re.sub(r"\s+", "", speaker)
-            member_id = ndl_name_to_id.get((house, speaker_normalized)) if house else None
+            member_id = resolver.resolve(speaker_normalized, house, rec.get("speakerGroup")) if house else None
 
             # 日付
             spoken_at = rec.get("date", "")
@@ -385,13 +379,7 @@ def collect_speech_excerpts_only(date_from: str | None = None, date_until: str |
         lambda: client.table("members").select("id, name, house, ndl_names").limit(2000),
         label="fetch_members",
     )
-    ndl_name_to_id: dict[tuple[str, str], str] = {}
-    for m in (members_result.data or []):
-        m_house = m.get("house") or ""
-        for ndl_name in (m.get("ndl_names") or []):
-            ndl_name_to_id[(m_house, re.sub(r"\s+", "", ndl_name))] = m["id"]
-        if m.get("name"):
-            ndl_name_to_id.setdefault((m_house, re.sub(r"\s+", "", m["name"])), m["id"])
+    resolver = SpeakerResolver(members_result.data or [])
 
     member_excerpts: dict[str, list[dict]] = defaultdict(list)
     records_per_page = 100
@@ -439,7 +427,7 @@ def collect_speech_excerpts_only(date_from: str | None = None, date_until: str |
             if not house:
                 continue
             speaker = re.sub(r"\s+", "", rec.get("speaker", "").strip())
-            member_id = ndl_name_to_id.get((house, speaker))
+            member_id = resolver.resolve(speaker, house, rec.get("speakerGroup"))
             if not member_id:
                 continue
             speech_text = rec.get("speech", "")

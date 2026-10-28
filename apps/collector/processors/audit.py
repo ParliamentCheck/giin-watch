@@ -99,6 +99,7 @@ DISPLAY_DIFF_PCT = 0.20  # かつ相対差がこれ以上の場合のみ報告
 FRESHNESS_WARN_DAYS = 14  # R-1: 最終収集からこの日数を超えたら警告
 NULL_RATE_WARN = 0.30     # R-2: NULL率がこれ以上なら警告
 NULL_CHECK_DAYS = 30      # R-2: NULL率チェックの対象期間（直近N日）
+MEMBER_UNMATCHED_WARN = 0.02  # 国会議員の発言のうち議員と照合できない割合がこれ以上なら警告
 
 
 # ============================================================
@@ -394,6 +395,49 @@ def check_collector_freshness(client) -> list[dict]:
 
 
 # ============================================================
+# 同姓同名の確認
+# 現職議員と同じ名前の議員レコードが他にあり、config.HOMONYM_SPEAKER_GROUPS に設定がない場合に警告する。
+# （設定がないと、会議録の発言をどちらの議員のものか区別できない）
+# ============================================================
+def check_homonyms(client) -> list[dict]:
+    from config import HOMONYM_SPEAKER_GROUPS
+    rows: list[dict] = []
+    last_id = ""
+    while True:
+        batch = execute_with_retry(
+            lambda lid=last_id: client.table("members").select("id, name, ndl_names, is_active")
+                .gt("id", lid).order("id").limit(1000),
+            label="audit_homonym_members",
+        ).data or []
+        rows.extend(batch)
+        if len(batch) < 1000:
+            break
+        last_id = batch[-1]["id"]
+    by_name: dict[str, list[dict]] = {}
+    for m in rows:
+        names = {re.sub(r"[\s\u3000]+", "", m.get("name") or "")}
+        names |= {re.sub(r"[\s\u3000]+", "", n) for n in (m.get("ndl_names") or [])}
+        names.discard("")
+        for n in names:
+            by_name.setdefault(n, [])
+            if m not in by_name[n]:
+                by_name[n].append(m)
+    findings = []
+    for name, ms in sorted(by_name.items()):
+        if len(ms) < 2 or name in HOMONYM_SPEAKER_GROUPS or not any(m.get("is_active") for m in ms):
+            continue
+        findings.append({
+            "type": "同姓同名",
+            "member": name,
+            "detail": (
+                f"「{name}」に該当する議員レコードが複数あります（{', '.join(m['id'] for m in ms)}）。"
+                f"同一人物か別人かを国会会議録で確認し、別人なら config.HOMONYM_SPEAKER_GROUPS に会派を登録してください。"
+            ),
+        })
+    return findings
+
+
+# ============================================================
 # R-2: スクレイパーサイレント失敗検出（NULL率監視）
 # ============================================================
 
@@ -406,44 +450,39 @@ def check_null_rates(client) -> list[dict]:
     today = date.today()
     date_from = (today - timedelta(days=NULL_CHECK_DAYS)).isoformat()
 
-    # questions / sangiin_questions の submitted_at NULL率
+    # questions / sangiin_questions の submitted_at NULL率（最新の会期の行で確認する。両テーブルに作成日時の列はない）
     for table, label in [
         ("questions",         "質問主意書（questions）"),
         ("sangiin_questions", "参院質問（sangiin_questions）"),
     ]:
         try:
-            total_res = execute_with_retry(
-                lambda t=table: (
-                    client.table(t)
-                    .select("id", count="exact")
-                    .gte("created_at", date_from)
-                ),
-                label=f"audit_null_total:{table}",
-            )
-            total = total_res.count or 0
-            if total < 10:
-                logger.info("NULL率チェックスキップ (%s): レコード%d件（10件未満）", table, total)
+            latest = execute_with_retry(
+                lambda t=table: client.table(t).select("session").order("session", desc=True).limit(1),
+                label=f"audit_latest_session:{table}",
+            ).data or []
+            if not latest:
                 continue
-
-            null_res = execute_with_retry(
-                lambda t=table: (
-                    client.table(t)
-                    .select("id", count="exact")
-                    .gte("created_at", date_from)
-                    .is_("submitted_at", "null")
-                ),
+            session = latest[0]["session"]
+            total = execute_with_retry(
+                lambda t=table, s=session: client.table(t).select("id", count="exact").eq("session", s).limit(0),
+                label=f"audit_null_total:{table}",
+            ).count or 0
+            if total < 10:
+                logger.info("NULL率チェックスキップ (%s 第%s回): レコード%d件（10件未満）", table, session, total)
+                continue
+            null_count = execute_with_retry(
+                lambda t=table, s=session: client.table(t).select("id", count="exact")
+                    .eq("session", s).is_("submitted_at", "null").limit(0),
                 label=f"audit_null_count:{table}",
-            )
-            null_count = null_res.count or 0
+            ).count or 0
             null_rate = null_count / total
-            logger.info("NULL率 (%s): %d/%d = %.0f%%", table, null_count, total, null_rate * 100)
-
+            logger.info("NULL率 (%s 第%s回): %d/%d = %.0f%%", table, session, null_count, total, null_rate * 100)
             if null_rate >= NULL_RATE_WARN:
                 findings.append({
                     "type": "NULL率異常",
                     "member": "（全体）",
                     "detail": (
-                        f"{label} 直近{NULL_CHECK_DAYS}日の submitted_at NULL率が "
+                        f"{label} 第{session}回国会の submitted_at NULL率が "
                         f"{null_rate:.0%}（{null_count}/{total}件）です。"
                         f"公式サイトのHTML構造変更によるサイレント失敗の可能性があります。"
                     ),
@@ -451,45 +490,36 @@ def check_null_rates(client) -> list[dict]:
         except Exception as e:
             logger.warning("NULL率チェック失敗 (%s): %s", table, e)
 
-    # speeches の member_id NULL率
+    # speeches の議員照合漏れ
+    # 国会会議録で会派（speakerGroup）が記録されている＝国会議員の発言なのに、member_id が付いていない割合。
+    # （以前は政府参考人など議員以外の発言も分母に含めていたため、常に約30%となり誤検知が続いていた）
     try:
-        total_res = execute_with_retry(
-            lambda: (
-                client.table("speeches")
-                .select("id", count="exact")
-                .gte("spoken_at", date_from)
-                .eq("is_procedural", False)
-            ),
-            label="audit_null_speeches_total",
-        )
-        total = total_res.count or 0
+        total = execute_with_retry(
+            lambda: client.table("speeches").select("id", count="exact")
+                .gte("spoken_at", date_from).not_.is_("speaker_group", "null").limit(0),
+            label="audit_member_speeches_total",
+        ).count or 0
         if total >= 10:
-            null_res = execute_with_retry(
-                lambda: (
-                    client.table("speeches")
-                    .select("id", count="exact")
-                    .gte("spoken_at", date_from)
-                    .eq("is_procedural", False)
-                    .is_("member_id", "null")
-                ),
-                label="audit_null_speeches_member_id",
-            )
-            null_count = null_res.count or 0
-            null_rate = null_count / total
-            logger.info("speeches member_id NULL率: %d/%d = %.0f%%", null_count, total, null_rate * 100)
-
-            if null_rate >= NULL_RATE_WARN:
+            unmatched = execute_with_retry(
+                lambda: client.table("speeches").select("id", count="exact")
+                    .gte("spoken_at", date_from).not_.is_("speaker_group", "null")
+                    .is_("member_id", "null").limit(0),
+                label="audit_member_speeches_unmatched",
+            ).count or 0
+            rate = unmatched / total
+            logger.info("議員の発言の照合漏れ: %d/%d = %.1f%%", unmatched, total, rate * 100)
+            if rate >= MEMBER_UNMATCHED_WARN:
                 findings.append({
-                    "type": "NULL率異常",
+                    "type": "議員照合漏れ",
                     "member": "（全体）",
                     "detail": (
-                        f"speeches 直近{NULL_CHECK_DAYS}日の member_id NULL率が "
-                        f"{null_rate:.0%}（{null_count}/{total}件）です。"
-                        f"議員名の照合が機能していない可能性があります。"
+                        f"直近{NULL_CHECK_DAYS}日の国会議員の発言（会議録に会派の記載があるもの）のうち "
+                        f"{rate:.1%}（{unmatched}/{total}件）が議員と照合できていません。"
+                        f"議員名簿の更新漏れか、名寄せの不具合の可能性があります。"
                     ),
                 })
     except Exception as e:
-        logger.warning("speeches NULL率チェック失敗: %s", e)
+        logger.warning("speeches 照合漏れチェック失敗: %s", e)
 
     return findings
 
@@ -545,6 +575,10 @@ def run_audit(sample_size: int = SAMPLE_SIZE) -> list[dict]:
     # NULL率監視（R-2）
     logger.info("NULL率チェック中...")
     findings.extend(check_null_rates(client))
+
+    # 同姓同名の確認（発言を別人に付けないため）
+    logger.info("同姓同名チェック中...")
+    findings.extend(check_homonyms(client))
 
     return findings
 

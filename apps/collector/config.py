@@ -27,6 +27,15 @@ NDL_RATE_LIMIT_SEC = 0.5  # 1リクエスト / 0.5秒
 # NDL API は requests の既定 User-Agent（python-requests/x.y）を 403 で拒否する（2026-10 確認）。
 # NDL へのリクエストには必ずこのヘッダーを付けること。
 NDL_HEADERS = {"User-Agent": "GiinWatch/1.0 (public interest research; +https://www.hataraku-giin.com/)"}
+# 同姓同名の別人（国会会議録の話者名だけでは区別できない議員）
+# 会議録の「発言時点の会派」（speakerGroup）で区別する。会派名は会議録の表記どおり。
+# 新しい同姓同名が議員名簿に現れた場合はデータ品質監査が警告するので、会議録を確認してここに追加する。
+HOMONYM_SPEAKER_GROUPS: dict[str, dict[str, list[str]]] = {
+    "鬼木誠": {
+        "衆議院-鬼木誠": ["自由民主党", "自由民主党・無所属の会"],
+        "参議院-鬼木誠": ["立憲民主・社民", "立憲民主・社民・無所属", "立憲民主・無所属"],
+    },
+}
 # NDL API の連続失敗がこの回数に達したら収集を中断する（失敗ページを無限にスキップし続けないため）
 NDL_MAX_CONSECUTIVE_FAILURES = 5
 

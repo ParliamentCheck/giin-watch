@@ -60,6 +60,50 @@ def build_name_to_id(members_data: list[dict]) -> dict[str, str]:
     return name_to_id
 
 
+class SpeakerResolver:
+    """国会会議録の話者 → member_id。発言・会派履歴の名寄せはこのクラスに一本化する。
+
+    規則（推測で別人に付けない）:
+      1. 話者名（空白除去）に当たる議員が1人だけ → その議員（会議の院は問わない。
+         大臣・発議者として他院の会議で発言した場合も本人の発言として扱う）
+      2. 同姓同名の別人（config.HOMONYM_SPEAKER_GROUPS）→ 発言時点の会派で区別。当てはまらなければ付けない
+      3. 同じ名前の議員レコードが複数（院を移った同一人物など）→ 会議の院と同じ院のレコード。無ければ付けない
+      4. 名簿にない話者（議員以外・登録のない元議員）→ 付けない
+    """
+
+    def __init__(self, members: list[dict]):
+        from config import HOMONYM_SPEAKER_GROUPS
+        self.homonyms = HOMONYM_SPEAKER_GROUPS
+        self.by_name: dict[str, list[dict]] = {}
+        for m in members:
+            names = {re.sub(r"[\s\u3000]+", "", m.get("name") or "")}
+            names |= {re.sub(r"[\s\u3000]+", "", n) for n in (m.get("ndl_names") or [])}
+            names.discard("")
+            for n in names:
+                lst = self.by_name.setdefault(n, [])
+                if all(x["id"] != m["id"] for x in lst):
+                    lst.append({"id": m["id"], "house": m.get("house") or ""})
+
+    def resolve(self, speaker: str, meeting_house: str, speaker_group: str | None) -> str | None:
+        name = re.sub(r"[\s\u3000]+", "", speaker or "")
+        if name in self.homonyms:
+            for member_id, groups in self.homonyms[name].items():
+                if speaker_group and speaker_group in groups:
+                    return member_id
+            return None
+        candidates = self.by_name.get(name) or []
+        if len(candidates) == 1:
+            return candidates[0]["id"]
+        same_house = [c for c in candidates if c["house"] and c["house"] in (meeting_house or "")]
+        if len(same_house) == 1:
+            return same_house[0]["id"]
+        return None
+
+    def duplicate_names(self) -> list[str]:
+        """同じ名前に複数の議員レコードがあり、同姓同名の設定がないもの（監査用）"""
+        return sorted(n for n, lst in self.by_name.items() if len(lst) > 1 and n not in self.homonyms)
+
+
 # ============================================================
 # 政党名正規化
 # ============================================================

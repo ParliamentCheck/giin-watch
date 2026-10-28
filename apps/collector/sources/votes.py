@@ -13,11 +13,12 @@ import time
 import logging
 import sys
 import httpx
+import requests
 from bs4 import BeautifulSoup
 
 from db import get_client, execute_with_retry, batch_upsert
 from utils import build_name_to_id
-from config import SESSION_MAX
+from config import SESSION_MAX, NDL_HEADERS
 
 logger = logging.getLogger("vote_scraper")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -27,6 +28,34 @@ SANGIIN_BASE = "https://www.sangiin.go.jp"
 
 # バックフィル: 208回〜最新セッション（404は graceful skip）
 BACKFILL_START_SESSION = 208
+
+
+NDL_MEETING_LIST_API = "https://kokkai.ndl.go.jp/api/meeting_list"
+_ndl_session_cache: dict[str, set[int] | None] = {}
+
+
+def ndl_plenary_sessions(vote_date: str) -> set[int] | None:
+    """国会会議録で、その日の参議院本会議の国会回次を返す。
+
+    会議録が未公開（直近の会議）・取得失敗の場合は None（確認できない）。
+    参院サイトには「第209回国会 2025年11月28日」のように回次を誤って掲載したページがあるため、
+    国会会議録（公式記録）と照合して食い違うページは取り込まない。
+    """
+    if vote_date in _ndl_session_cache:
+        return _ndl_session_cache[vote_date]
+    params = {"nameOfHouse": "参議院", "nameOfMeeting": "本会議", "from": vote_date, "until": vote_date,
+              "recordPacking": "json", "maximumRecords": 10}
+    result: set[int] | None = None
+    try:
+        resp = requests.get(NDL_MEETING_LIST_API, params=params, headers=NDL_HEADERS, timeout=30)
+        resp.raise_for_status()
+        meetings = resp.json().get("meetingRecord", []) or []
+        sessions = {int(m["session"]) for m in meetings if str(m.get("session", "")).isdigit()}
+        result = sessions or None
+    except Exception as exc:  # noqa: BLE001 — 確認できない場合は None
+        logger.warning(f"  国会会議録で回次を確認できませんでした（{vote_date}）: {exc}")
+    _ndl_session_cache[vote_date] = result
+    return result
 
 
 def normalize_name(name: str) -> str:
@@ -113,6 +142,16 @@ def parse_vote_page(url: str, session: int, name_to_id: dict[str, str]) -> tuple
 
     vote_key = url.rsplit("/", 1)[-1].removesuffix(".htm")  # 例: 221-0323-v008
 
+    # 回次の照合（参院サイトの掲載誤りを取り込まない）
+    if vote_date:
+        ndl_sessions = ndl_plenary_sessions(vote_date)
+        if ndl_sessions is not None and session not in ndl_sessions:
+            logger.warning(
+                f"  回次の不一致のため取り込みません: {url}（ページ: 第{session}回 {vote_date} / "
+                f"国会会議録: 第{sorted(ndl_sessions)}回）"
+            )
+            return [], []
+
     # 議員ごとの賛否を取得
     # ページは会派ごとに区切られている:
     #   <h4 class="party">会派名( N名)</h4>
@@ -129,9 +168,9 @@ def parse_vote_page(url: str, session: int, name_to_id: dict[str, str]) -> tuple
         if not member_id:
             unmatched.append(display_name)
             return
-        # IDは従来どおり（会期＋件名＋議員）のハッシュ。既存行と重複させないため変更しない
-        raw_id = f"{session}-{bill_title}-{member_id}"
-        vote_id = f"sv-{hashlib.md5(raw_id.encode()).hexdigest()[:16]}"
+        # IDは「投票結果ページ＋議員」から作る（同じ会期に同名の案件が複数回採決されても衝突しない）
+        raw_id = f"{vote_key}|{member_id}"
+        vote_id = f"sv2-{hashlib.md5(raw_id.encode()).hexdigest()[:16]}"
         if vote_id in seen_ids:
             return
         seen_ids.add(vote_id)

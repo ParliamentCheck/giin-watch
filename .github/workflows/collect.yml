@@ -154,14 +154,47 @@ jobs:
             --title "データ品質監査: 不整合を検出 $(date +%Y-%m-%d)" \
             --body "$(cat /tmp/audit_report.md)"
 
+      # 各ステップは continue-on-error のため、失敗してもジョブは緑のままになる
+      # （2026-10-20〜27 に参院委員会の収集が毎日失敗していたのに気づけなかった）。
+      # 失敗・中断・時間切れが1つでもあれば Issue に記録し、ジョブ自体も失敗させて通知されるようにする。
       - name: 失敗チェック
         if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OUTCOMES: |
+            議員データ登録=${{ steps.members.outcome }}
+            発言データ収集=${{ steps.speeches.outcome }}
+            活動スコア再計算=${{ steps.scoring.outcome }}
+            内閣役職=${{ steps.cabinet.outcome }}
+            質問主意書=${{ steps.questions.outcome }}
+            請願収集=${{ steps.petitions.outcome }}
+            採決記録=${{ steps.votes.outcome }}
+            議員立法・閣法=${{ steps.bills.outcome }}
+            委員会所属=${{ steps.committees.outcome }}
+            採決一致率=${{ steps.vote_alignment.outcome }}
+            キーワード更新=${{ steps.keywords.outcome }}
+            speeches上限チェック=${{ steps.cleanup.outcome }}
+            データ品質監査=${{ steps.audit.outcome }}
         run: |
-          if [ "${{ steps.members.outcome }}" = "failure" ] || \
-             [ "${{ steps.speeches.outcome }}" = "failure" ] || \
-             [ "${{ steps.scoring.outcome }}" = "failure" ]; then
-            echo "::warning::1つ以上のステップが失敗しました"
+          failed=$(printf '%s\n' "$OUTCOMES" | grep -E '=(failure|cancelled)$' || true)
+          if [ -z "$failed" ]; then
+            echo "すべてのステップが成功またはスキップ"
+            exit 0
           fi
+          echo "::error::失敗したステップがあります"
+          echo "$failed"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body=$(printf '日次データ収集で失敗したステップがあります。\n\n```\n%s\n```\n\n実行ログ: %s\n' "$failed" "$run_url")
+          open_issue=$(gh issue list --repo "${{ github.repository }}" --state open \
+            --search "日次データ収集: 失敗したステップ in:title" --json number --jq '.[0].number' || true)
+          if [ -n "$open_issue" ]; then
+            gh issue comment "$open_issue" --repo "${{ github.repository }}" --body "$(date -u +%Y-%m-%d) の実行
+          $body"
+          else
+            gh issue create --repo "${{ github.repository }}" \
+              --title "日次データ収集: 失敗したステップあり $(date -u +%Y-%m-%d)" --body "$body"
+          fi
+          exit 1
 
       # GitHub は公開リポジトリで60日間アクティビティがないと定期実行を自動停止する
       # （2026-06-14 に実際に停止し、約4か月データが止まった）。
