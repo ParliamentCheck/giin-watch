@@ -382,7 +382,7 @@ def collect_bills(daily: bool = False) -> None:
     client = get_client()
     members_data = (
         execute_with_retry(
-            lambda: client.table("members").select("id, name, alias_name, ndl_names").limit(2000),
+            lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").limit(2000),
             label="fetch_all_members",
         ).data or []
     )
@@ -479,7 +479,7 @@ def backfill_submitters() -> None:
     client = get_client()
     members_data = (
         execute_with_retry(
-            lambda: client.table("members").select("id, name, alias_name, ndl_names").limit(2000),
+            lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").limit(2000),
             label="fetch_all_members",
         ).data or []
     )

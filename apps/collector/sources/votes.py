@@ -254,7 +254,7 @@ def get_name_map() -> dict[str, str]:
     """
     client = get_client()
     result = execute_with_retry(
-        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "参議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").eq("house", "参議院").limit(2000),
         label="fetch_sangiin_members",
     )
     data = result.data or []

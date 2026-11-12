@@ -88,7 +88,7 @@ def collect_shugiin_questions(full: bool = False) -> None:
     """
     client = get_client()
     members_data = execute_with_retry(
-        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "衆議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").eq("house", "衆議院").limit(2000),
         label="fetch_shugiin_members",
     ).data or []
     name_to_id = build_name_to_id(members_data)
@@ -285,7 +285,7 @@ def collect_sangiin_questions(sessions: list[int] | None = None, full: bool = Fa
             logger.info("日次モード: 参院セッション %s のみ対象", sessions)
     client = get_client()
     members_data = execute_with_retry(
-        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "参議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").eq("house", "参議院").limit(2000),
         label="fetch_sangiin_members",
     ).data or []
     name_to_id = build_name_to_id(members_data)

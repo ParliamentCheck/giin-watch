@@ -73,7 +73,7 @@ def collect_shugiin_committees() -> None:
     client = get_client()
     logger.info("衆議院議員を取得中...")
     members_data = execute_with_retry(
-        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "衆議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").eq("house", "衆議院").limit(2000),
         label="fetch_shugiin_members",
     ).data or []
     member_map = build_name_to_id(members_data)
@@ -211,7 +211,7 @@ def collect_sangiin_committees() -> None:
     client = get_client()
     logger.info("参議院議員を取得中...")
     members_data = execute_with_retry(
-        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "参議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").eq("house", "参議院").limit(2000),
         label="fetch_sangiin_members",
     ).data or []
     member_map = build_name_to_id(members_data)
