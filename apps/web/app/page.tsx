@@ -17,7 +17,6 @@ import {
   getLatestCommitteeActivity,
   getMonthlyQuestionsTrend,
   getFactionHistory,
-  getFactionVoteAlignments,
 } from "../lib/queries";
 import Link from "next/link";
 import ActivityTabs from "./components/ActivityTabs";
@@ -129,21 +128,32 @@ async function getCurrentSessionStats() {
 }
 
 // 会派ペアの採決一致（参院・直近の会期）。コレクターが公式の会派別票数から集計した値を読むだけ
-async function getLatestFactionAlignments() {
-  const rows = await getFactionVoteAlignments(supabaseServer);
-  if (rows.length === 0) return null;
-  const session = Math.max(...rows.map((r) => r.session_number));
-  const pairs = rows
-    .filter((r) => r.session_number === session && r.total_count >= 10)
-    .filter((r) => r.faction_a !== "各派に属しない議員" && r.faction_b !== "各派に属しない議員")
-    .map((r) => ({ a: r.faction_a, b: r.faction_b, rate: r.agree_count / r.total_count, total: r.total_count }));
-  if (pairs.length < 2) return null;
-  return { session, pairs };
+// 最近の参議院本会議の採決（押しボタン式投票）。投票結果ページの会派別の票数を合計した値を表示する
+async function getRecentSangiinVotes(limit = 5) {
+  const { data, error } = await supabaseServer
+    .from("vote_faction_totals")
+    .select("vote_key,session_number,vote_date,bill_title,yes_count,no_count")
+    .order("vote_date", { ascending: false })
+    .order("vote_key", { ascending: false })
+    .limit(300);
+  if (error) return null;
+  const byKey = new Map<string, { vote_key: string; session: number; date: string; title: string; yes: number; no: number }>();
+  for (const r of (data ?? []) as { vote_key: string; session_number: number; vote_date: string; bill_title: string; yes_count: number | null; no_count: number | null }[]) {
+    const cur = byKey.get(r.vote_key);
+    if (cur) {
+      cur.yes += r.yes_count ?? 0;
+      cur.no += r.no_count ?? 0;
+    } else {
+      if (byKey.size >= limit) continue;
+      byKey.set(r.vote_key, { vote_key: r.vote_key, session: r.session_number, date: r.vote_date, title: r.bill_title, yes: r.yes_count ?? 0, no: r.no_count ?? 0 });
+    }
+  }
+  return [...byKey.values()];
 }
 
 /* ─── ページ本体 ───────────────────────────────────────────── */
 export default async function TopPage() {
-  const [stats, recentQuestions, committeeActivities, factionBreakdown, petitionsResult, recentBills, currentStats, alignment, monthlyQuestions, crossFactionBills] = await Promise.all([
+  const [stats, recentQuestions, committeeActivities, factionBreakdown, petitionsResult, recentBills, currentStats, recentVotes, monthlyQuestions, crossFactionBills] = await Promise.all([
     getTopPageStats(supabaseServer),
     getTopRecentQuestions(supabaseServer),
     getLatestCommitteeActivity(supabaseServer),
@@ -151,7 +161,7 @@ export default async function TopPage() {
     getTopRecentPetitions(supabaseServer),
     getRecentBills(),
     getCurrentSessionStats(),
-    getLatestFactionAlignments(),
+    getRecentSangiinVotes(),
     getMonthlyQuestionsTrend(CURRENT_SESSION - 4, supabaseServer),
     getCrossFactionBills(),
   ]);
@@ -233,68 +243,40 @@ export default async function TopPage() {
           </div>
         </section>
 
-        {/* ── A: 参議院本会議の採決での会派間の賛否の一致 ─────── */}
-        {alignment && (() => {
-          type Pair = { a: string; b: string; rate: number; total: number };
-          const sorted = [...alignment.pairs].sort((x, y) => y.rate - x.rate || x.a.localeCompare(y.a, "ja"));
-          // 上位・下位それぞれ3組（同率は含める）。順位の番号は付けない
-          const take = (list: Pair[]) => {
-            let n = Math.min(3, list.length);
-            while (n < list.length && list[n].rate === list[n - 1].rate) n++;
-            return list.slice(0, n);
-          };
-          const high = take(sorted);
-          const low  = take([...sorted].reverse());
-          const PairRow = ({ pair }: { pair: Pair }) => (
-            <div className="px-5 py-3.5 border-b border-neutral-200/70 last:border-0">
-              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                <span style={{ color: factionColor(pair.a), fontSize: 9 }}>●</span>
-                <span className="text-xs font-semibold text-neutral-800">{pair.a}</span>
-                <span className="text-[10px] text-neutral-500">×</span>
-                <span style={{ color: factionColor(pair.b), fontSize: 9 }}>●</span>
-                <span className="text-xs font-semibold text-neutral-800">{pair.b}</span>
-                <span className="text-xs font-bold tabular-nums text-neutral-900 ml-auto shrink-0">
-                  {(pair.rate * 100).toFixed(1)}%
-                  <span className="text-[10px] font-normal text-neutral-500 ml-1">（{pair.total}件中）</span>
-                </span>
+        {/* ── A: 最近の参議院本会議の採決 ─────────────────── */}
+        {recentVotes && recentVotes.length > 0 && (
+          <section className="mb-16">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h2 className="text-lg font-bold text-neutral-900">最近の参議院本会議の採決</h2>
+                <p className="text-xs text-neutral-600 mt-0.5">押しボタン式投票の記録・新しい順</p>
               </div>
-              <div className="h-1.5 bg-neutral-200 rounded-full overflow-hidden">
-                <div className="h-full rounded-full bg-neutral-500" style={{ width: `${(pair.rate * 100).toFixed(1)}%` }} />
-              </div>
+              <Link href="/votes" className="text-xs text-neutral-600 hover:text-neutral-900 bg-white border border-neutral-300 hover:border-neutral-500 rounded-full px-3 py-1 transition-colors shrink-0 ml-4 mt-1">
+                採決記録へ →
+              </Link>
             </div>
-          );
-          return (
-            <section className="mb-16">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h2 className="text-lg font-bold text-neutral-900">参議院本会議の採決での会派間の賛否の一致</h2>
-                  <p className="text-xs text-neutral-600 mt-0.5">第{alignment.session}回国会・参議院本会議（押しボタン式投票の記録）</p>
-                </div>
-                <Link href="/votes" className="text-xs text-neutral-600 hover:text-neutral-900 bg-white border border-neutral-300 hover:border-neutral-500 rounded-full px-3 py-1 transition-colors shrink-0 ml-4 mt-1">
-                  全会派の一覧 →
-                </Link>
-              </div>
-              <p className="text-sm text-neutral-600 leading-relaxed mb-5">
-                参議院の投票結果ページに記載された会派別の賛成票・反対票から、各会派の賛否（賛成票と反対票の多い方）を求め、
-                2つの会派の賛否が同じだった採決の割合を機械的に集計しています。賛成票と反対票が同数の場合は対象外です。
-              </p>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
-                  <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
-                    <p className="text-xs font-bold text-neutral-700">一致の割合が高い組み合わせ</p>
+            <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+              {recentVotes.map((v) => (
+                <a key={v.vote_key}
+                  href={`https://www.sangiin.go.jp/japanese/touhyoulist/${v.session}/${v.vote_key}.htm`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="block px-5 py-3.5 border-b border-neutral-200/70 last:border-0 hover:bg-neutral-50 transition-colors">
+                  <div className="text-sm text-neutral-900 leading-snug mb-1">{v.title}</div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-neutral-600">
+                    <span className="tabular-nums">{v.date}</span>
+                    <span>第{v.session}回国会</span>
+                    <span className="tabular-nums">賛成 {v.yes.toLocaleString()}</span>
+                    <span className="tabular-nums">反対 {v.no.toLocaleString()}</span>
+                    <span className="text-neutral-500">参議院の投票結果 ↗</span>
                   </div>
-                  {high.map((pair) => <PairRow key={`${pair.a}|${pair.b}`} pair={pair} />)}
-                </div>
-                <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
-                  <div className="px-5 py-2.5 bg-neutral-50 border-b border-neutral-200">
-                    <p className="text-xs font-bold text-neutral-700">一致の割合が低い組み合わせ</p>
-                  </div>
-                  {low.map((pair) => <PairRow key={`${pair.a}|${pair.b}`} pair={pair} />)}
-                </div>
-              </div>
-            </section>
-          );
-        })()}
+                </a>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-500 mt-2 leading-relaxed">
+              賛成・反対の数は、参議院の投票結果ページに記載された会派別の票数の合計です。起立採決・異議なし採決は記録されないため含まれません。
+            </p>
+          </section>
+        )}
 
         {/* ── B: 質問主意書の月別推移（院別） ───────────────── */}
         {monthlyQuestions.length > 0 && (

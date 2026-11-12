@@ -286,6 +286,15 @@ export default function BillsClient() {
           <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 0 }}>📋 法案</h1>
         </div>
 
+        {/* 法案データの修正中の注記（法案IDの修正と再取得が終わったら外す） */}
+        <div role="note" style={{ marginBottom: 16, padding: "12px 16px", background: "#fff8e6",
+          border: "1px solid #f0d9a0", borderRadius: 10, fontSize: 13, color: "#5c4400", lineHeight: 1.7 }}>
+          <strong>法案のデータを修正しています。</strong>
+          現在、継続審査となった法案が複数の国会の回次に重ねて載っている場合があるほか、
+          衆議院の議員立法の一部と参議院の閣法に提出日の記録がありません。件数は目安としてご覧ください。
+          正確な審議経過は、各法案の「経過」リンク先（衆参の公式サイト）をご確認ください。
+        </div>
+
         {/* トップタブ：議員立法 / 閣法 / 委員会提出 */}
         <div className="tab-bar-container" style={{ marginBottom: 16 }}>
           {([
