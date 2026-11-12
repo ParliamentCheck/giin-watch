@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import MemberChip from "../../components/MemberChip";
+import { houseColor } from "../../lib/houseColors";
 
 interface Question {
   id: string;
@@ -94,9 +95,8 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
             <div key={q.id}
               className="bg-white/40 border border-neutral-200 rounded-xl px-4 py-3">
               <div className="flex items-start gap-2 mb-1.5">
-                <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${
-                  q.house === "衆" ? "bg-neutral-200/60 text-neutral-500" : "bg-neutral-200/60 text-neutral-500"
-                }`}>{q.house}</span>
+                <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 text-neutral-700"
+                  style={{ background: `${houseColor(q.house)}1a`, border: `1px solid ${houseColor(q.house)}` }}>{q.house}</span>
                 {q.source_url ? (
                   <a href={q.source_url} target="_blank" rel="noopener noreferrer"
                     className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2 underline underline-offset-2 decoration-neutral-400">
@@ -159,7 +159,8 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
               className="bg-white/40 border border-neutral-200 rounded-xl px-4 py-3">
               <div className="flex items-start gap-2 mb-1.5">
                 {b.house && (
-                  <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 bg-neutral-200/60 text-neutral-500">
+                  <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 text-neutral-700"
+                    style={{ background: `${houseColor(b.house)}1a`, border: `1px solid ${houseColor(b.house)}` }}>
                     {b.house === "衆議院" ? "衆" : "参"}
                   </span>
                 )}
@@ -210,9 +211,8 @@ export default function ActivityTabs({ recentQuestions, committeeActivities, rec
               <div key={p.id}
                 className="bg-white/40 border border-neutral-200 rounded-xl px-4 py-3">
                 <div className="flex items-start gap-2 mb-1.5">
-                  <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 ${
-                    p.house === "衆" ? "bg-neutral-200/60 text-neutral-500" : "bg-neutral-200/60 text-neutral-500"
-                  }`}>{p.house}</span>
+                  <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 text-neutral-700"
+                    style={{ background: `${houseColor(p.house)}1a`, border: `1px solid ${houseColor(p.house)}` }}>{p.house}</span>
                   {p.source_url ? (
                     <a href={p.source_url} target="_blank" rel="noopener noreferrer"
                       className="text-sm text-neutral-800 hover:text-neutral-600 leading-snug transition-colors line-clamp-2 underline underline-offset-2 decoration-neutral-400">

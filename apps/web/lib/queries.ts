@@ -28,6 +28,7 @@ import type {
   PetitionListItem,
 } from "./types";
 import type { FactionRow, FactionHistoryRow } from "./factions";
+import { toIsoDate } from "./factions";
 
 // ============================================================
 // クライアント型
@@ -504,13 +505,14 @@ export async function getTopRecentQuestions(client: Db = defaultClient): Promise
       .order("submitted_at", { ascending: false }).limit(10),
   ]);
 
-  type RawShuQuestion = Omit<RecentQuestionItem, "house">;
-  type RawSanQuestion = Omit<RecentQuestionItem, "house" | "source_url"> & { url: string | null };
-  const shu = (shuRes.data as unknown as RawShuQuestion[] ?? []).map((q) => ({ ...q, house: "衆" as const }));
-  const san = (sanRes.data as unknown as RawSanQuestion[] ?? []).map((q) => ({ ...q, source_url: q.url, house: "参" as const }));
+  type RawQuestion = Omit<RecentQuestionItem, "house">;
+  const shu = (shuRes.data as unknown as RawQuestion[] ?? []).map((q) => ({ ...q, house: "衆" as const }));
+  const san = (sanRes.data as unknown as RawQuestion[] ?? []).map((q) => ({ ...q, house: "参" as const }));
 
+  // 提出日は衆院が和暦の文字列（「令和 8年 2月19日」）、参院が西暦のため、西暦にそろえて並べる
+  const iso = (q: RecentQuestionItem) => toIsoDate(q.submitted_at) ?? "";
   return ([...shu, ...san] as RecentQuestionItem[])
-    .sort((a, b) => (b.submitted_at || "").localeCompare(a.submitted_at || ""))
+    .sort((a, b) => iso(b).localeCompare(iso(a)))
     .slice(0, 10);
 }
 
@@ -746,10 +748,17 @@ export async function getMonthlyQuestionsTrend(
     (monthMap[ym] ??= { shugiin: 0, sangiin: 0 }).sangiin++;
   }
 
-  return Object.entries(monthMap)
-    .sort(([a], [b]) => b.localeCompare(a))
-    .slice(0, 12)
-    .map(([month, c]) => ({ month, total: c.shugiin + c.sangiin, ...c }));
+  // 直近12か月を暦どおりに並べる。提出のない月（国会の閉会中など）も 0件として表示し、月を飛ばさない
+  const nowJst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const months: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth() - i, 1));
+    months.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  return months.map((month) => {
+    const c = monthMap[month] ?? { shugiin: 0, sangiin: 0 };
+    return { month, total: c.shugiin + c.sangiin, ...c };
+  });
 }
 
 /** 法案リストページ用（bill_type でフィルター） */

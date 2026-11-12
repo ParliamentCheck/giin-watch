@@ -20,6 +20,7 @@ import {
 } from "../lib/queries";
 import Link from "next/link";
 import ActivityTabs from "./components/ActivityTabs";
+import MonthlyQuestions from "./components/MonthlyQuestions";
 import changelog from "../lib/changelog";
 import { buildFactionAt, factionColor, factionPath, type House } from "../lib/factions";
 import { CURRENT_SESSION } from "../lib/constants";
@@ -279,7 +280,7 @@ export default async function TopPage() {
         )}
 
         {/* ── B: 質問主意書の月別推移（院別） ───────────────── */}
-        {monthlyQuestions.length > 0 && (
+        {monthlyQuestions.some((m) => m.total > 0) && (
           <section className="mb-16">
             <div className="mb-3">
               <h2 className="text-lg font-bold text-neutral-900">質問主意書の月別推移</h2>
@@ -287,31 +288,9 @@ export default async function TopPage() {
             </div>
             <p className="text-sm text-neutral-600 leading-relaxed mb-5">
               質問主意書は、議員が内閣に対して文書で説明を求める制度で、内閣の答弁書とともに公式記録として残ります。
-              月ごとの提出件数を院別に示しています。
+              月ごとの提出件数を院別に示しています。月を選ぶと、その月に提出された質問主意書と提出した議員を確認できます。
             </p>
-            <div className="bg-white border border-neutral-200 rounded-2xl px-6 py-5 space-y-2.5">
-              <div className="flex gap-4 text-[11px] text-neutral-600 mb-1">
-                <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-neutral-700" />衆議院</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-neutral-400" />参議院</span>
-              </div>
-              {(() => {
-                const max = Math.max(...monthlyQuestions.map((m) => m.total), 1);
-                return monthlyQuestions.map((m) => (
-                  <div key={m.month} className="flex items-center gap-3">
-                    <span className="whitespace-nowrap shrink-0 w-16 text-[11px] tabular-nums text-neutral-600">{m.month}</span>
-                    <div className="flex-1 h-4 bg-neutral-100 rounded-full overflow-hidden">
-                      <div className="h-full flex" style={{ width: `${(m.total / max) * 100}%` }}>
-                        <div className="h-full bg-neutral-700" style={{ width: `${m.total ? (m.shugiin / m.total) * 100 : 0}%` }} />
-                        <div className="h-full bg-neutral-400" style={{ width: `${m.total ? (m.sangiin / m.total) * 100 : 0}%` }} />
-                      </div>
-                    </div>
-                    <span className="text-[11px] text-neutral-600 tabular-nums w-20 text-right shrink-0">
-                      {m.total}<span className="text-neutral-500">（衆{m.shugiin}/参{m.sangiin}）</span>
-                    </span>
-                  </div>
-                ));
-              })()}
-            </div>
+            <MonthlyQuestions months={monthlyQuestions} />
           </section>
         )}
 
