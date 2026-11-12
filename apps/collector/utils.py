@@ -40,9 +40,17 @@ def build_name_to_id(members_data: list[dict]) -> dict[str, str]:
     名寄せロジックを修正する場合はここだけ直す。
 
     優先順位: name > alias_name > ndl_names（先勝ち）
+
+    同じ名前を複数の議員レコードが持つ場合は、現職（is_active=True）のレコードを優先する。
+    名簿の表記が変わる（例: 「田村まみ」→「田村 麻美［田村 まみ］」）などで前議員扱いの古いレコードが
+    残っていると、現職の採決・委員会・請願などが前議員側に付いてしまうため。
+    is_active を取得していないデータは現職として扱う（従来どおり先勝ち）。
+    現職どうしで名前が重なる場合は同姓同名の可能性があるため、監査（processors/audit.py の同姓同名チェック）で検出する。
     """
     name_to_id: dict[str, str] = {}
-    for m in members_data:
+    # 現職を先に処理する（sorted は安定ソートなので、同じ区分の中の順序は変えない）
+    ordered = sorted(members_data, key=lambda m: 0 if m.get("is_active", True) else 1)
+    for m in ordered:
         member_id = m["id"]
         # 本名
         norm = re.sub(r"[\s\u3000]+", "", (m.get("name") or ""))

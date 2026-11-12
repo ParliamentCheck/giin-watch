@@ -177,7 +177,7 @@ def collect_shugiin_petitions(full: bool = False) -> None:
     """
     client = get_client()
     members_data = execute_with_retry(
-        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "衆議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").eq("house", "衆議院").limit(2000),
         label="fetch_shugiin_members",
     ).data or []
     member_ids_set = {m["id"] for m in members_data}
@@ -382,7 +382,7 @@ def collect_sangiin_petitions(full: bool = False) -> None:
     """
     client = get_client()
     members_data = execute_with_retry(
-        lambda: client.table("members").select("id, name, alias_name, ndl_names").eq("house", "参議院").limit(2000),
+        lambda: client.table("members").select("id, name, alias_name, ndl_names, is_active").eq("house", "参議院").limit(2000),
         label="fetch_sangiin_members",
     ).data or []
     member_ids_set = {m["id"] for m in members_data}

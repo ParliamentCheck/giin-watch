@@ -626,7 +626,8 @@ def main(sample_size: int = SAMPLE_SIZE, output_path: str | None = None) -> None
                 fp.write(report)
             logger.info("レポートを書き出し: %s", output_path)
 
-        sys.exit(1)
+        # 不整合あり = 2（スクリプト自体の失敗 = 1 と区別する。ワークフローは 2 を Issue 報告に回す）
+        sys.exit(2)
     else:
         logger.info("✓ 不整合なし（発言チェック%d名・大臣職全員・表示検証%d名・鮮度・NULL率）", sample_size, sample_size)
         sys.exit(0)

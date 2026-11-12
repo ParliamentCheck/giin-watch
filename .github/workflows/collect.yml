@@ -143,16 +143,33 @@ jobs:
         id: audit
         continue-on-error: true
         timeout-minutes: 10
-        run: python apps/collector/processors/audit.py --output /tmp/audit_report.md
+        # 終了コード: 0 = 不整合なし、2 = 不整合あり（Issue に報告）、それ以外 = スクリプトの失敗（失敗チェックで検知）
+        run: |
+          set +e
+          python apps/collector/processors/audit.py --output /tmp/audit_report.md
+          code=$?
+          if [ "$code" -eq 2 ]; then
+            echo "findings=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          exit $code
 
-      - name: 監査エラーをIssueに報告
-        if: steps.audit.outcome == 'failure'
+      # 不整合は毎日新しい Issue を作らず、開いている監査 Issue にコメントで追記する
+      # （2026-10〜11 に同じ指摘の Issue が毎日作られ、40件以上たまった）
+      - name: 監査の不整合をIssueに報告
+        if: steps.audit.outputs.findings == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue create \
-            --title "データ品質監査: 不整合を検出 $(date +%Y-%m-%d)" \
-            --body "$(cat /tmp/audit_report.md)"
+          open_issue=$(gh issue list --repo "${{ github.repository }}" --state open \
+            --search "データ品質監査: 不整合を検出 in:title" --json number --jq '.[0].number' || true)
+          if [ -n "$open_issue" ]; then
+            gh issue comment "$open_issue" --repo "${{ github.repository }}" --body-file /tmp/audit_report.md
+          else
+            gh issue create --repo "${{ github.repository }}" \
+              --title "データ品質監査: 不整合を検出 $(date -u +%Y-%m-%d)" \
+              --body-file /tmp/audit_report.md
+          fi
 
       # 各ステップは continue-on-error のため、失敗してもジョブは緑のままになる
       # （2026-10-20〜27 に参院委員会の収集が毎日失敗していたのに気づけなかった）。
